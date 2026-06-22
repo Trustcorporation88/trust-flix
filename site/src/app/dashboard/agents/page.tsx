@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS } from '@/services/arsenalService';
-import { AIExecutorConfig } from '@/services/aiExecutor';
+import { AIExecutorConfig, AIProvider, PROVIDERS, getProvider } from '@/services/aiExecutor';
 
 export default function AgentsPage() {
   const agentExecutor = useAgentExecutor();
@@ -12,9 +12,20 @@ export default function AgentsPage() {
   const [selectedPhase, setSelectedPhase] = useState(1);
   const [selectedAgent, setSelectedAgent] = useState(ARSENAL_AGENTS[0]);
   const [userInput, setUserInput] = useState('');
-  const [aiProvider, setAiProvider] = useState<'openai' | 'anthropic' | 'google'>('openai');
+  const [aiProvider, setAiProvider] = useState<AIProvider>('openai');
+  const [model, setModel] = useState(getProvider('openai')?.defaultModel || '');
+  const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [isConfigured, setIsConfigured] = useState(false);
+
+  const providerInfo = getProvider(aiProvider);
+
+  // Trocar de provider reseta o modelo para o padrão dele
+  const handleSelectProvider = (id: AIProvider) => {
+    setAiProvider(id);
+    setModel(getProvider(id)?.defaultModel || '');
+    setIsConfigured(false);
+  };
 
   // Configurar IA
   const handleConfigureAI = () => {
@@ -22,11 +33,20 @@ export default function AgentsPage() {
       alert('Por favor, insira a API key');
       return;
     }
+    if (!model) {
+      alert('Por favor, informe o modelo');
+      return;
+    }
+    if (aiProvider === 'custom' && !baseUrl) {
+      alert('Para o provider Custom, informe a Base URL (endpoint OpenAI-compatible)');
+      return;
+    }
 
     const config: AIExecutorConfig = {
       provider: aiProvider,
       apiKey,
-      model: aiProvider === 'openai' ? 'gpt-4-turbo' : aiProvider === 'anthropic' ? 'claude-3-opus-20240229' : 'gemini-pro',
+      model,
+      ...(aiProvider === 'custom' ? { baseUrl } : {}),
     };
 
     agentExecutor.configure(config);
@@ -216,20 +236,23 @@ export default function AgentsPage() {
             <div className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-purple-500/30">
               <h3 className="text-xl font-bold text-white mb-4">⚙️ Configurar Provedor de IA</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                {['openai', 'anthropic', 'google'].map(provider => (
+              <p className="text-sm text-slate-400 mb-3">
+                Escolha o provedor, cole sua API key e selecione o modelo. A chave é enviada apenas
+                ao servidor para executar a chamada — funciona com OpenAI, DeepSeek, Claude, Gemini e mais.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {PROVIDERS.map((p) => (
                   <button
-                    key={provider}
-                    onClick={() => setAiProvider(provider as any)}
-                    className={`py-3 px-4 rounded-lg font-semibold transition-all ${
-                      aiProvider === provider
+                    key={p.id}
+                    onClick={() => handleSelectProvider(p.id)}
+                    className={`py-3 px-3 rounded-lg font-semibold text-sm transition-all ${
+                      aiProvider === p.id
                         ? 'bg-purple-600 text-white'
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    {provider === 'openai' && '🔴 OpenAI (GPT)'}
-                    {provider === 'anthropic' && '🟡 Claude'}
-                    {provider === 'google' && '🔵 Google (Gemini)'}
+                    {p.emoji} {p.label}
                   </button>
                 ))}
               </div>
@@ -239,8 +262,52 @@ export default function AgentsPage() {
                 placeholder="Cole sua API Key aqui"
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-4"
+                className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-3"
               />
+
+              {providerInfo?.keyUrl && (
+                <a
+                  href={providerInfo.keyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:underline mb-3 inline-block"
+                >
+                  Obter API key da {providerInfo.label} →
+                </a>
+              )}
+
+              {/* Base URL para custom */}
+              {aiProvider === 'custom' && (
+                <input
+                  type="text"
+                  placeholder="Base URL (ex: https://api.seuprovedor.com/v1)"
+                  value={baseUrl}
+                  onChange={e => setBaseUrl(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-3"
+                />
+              )}
+
+              {/* Seletor de modelo */}
+              <label className="block text-xs text-slate-400 mb-1">Modelo</label>
+              {providerInfo && providerInfo.models.length > 0 ? (
+                <select
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white border border-slate-600 focus:border-purple-500 focus:outline-none mb-4"
+                >
+                  {providerInfo.models.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Nome do modelo (ex: gpt-4o-mini)"
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-4"
+                />
+              )}
 
               <button
                 onClick={handleConfigureAI}

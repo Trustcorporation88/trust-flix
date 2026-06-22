@@ -1,9 +1,24 @@
 /**
- * 🤖 AI Executor - Executa agentes em qualquer API de IA
- * Suporta: OpenAI (GPT), Anthropic (Claude), Google (Gemini), e custom
+ * 🤖 AI Executor - Executa agentes em qualquer provedor de IA.
+ *
+ * As chamadas são feitas via rota server-side (/api/agents/execute) para:
+ *  - evitar erros de CORS (Anthropic bloqueia chamadas diretas do browser);
+ *  - não expor a API key em requisições cross-origin a partir do cliente.
+ *
+ * Provedores compatíveis com a API OpenAI (mesmo formato de payload):
+ *  openai, deepseek, groq, mistral, openrouter e custom (baseUrl próprio).
+ * Provedores com formato próprio: anthropic (Claude) e google (Gemini).
  */
 
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'custom';
+export type AIProvider =
+  | 'openai'
+  | 'deepseek'
+  | 'anthropic'
+  | 'google'
+  | 'groq'
+  | 'mistral'
+  | 'openrouter'
+  | 'custom';
 
 export interface AIExecutorConfig {
   provider: AIProvider;
@@ -11,6 +26,8 @@ export interface AIExecutorConfig {
   model: string;
   temperature?: number;
   maxTokens?: number;
+  /** Obrigatório quando provider === 'custom' (endpoint OpenAI-compatible). */
+  baseUrl?: string;
 }
 
 export interface AgentMessage {
@@ -33,17 +50,10 @@ class AIExecutor {
   private config: AIExecutorConfig | null = null;
   private executionHistory: ExecutionResult[] = [];
 
-  /**
-   * Configurar provider de IA
-   */
   configure(config: AIExecutorConfig): void {
     this.config = config;
-    console.log(`✅ AI Executor configurado com ${config.provider} (${config.model})`);
   }
 
-  /**
-   * Executar agente com o provider configurado
-   */
   async executeAgent(
     agentId: string,
     agentName: string,
@@ -63,28 +73,31 @@ class AIExecutor {
     let response: string;
 
     try {
-      switch (this.config.provider) {
-        case 'openai':
-          response = await this.executeOpenAI(messages);
-          break;
-        case 'anthropic':
-          response = await this.executeAnthropic(messages);
-          break;
-        case 'google':
-          response = await this.executeGoogle(messages);
-          break;
-        case 'custom':
-          response = await this.executeCustom(messages);
-          break;
-        default:
-          throw new Error(`Provider não suportado: ${this.config.provider}`);
+      const res = await fetch('/api/agents/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: this.config.provider,
+          apiKey: this.config.apiKey,
+          model: this.config.model,
+          systemPrompt,
+          userMessage,
+          temperature: this.config.temperature,
+          maxTokens: this.config.maxTokens,
+          baseUrl: this.config.baseUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Erro ${res.status}`);
       }
+
+      response = data.response || '';
     } catch (error) {
-      console.error(`❌ Erro ao executar agente ${agentName}:`, error);
       response = `Erro ao executar agente: ${error instanceof Error ? error.message : 'Desconhecido'}`;
     }
-
-    const duration = performance.now() - startTime;
 
     const result: ExecutionResult = {
       agentId,
@@ -94,161 +107,25 @@ class AIExecutor {
       messages,
       response,
       executedAt: new Date(),
-      duration,
+      duration: performance.now() - startTime,
     };
 
     this.executionHistory.push(result);
     return result;
   }
 
-  /**
-   * Executar via OpenAI (GPT-4, GPT-3.5)
-   */
-  private async executeOpenAI(messages: AgentMessage[]): Promise<string> {
-    if (!this.config) throw new Error('Config não disponível');
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        messages,
-        temperature: this.config.temperature || 0.7,
-        max_tokens: this.config.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || '';
-  }
-
-  /**
-   * Executar via Anthropic (Claude)
-   */
-  private async executeAnthropic(messages: AgentMessage[]): Promise<string> {
-    if (!this.config) throw new Error('Config não disponível');
-
-    // Claude usa formato diferente - não tem system message na array
-    const systemMessage = messages.find(m => m.role === 'system')?.content || '';
-    const otherMessages = messages.filter(m => m.role !== 'system');
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.config.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        max_tokens: this.config.maxTokens || 2000,
-        system: systemMessage,
-        messages: otherMessages,
-        temperature: this.config.temperature || 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Anthropic API error: ${error.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return data.content[0]?.text || '';
-  }
-
-  /**
-   * Executar via Google (Gemini)
-   */
-  private async executeGoogle(messages: AgentMessage[]): Promise<string> {
-    if (!this.config) throw new Error('Config não disponível');
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:generateContent?key=${this.config.apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: messages.map(m => ({
-            role: m.role === 'system' ? 'user' : m.role,
-            parts: [{ text: m.content }],
-          })),
-          generationConfig: {
-            temperature: this.config.temperature || 0.7,
-            maxOutputTokens: this.config.maxTokens || 2000,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Google API error: ${error.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return data.candidates[0]?.content?.parts[0]?.text || '';
-  }
-
-  /**
-   * Executar via custom endpoint
-   */
-  private async executeCustom(messages: AgentMessage[]): Promise<string> {
-    if (!this.config) throw new Error('Config não disponível');
-
-    const response = await fetch(this.config.apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: this.config.model,
-        messages,
-        temperature: this.config.temperature || 0.7,
-        max_tokens: this.config.maxTokens || 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Custom API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.response || data.content || JSON.stringify(data);
-  }
-
-  /**
-   * Obter histórico de execuções
-   */
   getHistory(): ExecutionResult[] {
     return this.executionHistory;
   }
 
-  /**
-   * Limpar histórico
-   */
   clearHistory(): void {
     this.executionHistory = [];
   }
 
-  /**
-   * Exportar histórico
-   */
   exportHistory(): string {
     return JSON.stringify(this.executionHistory, null, 2);
   }
 
-  /**
-   * Obter provider atual
-   */
   getCurrentProvider(): AIExecutorConfig | null {
     return this.config;
   }
@@ -257,12 +134,99 @@ class AIExecutor {
 // Singleton global
 export const aiExecutor = new AIExecutor();
 
-/**
- * Sugestões de modelos por provider
- */
-export const MODEL_SUGGESTIONS: Record<AIProvider, string[]> = {
-  openai: ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
-  anthropic: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
-  google: ['gemini-pro', 'gemini-pro-vision'],
-  custom: [],
-};
+/** Metadados de cada provider para uso na UI. */
+export interface ProviderInfo {
+  id: AIProvider;
+  label: string;
+  emoji: string;
+  models: string[];
+  defaultModel: string;
+  /** Onde o usuário obtém a API key. */
+  keyUrl: string;
+  needsBaseUrl?: boolean;
+}
+
+export const PROVIDERS: ProviderInfo[] = [
+  {
+    id: 'openai',
+    label: 'OpenAI (GPT)',
+    emoji: '🔴',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    defaultModel: 'gpt-4o-mini',
+    keyUrl: 'https://platform.openai.com/api-keys',
+  },
+  {
+    id: 'deepseek',
+    label: 'DeepSeek',
+    emoji: '🐳',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+    defaultModel: 'deepseek-chat',
+    keyUrl: 'https://platform.deepseek.com/api_keys',
+  },
+  {
+    id: 'anthropic',
+    label: 'Claude (Anthropic)',
+    emoji: '🟡',
+    models: [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+      'claude-3-opus-20240229',
+    ],
+    defaultModel: 'claude-3-5-sonnet-20241022',
+    keyUrl: 'https://console.anthropic.com/settings/keys',
+  },
+  {
+    id: 'google',
+    label: 'Google (Gemini)',
+    emoji: '🔵',
+    models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'],
+    defaultModel: 'gemini-1.5-flash',
+    keyUrl: 'https://aistudio.google.com/app/apikey',
+  },
+  {
+    id: 'groq',
+    label: 'Groq',
+    emoji: '⚡',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+    defaultModel: 'llama-3.3-70b-versatile',
+    keyUrl: 'https://console.groq.com/keys',
+  },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    emoji: '🌬️',
+    models: ['mistral-large-latest', 'mistral-small-latest'],
+    defaultModel: 'mistral-large-latest',
+    keyUrl: 'https://console.mistral.ai/api-keys',
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    emoji: '🛣️',
+    models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.1-70b-instruct'],
+    defaultModel: 'openai/gpt-4o-mini',
+    keyUrl: 'https://openrouter.ai/keys',
+  },
+  {
+    id: 'custom',
+    label: 'Custom (OpenAI-compatible)',
+    emoji: '🔧',
+    models: [],
+    defaultModel: '',
+    keyUrl: '',
+    needsBaseUrl: true,
+  },
+];
+
+export function getProvider(id: AIProvider): ProviderInfo | undefined {
+  return PROVIDERS.find((p) => p.id === id);
+}
+
+/** Mantido para compatibilidade. */
+export const MODEL_SUGGESTIONS: Record<AIProvider, string[]> = PROVIDERS.reduce(
+  (acc, p) => {
+    acc[p.id] = p.models;
+    return acc;
+  },
+  {} as Record<AIProvider, string[]>
+);
