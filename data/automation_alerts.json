@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": "alert_1782159375719_mdbwxk",
+    "key": "monitor:whatsapp",
+    "type": "whatsapp_disconnected",
+    "severity": "error",
+    "message": "WhatsApp desconectado (qr)",
+    "details": {},
+    "status": "open",
+    "createdAt": "2026-06-22T20:16:15.719Z",
+    "lastSeenAt": "2026-06-22T20:19:59.717Z",
+    "lastNotifiedAt": "2026-06-22T20:16:15.722Z",
+    "occurrences": 5
+  },
+  {
+    "id": "alert_1782159375756_pnzujd",
+    "key": "monitor:payments",
+    "type": "payments_unconfigured",
+    "severity": "warning",
+    "message": "Nenhuma forma de pagamento está ativa.",
+    "details": {},
+    "status": "open",
+    "createdAt": "2026-06-22T20:16:15.756Z",
+    "lastSeenAt": "2026-06-22T20:19:59.738Z",
+    "lastNotifiedAt": "2026-06-22T20:16:15.759Z",
+    "occurrences": 5
+  }
+]

@@ -362,7 +362,7 @@ async function processCampaign(client, modelo, config) {
 
             if (state.indiceAtual < state.fila.length) {
                 const minMs = Math.max(5, Number(config.intervaloMinSegundos || DEFAULT_CONFIG.intervaloMinSegundos)) * 1000;
-                const maxMs = Math.max(minMs / 1000, Number(config.intervaloMaxSegundos || DEFAULT_CONFIG.intervaloMaxSegundos)) * 1000;
+                const maxMs = Math.max(minMs, Number(config.intervaloMaxSegundos || DEFAULT_CONFIG.intervaloMaxSegundos) * 1000);
                 await delay(randomDelay(minMs, maxMs));
             }
 

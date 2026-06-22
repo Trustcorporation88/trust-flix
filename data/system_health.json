@@ -1,1 +1,43 @@
-{}
+{
+  "status": "error",
+  "checkedAt": "2026-06-22T20:19:59.778Z",
+  "checks": {
+    "whatsapp": {
+      "status": "error",
+      "message": "WhatsApp desconectado (qr)"
+    },
+    "payments": {
+      "status": "warning",
+      "message": "Nenhuma forma de pagamento está ativa."
+    },
+    "stock": {
+      "status": "ok",
+      "message": "Estoques acima do limite mínimo."
+    },
+    "orders": {
+      "status": "ok",
+      "message": "Nenhum pedido antigo pendente."
+    },
+    "tickets": {
+      "status": "ok",
+      "message": "Chamados dentro do prazo."
+    },
+    "automation": {
+      "status": "ok",
+      "message": "0 tarefa(s) agendada(s).",
+      "stats": {
+        "total": 0,
+        "scheduled": 0,
+        "processing": 0,
+        "completed": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    "storage": {
+      "status": "ok",
+      "message": "Pastas de dados acessíveis."
+    }
+  }
+}
