@@ -244,7 +244,22 @@ export default function AgentsPage() {
                   { situation: 'Preciso de uma análise dura', agent: 'RAYA', icon: '⚡' },
                   { situation: 'Quero montar um funil rápido', agent: 'døug // micro-offer', icon: '🚀' },
                 ].map((item, idx) => (
-                  <div key={idx} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600 hover:border-purple-500 transition-all cursor-pointer">
+                  <div 
+                    key={idx} 
+                    onClick={() => {
+                      // Encontrar o agente correspondente no arsenal
+                      const foundAgent = ARSENAL_AGENTS.find(a => a.name.includes(item.agent.split(' ')[0]) || a.name === item.agent);
+                      if (foundAgent) {
+                        setSelectedAgent(foundAgent);
+                        setActiveTab('execute');
+                      } else {
+                        // Se não encontrar no arsenal, abrir uma busca de GPT
+                        const gptUrl = `https://chatgpt.com/?q=${encodeURIComponent(item.agent)}`;
+                        window.open(gptUrl, '_blank');
+                      }
+                    }}
+                    className="bg-slate-700/50 p-4 rounded-lg border border-slate-600 hover:border-purple-500 hover:bg-slate-700/80 transition-all cursor-pointer active:scale-95"
+                  >
                     <div className="text-3xl mb-2">{item.icon}</div>
                     <p className="text-sm text-slate-300">{item.situation}</p>
                     <p className="font-bold text-purple-300 mt-2">→ {item.agent}</p>

@@ -4,13 +4,13 @@
     "key": "monitor:whatsapp",
     "type": "whatsapp_disconnected",
     "severity": "error",
-    "message": "WhatsApp desconectado (qr)",
+    "message": "WhatsApp desconectado (starting)",
     "details": {},
     "status": "open",
     "createdAt": "2026-06-22T20:16:15.719Z",
-    "lastSeenAt": "2026-06-22T20:19:59.717Z",
+    "lastSeenAt": "2026-06-22T20:35:10.053Z",
     "lastNotifiedAt": "2026-06-22T20:16:15.722Z",
-    "occurrences": 5
+    "occurrences": 6
   },
   {
     "id": "alert_1782159375756_pnzujd",
@@ -21,8 +21,8 @@
     "details": {},
     "status": "open",
     "createdAt": "2026-06-22T20:16:15.756Z",
-    "lastSeenAt": "2026-06-22T20:19:59.738Z",
+    "lastSeenAt": "2026-06-22T20:35:10.076Z",
     "lastNotifiedAt": "2026-06-22T20:16:15.759Z",
-    "occurrences": 5
+    "occurrences": 6
   }
 ]
