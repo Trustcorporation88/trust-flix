@@ -24,3 +24,7 @@ next-env.d.ts
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Build info
+*.tsbuildinfo
+site/dist/
