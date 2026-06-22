@@ -259,6 +259,30 @@ export const ARSENAL_AGENTS: Agent[] = [
   },
 ];
 
+/** Cheat sheet — mapeamento explícito situação → agentId (evita match frágil por substring) */
+export const CHEAT_SHEET_ITEMS: {
+  situation: string;
+  agentId: string;
+  icon: string;
+  label?: string;
+}[] = [
+  { situation: 'Não sei por onde começar', agentId: 'doug-exe-6', icon: '🧠' },
+  { situation: 'Preciso estruturar minha oferta', agentId: '100m-models', icon: '💰' },
+  { situation: 'Quero entender meu cliente', agentId: 'dissecacao', icon: '🎯' },
+  { situation: 'Tenho uma ideia bagunçada', agentId: 'z4-sys', icon: '📝' },
+  { situation: 'Preciso de copy persuasiva', agentId: 'a-caixa', icon: '🎁', label: 'A CAIXA → doug.tensão' },
+  { situation: 'Vou mandar no WhatsApp/DM', agentId: 'ugly-copy', icon: '💬' },
+  { situation: 'Vou fazer story/anúncio', agentId: 'storyads', icon: '🎬' },
+  { situation: 'Quero feedback no meu texto', agentId: 'feedback-brutal', icon: '🔍', label: 'FEEDBACK BRUTAL' },
+  { situation: 'Quero criar meu próprio GPT', agentId: 'builder-00', icon: '⚙️' },
+  { situation: 'Preciso de uma análise dura', agentId: 'raya', icon: '⚡' },
+  { situation: 'Quero montar um funil rápido', agentId: 'micro-offer', icon: '🚀' },
+];
+
+export function getAgentById(agentId: string): Agent | undefined {
+  return ARSENAL_AGENTS.find((a) => a.id === agentId);
+}
+
 export const WORKFLOWS: Workflow[] = [
   {
     id: 'phase-1',

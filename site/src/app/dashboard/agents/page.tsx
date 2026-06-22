@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
-import { ARSENAL_AGENTS, WORKFLOWS } from '@/services/arsenalService';
+import { ARSENAL_AGENTS, WORKFLOWS, CHEAT_SHEET_ITEMS, getAgentById, Agent } from '@/services/arsenalService';
 import { AIExecutorConfig, AIProvider, PROVIDERS, getProvider } from '@/services/aiExecutor';
 
 export default function AgentsPage() {
@@ -17,8 +17,19 @@ export default function AgentsPage() {
   const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1');
   const [apiKey, setApiKey] = useState('');
   const [isConfigured, setIsConfigured] = useState(false);
+  const [agentNotice, setAgentNotice] = useState<string | null>(null);
 
   const providerInfo = getProvider(aiProvider);
+
+  const selectAgent = (agent: Agent, options?: { tab?: typeof activeTab; notice?: string }) => {
+    setSelectedAgent(agent);
+    setSelectedPhase(agent.tier);
+    setActiveTab(options?.tab ?? 'execute');
+    setAgentNotice(options?.notice ?? `Agente selecionado: ${agent.name}`);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Reflete a configuração de IA já persistida (localStorage) ao abrir a página
   useEffect(() => {
@@ -121,7 +132,11 @@ export default function AgentsPage() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.id as typeof activeTab);
+                setAgentNotice(null);
+              }}
               className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? 'bg-purple-600 text-white shadow-lg'
@@ -132,6 +147,12 @@ export default function AgentsPage() {
             </button>
           ))}
         </div>
+
+        {agentNotice && activeTab === 'execute' && (
+          <div className="mb-6 p-4 bg-green-900/30 border border-green-500/50 rounded-lg text-green-200 text-sm">
+            ✅ {agentNotice} — configure a IA abaixo (se ainda não fez) e execute.
+          </div>
+        )}
 
         {/* TAB 1: DESCOBRIR AGENTES */}
         {activeTab === 'discover' && (
@@ -165,7 +186,15 @@ export default function AgentsPage() {
               {phaseAgents.map(agent => (
                 <div
                   key={agent.id}
-                  onClick={() => setSelectedAgent(agent)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectAgent(agent)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectAgent(agent);
+                    }
+                  }}
                   className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${
                     selectedAgent.id === agent.id
                       ? 'bg-purple-600/20 border-purple-500 shadow-lg'
@@ -183,6 +212,7 @@ export default function AgentsPage() {
                           href={agent.link}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="text-xs text-blue-400 hover:underline mt-2 inline-block"
                         >
                           Acessar GPT →
@@ -209,10 +239,14 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-3 overflow-x-auto pb-4">
                   {workflow.agents.map((agent, idx) => (
                     <React.Fragment key={agent.id}>
-                      <div className="flex-shrink-0 px-4 py-2 bg-purple-600/30 rounded-lg border border-purple-500 text-center min-w-max">
+                      <button
+                        type="button"
+                        onClick={() => selectAgent(agent)}
+                        className="flex-shrink-0 px-4 py-2 bg-purple-600/30 rounded-lg border border-purple-500 text-center min-w-max hover:bg-purple-600/50 transition-all cursor-pointer"
+                      >
                         <div className="text-2xl">{agent.emoji}</div>
                         <div className="text-xs font-semibold text-white mt-1">{agent.name}</div>
-                      </div>
+                      </button>
                       {idx < workflow.agents.length - 1 && (
                         <div className="text-2xl text-purple-400">→</div>
                       )}
@@ -231,40 +265,30 @@ export default function AgentsPage() {
               <h3 className="text-2xl font-bold text-white mb-6">⚡ Cheat Sheet - Qual agente usar agora?</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { situation: 'Não sei por onde começar', agent: 'DOUG.EXE 6.0', icon: '🧠' },
-                  { situation: 'Preciso estruturar minha oferta', agent: '$100M MONEY MODELS', icon: '💰' },
-                  { situation: 'Quero entender meu cliente', agent: 'DISSECAÇÃO NEURAL', icon: '🎯' },
-                  { situation: 'Tenho uma ideia bagunçada', agent: 'Z4.SYS', icon: '📝' },
-                  { situation: 'Preciso de copy persuasiva', agent: 'A CAIXA → doug.tensão', icon: '🎁' },
-                  { situation: 'Vou mandar no WhatsApp/DM', agent: 'UGLY COPY', icon: '💬' },
-                  { situation: 'Vou fazer story/anúncio', agent: 'STORYADS', icon: '🎬' },
-                  { situation: 'Quero feedback no meu texto', agent: 'FEEDBACK BRUTAL', icon: '🔍' },
-                  { situation: 'Quero criar meu próprio GPT', agent: 'BUILDER.00', icon: '⚙️' },
-                  { situation: 'Preciso de uma análise dura', agent: 'RAYA', icon: '⚡' },
-                  { situation: 'Quero montar um funil rápido', agent: 'døug // micro-offer', icon: '🚀' },
-                ].map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => {
-                      // Encontrar o agente correspondente no arsenal
-                      const foundAgent = ARSENAL_AGENTS.find(a => a.name.includes(item.agent.split(' ')[0]) || a.name === item.agent);
-                      if (foundAgent) {
-                        setSelectedAgent(foundAgent);
-                        setActiveTab('execute');
-                      } else {
-                        // Se não encontrar no arsenal, abrir uma busca de GPT
-                        const gptUrl = `https://chatgpt.com/?q=${encodeURIComponent(item.agent)}`;
-                        window.open(gptUrl, '_blank');
-                      }
-                    }}
-                    className="bg-slate-700/50 p-4 rounded-lg border border-slate-600 hover:border-purple-500 hover:bg-slate-700/80 transition-all cursor-pointer active:scale-95"
-                  >
-                    <div className="text-3xl mb-2">{item.icon}</div>
-                    <p className="text-sm text-slate-300">{item.situation}</p>
-                    <p className="font-bold text-purple-300 mt-2">→ {item.agent}</p>
-                  </div>
-                ))}
+                {CHEAT_SHEET_ITEMS.map((item) => {
+                  const agent = getAgentById(item.agentId);
+                  const displayName = item.label ?? agent?.name ?? item.agentId;
+
+                  return (
+                    <button
+                      key={item.agentId + item.situation}
+                      type="button"
+                      onClick={() => {
+                        if (agent) {
+                          selectAgent(agent, { notice: `Cheat Sheet: ${displayName}` });
+                          return;
+                        }
+                        const gptUrl = `https://chatgpt.com/?q=${encodeURIComponent(displayName)}`;
+                        window.open(gptUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="text-left bg-slate-700/50 p-4 rounded-lg border border-slate-600 hover:border-purple-500 hover:bg-slate-700/80 transition-all cursor-pointer active:scale-[0.98]"
+                    >
+                      <div className="text-3xl mb-2">{item.icon}</div>
+                      <p className="text-sm text-slate-300">{item.situation}</p>
+                      <p className="font-bold text-purple-300 mt-2">→ {displayName}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -373,10 +397,11 @@ export default function AgentsPage() {
             <div className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-purple-500/30">
               <h3 className="text-xl font-bold text-white mb-4">🤖 Selecione um Agente</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {ARSENAL_AGENTS.slice(0, 9).map(agent => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4 max-h-80 overflow-y-auto pr-1">
+                {ARSENAL_AGENTS.map(agent => (
                   <button
                     key={agent.id}
+                    type="button"
                     onClick={() => setSelectedAgent(agent)}
                     className={`p-3 rounded-lg text-left transition-all ${
                       selectedAgent.id === agent.id
@@ -395,6 +420,16 @@ export default function AgentsPage() {
                   <p className="text-white font-semibold">{selectedAgent.name}</p>
                   <p className="text-sm text-slate-300 mt-1">{selectedAgent.description}</p>
                   <p className="text-xs text-purple-300 mt-2">💡 {selectedAgent.useCase}</p>
+                  {selectedAgent.link && selectedAgent.link !== '#' && (
+                    <a
+                      href={selectedAgent.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:underline mt-2 inline-block"
+                    >
+                      Abrir GPT original →
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -457,20 +492,29 @@ export default function AgentsPage() {
         {activeTab === 'schedule' && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {[
-              { day: 'Segunda', agents: ['DOUG.EXE 6.0', '$100M MODELS'], task: 'Revisão de estratégia' },
-              { day: 'Terça', agents: ['DISSECAÇÃO NEURAL', 'SIMULADOR CLIENTE'], task: 'Pesquisa de cliente' },
-              { day: 'Quarta', agents: ['Z4.SYS', 'A CAIXA', 'doug.tensão'], task: 'Produção de copy' },
-              { day: 'Quinta', agents: ['STORYADS', 'UGLY COPY'], task: 'Distribuição' },
-              { day: 'Sexta', agents: ['FEEDBACK BRUTAL', 'ARSENAL PROMPTS'], task: 'Refinamento' },
+              { day: 'Segunda', agentIds: ['doug-exe-6', '100m-models'], task: 'Revisão de estratégia' },
+              { day: 'Terça', agentIds: ['dissecacao', 'simulador'], task: 'Pesquisa de cliente' },
+              { day: 'Quarta', agentIds: ['z4-sys', 'a-caixa', 'doug-tensao'], task: 'Produção de copy' },
+              { day: 'Quinta', agentIds: ['storyads', 'ugly-copy'], task: 'Distribuição' },
+              { day: 'Sexta', agentIds: ['feedback-brutal', 'arsenal-prompts'], task: 'Refinamento' },
             ].map(day => (
               <div key={day.day} className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-purple-500/30">
                 <h3 className="text-lg font-bold text-white mb-4">{day.day}</h3>
                 <div className="space-y-3">
-                  {day.agents.map((agent, idx) => (
-                    <div key={idx} className="bg-purple-600/20 p-3 rounded-lg border border-purple-500/50">
-                      <p className="text-sm font-semibold text-purple-300">{agent}</p>
-                    </div>
-                  ))}
+                  {day.agentIds.map((agentId) => {
+                    const agent = getAgentById(agentId);
+                    if (!agent) return null;
+                    return (
+                      <button
+                        key={agentId}
+                        type="button"
+                        onClick={() => selectAgent(agent, { notice: `${day.day}: ${agent.name}` })}
+                        className="w-full text-left bg-purple-600/20 p-3 rounded-lg border border-purple-500/50 hover:bg-purple-600/40 transition-all"
+                      >
+                        <p className="text-sm font-semibold text-purple-300">{agent.name}</p>
+                      </button>
+                    );
+                  })}
                   <div className="bg-slate-700/50 p-3 rounded-lg mt-4 border-l-2 border-purple-500">
                     <p className="text-xs text-slate-400">Task:</p>
                     <p className="text-sm text-white font-semibold">{day.task}</p>
