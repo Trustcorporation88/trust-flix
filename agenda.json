@@ -1,0 +1,14 @@
+{
+  "config": {
+    "nomeSistema": "JETBOT — Presentes Grátis",
+    "timezone": "America/Sao_Paulo",
+    "modoHumanizado": true,
+    "resetDiario": true,
+    "presentesPorDia": 0,
+    "ofertasPorDia": 0,
+    "enviarImagemComLegenda": true,
+    "atrasoMaxMinutos": 5,
+    "ativo": false
+  },
+  "dias": {}
+}

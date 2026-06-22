@@ -1,0 +1,56 @@
+JETBOT V7 — ROBÔ VENDEDOR AUTOMÁTICO
+COMECE AQUI
+
+O JETBOT é uma plataforma de vendas e atendimento pelo WhatsApp com painel web no subdomínio da Square Cloud.
+A configuração normal é feita no navegador. Não é necessário editar arquivos para marca, administradores, produtos, pagamentos, IA, automações, Evolution API, leads, campanhas ou funil de presentes.
+
+FLUXO PRINCIPAL
+1. O cliente entra pelo WhatsApp, anúncio, catálogo ou funil de presentes.
+2. O robô identifica o interesse e apresenta o produto completo.
+3. O cliente vê descrição, benefícios, conteúdo, público ideal, condições, prova social, garantia e FAQ.
+4. Somente depois de confirmar a compra, o robô oferece as formas de pagamento.
+5. O sistema cria o PIX, acompanha o pagamento, reserva a entrega e envia o acesso ou aciona a integração.
+6. O CRM é atualizado e o pós-venda, upsell e renovação são programados.
+7. Casos fora do padrão viram chamados para atendimento humano.
+
+PRIMEIRA INSTALAÇÃO
+1. Envie este ZIP para a Square Cloud como Node.js.
+2. Use execução manual com o comando: npm start
+3. Ative Publicação na Web, escolha um subdomínio e ative Auto Restart.
+4. Importe o arquivo de variáveis fornecido separadamente.
+5. Abra o subdomínio e entre no painel.
+6. O assistente de Setup Inicial mostrará tudo o que falta.
+7. Conecte WhatsApp por QR local ou Evolution API.
+8. Cadastre produto real, entrega e pagamento.
+9. Faça uma compra completa de valor baixo antes de divulgar.
+
+ÁREAS DO PAINEL
+- Painel e indicadores
+- Setup inicial
+- Produtos, categorias e estoque
+- Pedidos e entregas
+- CRM e leads
+- Suporte humano
+- Automações persistentes
+- Funil de presentes grátis
+- Campanhas e remarketing
+- Integrações, Evolution API, webhooks e extrator de leads
+- Configurações de marca, vendas, pagamento e IA
+- Diagnóstico, auditoria e backups
+
+IMPORTANTE
+- Produtos começam vazios: cadastre produtos reais pelo painel.
+- Campanhas e funil de grupos começam desligados por segurança.
+- Leads importados não recebem consentimento de marketing automaticamente.
+- O modo QR usa uma biblioteca não oficial do WhatsApp. Use com prudência e evite disparos não autorizados.
+- Evolution API é um serviço separado e precisa estar instalada e acessível.
+- Nenhum software pode garantir faturamento, ausência absoluta de falhas ou bloqueio zero. Oferta, tráfego, atendimento e conformidade continuam sendo responsabilidades da operação.
+
+LEIA EM SEGUIDA
+01_INSTALACAO_SQUARE_CLOUD.txt
+02_SETUP_E_CONFIGURACAO_PELO_PAINEL.txt
+03_EVOLUTION_API_E_INTEGRACOES.txt
+04_FUNIL_PRESENTES_CAMPANHAS_E_LEADS.txt
+05_TESTES_SEGURANCA_E_LIMITACOES.txt
+COMANDOS_ADMIN.txt
+RELATORIO_DE_TESTES.txt

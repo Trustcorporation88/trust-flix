@@ -1,0 +1,61 @@
+{
+  "enabled": false,
+  "name": "Funil Presentes Grátis",
+  "entryKeywords": [
+    "presente",
+    "presentes",
+    "quero presente",
+    "brinde",
+    "material grátis",
+    "material gratis"
+  ],
+  "sourceTag": "ads-presentes",
+  "campaignCode": "PRESENTE",
+  "adMessage": "Olá! Quero receber o presente grátis.",
+  "groupLink": "",
+  "pageLink": "",
+  "storeLink": "",
+  "welcomeMessage": "🎁 *PRESENTE GRÁTIS LIBERADO!*\n\nVocê chegou ao lugar certo. Acesse os materiais pelos links abaixo e, quando quiser conhecer as soluções completas, digite *MENU*.",
+  "consentMessage": "Para receber novos materiais e ofertas no privado, envie *RECEBER*. Você pode cancelar a qualquer momento enviando *SAIR*.",
+  "groupMessage": "👥 Grupo de presentes: {{grupo}}",
+  "pageMessage": "🎁 Página de presentes: {{pagina}}",
+  "storeMessage": "🛒 Loja / ofertas: {{loja}}",
+  "privateNurture": {
+    "enabled": true,
+    "sequence": [
+      {
+        "id": "gift-check-30m",
+        "delayMinutes": 30,
+        "kind": "transactional",
+        "text": "🎁 Conseguiu acessar seu presente? Se precisar de ajuda, responda esta mensagem."
+      },
+      {
+        "id": "gift-value-24h",
+        "delayMinutes": 1440,
+        "kind": "marketing",
+        "text": "🚀 Posso te mostrar as soluções completas relacionadas ao material que você recebeu. Responda *MENU* para ver as opções."
+      },
+      {
+        "id": "gift-offer-72h",
+        "delayMinutes": 4320,
+        "kind": "marketing",
+        "text": "💡 Separei as opções mais indicadas para quem começou pelos presentes. Responda *OFERTA* para conhecer."
+      }
+    ]
+  },
+  "groupWarmup": {
+    "enabled": false,
+    "timezone": "America/Sao_Paulo",
+    "giftsPerDay": 3,
+    "offersPerDay": 1,
+    "defaultGiftTimes": [
+      "09:00",
+      "14:00",
+      "18:00"
+    ],
+    "defaultOfferTimes": [
+      "20:00"
+    ]
+  },
+  "updatedAt": null
+}

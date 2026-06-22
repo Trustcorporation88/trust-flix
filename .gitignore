@@ -1,0 +1,26 @@
+node_modules/
+.env
+.wwebjs_auth/
+.wwebjs_cache/
+backups/*.json
+backups/*.zip
+data/.app-secret
+data/secrets.enc.json
+*.log
+
+# Next.js (site/)
+.next/
+out/
+site/.next/
+site/out/
+site/node_modules/
+next-env.d.ts
+
+# Env files
+.env.local
+.env.production
+.env*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db

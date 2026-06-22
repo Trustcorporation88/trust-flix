@@ -1,0 +1,55 @@
+JETBOT V7 — RELATÓRIO DE TESTES AUTOMATIZADOS
+
+VERSÃO
+7.0.0
+
+VALIDAÇÕES DE ESTRUTURA
+- arquivos obrigatórios;
+- JSONs válidos;
+- sintaxe de JavaScript;
+- dependências obrigatórias;
+- package-lock no registro público do NPM;
+- banco, estoque e pagamentos com tipos corretos;
+- setup versão 3;
+- extensão Chrome Manifest V3;
+- módulos principais carregando;
+- rotas do painel, catálogo, leads, Evolution e funil;
+- presença do fluxo de explicação do produto.
+
+TESTE DE INTEGRAÇÃO
+- login e sessão do painel;
+- edição integral das configurações pela API usada pelo painel;
+- criação de categoria e produto completo;
+- catálogo público adaptado à marca;
+- setup validando conexão real e produto pronto;
+- endpoint e extensão de leads;
+- lead importado sem consentimento automático;
+- apresentação completa antes do PIX;
+- pagamento exibido somente após confirmação;
+- entrada no funil de presentes;
+- ausência de marketing antes do opt-in;
+- nutrição depois de RECEBER;
+- entrega por estoque;
+- bloqueio de duplicidade;
+- falha simulada e retentativa com o mesmo item reservado;
+- entrega por link;
+- entrega por webhook simulado;
+- entrega manual;
+- Evolution API v2 simulada: estado, envio e eventos em lote;
+- webhook de saída simulado;
+- campanhas configuráveis pelo painel;
+- diagnóstico e interface.
+
+COMANDOS EXECUTADOS
+npm run check
+npm test
+npm audit --omit=dev
+
+OBSERVAÇÃO
+Testes simulados não substituem a compra real de baixo valor, uma conexão real do WhatsApp/Evolution e testes com as credenciais do operador.
+
+RESULTADO DA ÚLTIMA EXECUÇÃO
+- Validação estrutural: APROVADA.
+- Teste integrado: APROVADO.
+- Auditoria NPM de produção: 0 vulnerabilidades conhecidas.
+- Instalação limpa das dependências: APROVADA.

@@ -1,0 +1,35 @@
+{
+  "publicBaseUrl": "",
+  "whatsapp": {
+    "provider": "local",
+    "evolution": {
+      "enabled": false,
+      "baseUrl": "",
+      "instance": "",
+      "webhookConfigured": false,
+      "lastTestAt": null,
+      "lastStatus": "not_configured"
+    }
+  },
+  "leadCapture": {
+    "enabled": true,
+    "defaultSource": "JETBOT Leads Connector",
+    "defaultConsent": false,
+    "allowCsv": true,
+    "allowApi": true
+  },
+  "outboundWebhook": {
+    "enabled": false,
+    "url": "",
+    "events": [
+      "lead.created",
+      "order.paid",
+      "sale.delivered",
+      "ticket.created"
+    ],
+    "timeoutMs": 8000
+  },
+  "api": {
+    "enabled": true
+  }
+}

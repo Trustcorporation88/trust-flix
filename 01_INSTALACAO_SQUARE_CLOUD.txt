@@ -1,0 +1,71 @@
+JETBOT V7 — INSTALAÇÃO NA SQUARE CLOUD
+
+1. ARQUIVO
+Envie o arquivo ZIP completo. Ao abrir o ZIP, estes arquivos devem estar diretamente na raiz:
+- main.js
+- package.json
+- package-lock.json
+- squarecloud.app
+- src/
+- data/
+- database/
+
+2. CONFIGURAÇÃO DO DEPLOY
+- Runtime: NodeJS
+- Versão: recomendada pela Square Cloud
+- Memória: 4096 MB
+- Execução: manual
+- Comando: npm start
+- Publicação na Web: ativada
+- Subdomínio: escolha um nome disponível
+- Auto Restart: ativado
+- Diretório raiz: /
+
+3. VARIÁVEIS OBRIGATÓRIAS
+Use o arquivo JETBOT_V7_VARIAVEIS_SQUARECLOUD.env fornecido separadamente.
+As principais são:
+PORT=80
+NODE_ENV=production
+PANEL_USERNAME=...
+PANEL_PASSWORD=...
+SESSION_SECRET=...
+APP_SECRET=...
+BOT_CLIENT_ID=jetbot-principal
+TIMEZONE=America/Sao_Paulo
+IGNORE_GROUP_MESSAGES=true
+WEBHOOK_SECRET=...
+ALLOW_UNSIGNED_WEBHOOKS=false
+
+Não altere APP_SECRET nem BOT_CLIENT_ID depois de configurar e conectar o sistema. APP_SECRET protege credenciais criptografadas. BOT_CLIENT_ID identifica a sessão local do WhatsApp.
+
+4. PRIMEIRO ACESSO
+- Aguarde o deploy terminar.
+- Abra os logs e confirme que o painel iniciou na porta 80.
+- Abra o subdomínio.
+- Entre com PANEL_USERNAME e PANEL_PASSWORD.
+- O Setup Inicial abrirá automaticamente enquanto houver itens obrigatórios pendentes.
+
+5. ATUALIZAÇÃO FUTURA
+Antes de trocar o ZIP:
+- Crie e baixe um backup pelo painel.
+- Guarde as variáveis de ambiente.
+- Não altere APP_SECRET.
+- Depois do novo deploy, verifique diagnóstico, WhatsApp e pedidos pendentes.
+
+6. ERROS COMUNS
+Painel não abre:
+- confirme Publicação na Web;
+- confirme PORT=80;
+- confira o subdomínio oficial;
+- veja os logs.
+
+Cannot find module:
+- use o ZIP final com package-lock público;
+- não envie node_modules;
+- mantenha npm start.
+
+QR não aparece:
+- confira memória;
+- reinicie a aplicação;
+- verifique logs;
+- confirme que o provedor selecionado é WhatsApp Local.

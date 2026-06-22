@@ -1,0 +1,62 @@
+JETBOT V7 — COMANDOS ADMINISTRATIVOS
+
+MENU E IDENTIFICAÇÃO
+/menu
+/meuid
+/painel
+
+ENTREGA MANUAL
+/entregar ID_DO_PRODUTO para 55DDDNÚMERO
+
+DISPAROS
+/disparos
+/disparos status
+/disparos modelos
+/disparos contatos
+/disparos grupos
+/disparos teste MODELO NUMERO
+/disparos iniciar MODELO contatos
+/disparos iniciar MODELO grupos
+/disparos iniciar MODELO todos
+/disparos pausar
+/disparos continuar
+/disparos cancelar
+/disparos add NUMERO NOME
+/disparos importar
+
+REMARKETING
+/remarketing
+/remarketing status
+/remarketing leads
+/remarketing modelos
+/remarketing iniciar MODELO SEGMENTO
+/remarketing teste MODELO NUMERO
+/remarketing pausar
+/remarketing continuar
+/remarketing cancelar
+
+PRESENTES
+/presentes
+/presentes status
+/presentes hoje
+/presentes grupos
+/presentes teste
+/presentes ligar
+/presentes desligar
+
+UPSELL
+/upsell status
+/upsell ligar
+/upsell desligar
+/upsell texto SUA MENSAGEM
+/upsell teste NUMERO
+
+COMANDOS DO CLIENTE
+MENU
+ATENDENTE
+VOLTAR AO BOT
+RECEBER
+SAIR
+QUERO
+OFERTA
+RENOVAR

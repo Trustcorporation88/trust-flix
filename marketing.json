@@ -1,0 +1,41 @@
+{
+  "config": {
+    "nomeSistema": "JETBOT — Remarketing",
+    "timezone": "America/Sao_Paulo",
+    "intervaloMinSegundos": 45,
+    "intervaloMaxSegundos": 120,
+    "limitePorCampanha": 100,
+    "cooldownHorasPorContato": 24,
+    "modoSeguro": true,
+    "linkPrincipal": "",
+    "cupomPadrao": "",
+    "upsell": {
+      "ativo": false,
+      "delaySegundos": 300,
+      "evitarRepetirPorHoras": 72,
+      "valorUpsell": "",
+      "produtoUpsell": ""
+    },
+    "linkPresentes": ""
+  },
+  "modelos": [
+    {
+      "id": "remarketing-leads",
+      "titulo": "Leads interessados",
+      "ativo": false,
+      "texto": "Oi {{primeiroNome}}! Posso continuar te ajudando a escolher a melhor opção? Digite *MENU* ou *SAIR*."
+    },
+    {
+      "id": "remarketing-carrinho",
+      "titulo": "Pedido pendente",
+      "ativo": false,
+      "texto": "Seu pedido ficou pendente. Responda *QUERO* para continuar ou *SAIR* para não receber ofertas."
+    },
+    {
+      "id": "remarketing-clientes",
+      "titulo": "Clientes",
+      "ativo": false,
+      "texto": "Oi {{primeiroNome}}! Temos novidades para clientes. Responda *OFERTA* para conhecer ou *SAIR*."
+    }
+  ]
+}

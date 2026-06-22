@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "JETBOT Leads Connector",
+  "version": "2.0.0",
+  "description": "Captura manual de contatos visíveis e autorizados na página e envia para o CRM do JETBOT.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JETBOT Leads Connector"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ]
+}

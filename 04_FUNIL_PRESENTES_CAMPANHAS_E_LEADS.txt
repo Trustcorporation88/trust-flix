@@ -1,0 +1,56 @@
+JETBOT V7 — FUNIL DE PRESENTES, CAMPANHAS E LEADS
+
+ESTRATÉGIA DISPONÍVEL
+Anúncio -> WhatsApp privado -> presente/página/grupo -> nutrição -> catálogo/oferta -> pagamento -> entrega -> pós-venda.
+
+CONFIGURAÇÃO DO FUNIL
+No painel, abra Funil Presentes e configure:
+- nome do funil;
+- palavras-chave de entrada;
+- código da campanha;
+- mensagem pronta do anúncio;
+- link do grupo;
+- link da página de presentes;
+- link da loja;
+- mensagem de boas-vindas;
+- pedido de consentimento;
+- sequência privada;
+- horários de presentes e ofertas nos grupos.
+
+O painel gera um link wa.me para usar em anúncios.
+
+CONSENTIMENTO
+- Mensagens transacionais podem orientar acesso e suporte.
+- Ofertas automáticas só são programadas depois que o contato envia RECEBER ou quando há consentimento comprovado.
+- SAIR ou PARAR remove consentimento e cancela tarefas de marketing.
+
+AQUECIMENTO EM GRUPOS
+- agenda semanal;
+- presentes e conteúdo em horários programados;
+- ofertas separadas;
+- grupos ativos/inativos;
+- proteção contra repetição;
+- horário e fuso configuráveis.
+Começa desligado. Cadastre grupos reais e revise todos os textos antes de ativar.
+
+CAMPANHAS
+O painel permite:
+- modelos de disparo;
+- contatos e grupos;
+- iniciar, pausar, continuar e cancelar;
+- acompanhar progresso;
+- configurar intervalos e limites;
+- remarketing por leads, carrinhos e clientes.
+
+EXTRATOR / EXTENSÃO DE LEADS
+- extensão Manifest V3;
+- escaneamento manual do texto visível da aba;
+- revisão antes do envio;
+- edição dos contatos;
+- confirmação explícita de consentimento;
+- envio ao CRM por endpoint e token.
+
+A extensão não quebra bloqueios, não acessa áreas privadas e não deve ser usada para coletar ou contatar pessoas sem base legal e autorização adequada.
+
+RESULTADOS
+O funil ajuda a organizar aquisição, nutrição e vendas. Não garante faturamento. Resultado depende de oferta, criativo, público, preço, atendimento, reputação, entrega e conformidade.

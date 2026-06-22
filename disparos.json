@@ -1,0 +1,39 @@
+{
+  "config": {
+    "nomeSistema": "JETBOT — Campanhas",
+    "timezone": "America/Sao_Paulo",
+    "intervaloMinSegundos": 45,
+    "intervaloMaxSegundos": 120,
+    "limitePorCampanha": 100,
+    "modoSeguro": true,
+    "enviarImagemComLegenda": true,
+    "usarGruposDoPresentes": true,
+    "linkPrincipal": "",
+    "linkPresentes": ""
+  },
+  "contatos": [],
+  "grupos": [],
+  "modelos": [
+    {
+      "id": "modelo-apresentacao",
+      "titulo": "Apresentação da empresa",
+      "ativo": false,
+      "imagem": "",
+      "texto": "Oi, {{nome}}! Tudo bem? Aqui é da {{marca}}. Posso te apresentar nossas opções e explicar como funcionam?"
+    },
+    {
+      "id": "modelo-presente",
+      "titulo": "Convite para presente grátis",
+      "ativo": false,
+      "imagem": "",
+      "texto": "🎁 Oi, {{nome}}! Temos um material gratuito liberado. Posso te enviar o acesso?"
+    },
+    {
+      "id": "modelo-oferta",
+      "titulo": "Oferta para contato autorizado",
+      "ativo": false,
+      "imagem": "",
+      "texto": "Olá, {{nome}}! Temos uma opção que pode ajudar no seu objetivo. Responda *MENU* para conhecer os detalhes ou *SAIR* para não receber mensagens."
+    }
+  ]
+}

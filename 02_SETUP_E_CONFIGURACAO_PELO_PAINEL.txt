@@ -1,0 +1,106 @@
+JETBOT V7 — SETUP E CONFIGURAÇÃO PELO PAINEL
+
+O Setup Inicial impede que a operação seja considerada pronta enquanto faltarem itens essenciais.
+
+ETAPA 1 — NEGÓCIO E MARCA
+Configure:
+- nome da empresa;
+- nome do assistente;
+- tipo de negócio;
+- descrição;
+- tom de voz;
+- logo;
+- cor principal;
+- WhatsApp público;
+- site, loja e página de presentes;
+- horário e e-mail de suporte;
+- saudação, termos e mensagem de suporte.
+
+Modelos iniciais disponíveis:
+- produtos digitais;
+- e-commerce;
+- serviços;
+- negócio local;
+- educação;
+- agência;
+- assinaturas;
+- restaurante;
+- beleza;
+- saúde;
+- imóveis;
+- automotivo;
+- eventos;
+- personalizado.
+
+ETAPA 2 — ADMINISTRADORES
+Cadastre os números autorizados no próprio painel, no formato 55 + DDD + número, sem símbolos.
+O arquivo adminConfig.js permanece apenas como compatibilidade opcional.
+
+ETAPA 3 — WHATSAPP
+Escolha:
+- WhatsApp Local: conecta por QR Code no próprio painel;
+- Evolution API: usa URL, instância e API Key.
+O setup só considera essa etapa pronta quando a conexão estiver realmente ativa.
+
+ETAPA 4 — PRODUTO REAL
+Cada produto pode ter:
+- nome, preço atual e preço anterior;
+- categoria, destaque e status;
+- descrição curta e apresentação completa;
+- problema que resolve e como funciona;
+- benefícios;
+- o que está incluído;
+- público ideal;
+- prova social;
+- garantia e condições;
+- perguntas frequentes;
+- imagem e vídeo;
+- CTA;
+- validade e estoque mínimo;
+- produto de upsell;
+- tutorial pós-venda;
+- mensagem de entrega.
+
+O JETBOT explica o produto antes de mostrar o pagamento. A apresentação deve estar completa e a entrega deve ser utilizável.
+
+TIPOS DE ENTREGA
+- Estoque: uma entrega completa por linha.
+- Link: envia um link configurado.
+- Webhook: solicita a entrega a uma API externa.
+- Manual: registra a compra e cria o processo para a equipe.
+
+ETAPA 5 — PAGAMENTO
+Configure no painel:
+- PIX manual;
+- Mercado Pago;
+- PushinPay.
+O setup só aceita pagamento realmente ativo e com a credencial necessária.
+
+ETAPA 6 — IA
+Configure Groq, modelo, memória, temperatura e prompt.
+A IA consulta catálogo e contexto, explica antes de vender e não deve inventar preços, estoque, garantia ou aprovação.
+
+ETAPA 7 — AUTOMAÇÕES
+Revise:
+- carrinho abandonado;
+- pós-venda;
+- upsell;
+- renovação;
+- horário silencioso;
+- limites diários;
+- retentativas;
+- monitoramento.
+
+ETAPA 8 — TESTE
+Faça uma compra de valor baixo e confirme:
+- menu;
+- explicação completa;
+- confirmação de compra;
+- PIX;
+- aprovação;
+- reserva;
+- entrega única;
+- pedido no painel;
+- CRM;
+- pós-venda;
+- suporte humano.

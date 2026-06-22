@@ -1,0 +1,58 @@
+JETBOT V7 — EVOLUTION API E INTEGRAÇÕES
+
+WHATSAPP LOCAL
+- Conexão por QR Code usando a sessão da aplicação.
+- Mais simples para começar.
+- A sessão fica nos arquivos internos da aplicação.
+- Não compartilhe .wwebjs_auth nem .wwebjs_cache.
+
+EVOLUTION API V2
+No painel, abra Integrações e configure:
+- URL base da Evolution API;
+- nome da instância;
+- API Key;
+- provedor WhatsApp = Evolution.
+
+Funções no painel:
+- salvar credenciais criptografadas;
+- testar conexão;
+- criar instância;
+- obter QR Code;
+- configurar webhook;
+- enviar mensagem de teste;
+- consultar estado.
+
+A Evolution API precisa existir em um servidor separado e estar acessível por HTTPS. O JETBOT não instala a Evolution automaticamente dentro da mesma aplicação.
+
+WEBHOOK DA EVOLUTION
+O painel gera o endpoint seguro no formato:
+/webhooks/evolution/INSTANCIA/TOKEN
+Use o botão Configurar webhook para enviar essa configuração à Evolution.
+
+INTEGRAÇÕES DE SAÍDA
+O JETBOT envia eventos para n8n, Make, CRM ou API própria:
+- lead.created
+- checkout.created ou order.paid, conforme o fluxo
+- sale.delivered
+- ticket.created
+
+Configure:
+- URL do webhook;
+- eventos autorizados;
+- segredo de assinatura;
+- tempo limite.
+
+A requisição recebe assinatura HMAC SHA-256 no cabeçalho x-jetbot-signature.
+
+ENTREGA POR WEBHOOK
+Um produto pode chamar uma API depois do pagamento.
+A API deve responder com um conteúdo de entrega reconhecível, por exemplo:
+{"delivery":"LOGIN | SENHA | LINK"}
+
+IMPORTAÇÃO DE LEADS
+O painel gera:
+- endpoint de importação;
+- token de API;
+- extensão Chrome JETBOT Leads Connector.
+
+A importação aceita CSV ou JSON. Por padrão, o lead entra sem consentimento para ofertas.

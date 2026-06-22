@@ -1,0 +1,51 @@
+// vercel.json - Configuração para Vercel
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": {
+      "description": "URL da API em produção",
+      "default": "https://seu-dominio.com/api"
+    },
+    "JWT_SECRET": {
+      "description": "Chave secreta para JWT",
+      "required": true
+    },
+    "NEXT_PUBLIC_INSTAGRAM_ACCESS_TOKEN": {
+      "description": "Token do Instagram",
+      "required": false
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/admin",
+      "destination": "/dashboard",
+      "permanent": true
+    }
+  ]
+}

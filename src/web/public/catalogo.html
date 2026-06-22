@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Catálogo de produtos e serviços">
+  <title>Catálogo</title>
+  <link rel="stylesheet" href="/catalogo.css">
+</head>
+<body>
+  <header class="catalog-header">
+    <a class="brand" href="/catalogo"><span id="logoBox">AI</span><div><b id="brand">Catálogo</b><small>PRODUTOS E SOLUÇÕES</small></div></a>
+    <a id="whatsappTop" class="whatsapp hidden" target="_blank" rel="noopener">Falar no WhatsApp</a>
+  </header>
+  <main>
+    <section class="hero">
+      <span class="eyebrow">ESCOLHA • ENTENDA • COMPRE</span>
+      <h1 id="title">Conheça nossas soluções</h1>
+      <p id="subtitle">Veja os detalhes de cada opção antes de falar com nossa equipe.</p>
+      <div id="categoryFilters" class="filters"></div>
+    </section>
+    <section id="products" class="products"><div class="loading">Carregando catálogo...</div></section>
+    <section class="trust"><div>🔒 Atendimento seguro</div><div>📋 Detalhes antes da compra</div><div>💬 Suporte pelo WhatsApp</div></section>
+  </main>
+  <dialog id="productDialog"><button class="close" aria-label="Fechar">×</button><div id="dialogContent"></div></dialog>
+  <footer><span id="footerBrand">Catálogo</span> · Consulte os termos e condições antes da compra.</footer>
+  <script src="/catalogo.js"></script>
+</body>
+</html>

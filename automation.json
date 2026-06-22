@@ -1,0 +1,83 @@
+{
+  "enabled": true,
+  "timezone": "America/Sao_Paulo",
+  "workerIntervalSeconds": 15,
+  "batchSize": 20,
+  "quietHours": {
+    "enabled": true,
+    "start": "21:00",
+    "end": "08:00",
+    "applyToTransactional": false
+  },
+  "limits": {
+    "maxMessagesPerContactPerDay": 8,
+    "maxMarketingPerContactPerDay": 3
+  },
+  "retry": {
+    "maxAttempts": 5,
+    "baseDelaySeconds": 60,
+    "maxDelayMinutes": 60
+  },
+  "abandonedCheckout": {
+    "enabled": true,
+    "sequence": [
+      {
+        "id": "checkout-30m",
+        "delayMinutes": 30,
+        "kind": "transactional",
+        "text": "Oi {{primeiroNome}}! Seu PIX de *{{produto}}* ainda está pendente. Se quiser concluir, use o código abaixo ou digite *MENU* para gerar novamente.\n\n{{pix}}"
+      },
+      {
+        "id": "checkout-6h",
+        "delayMinutes": 360,
+        "kind": "transactional",
+        "text": "Passando para lembrar que o pedido de *{{produto}}* ainda não foi confirmado. Posso te ajudar a concluir. Digite *MENU* para continuar."
+      },
+      {
+        "id": "checkout-24h",
+        "delayMinutes": 1440,
+        "kind": "marketing",
+        "text": "Oi {{primeiroNome}}! Você ainda quer receber *{{produto}}*? Responda *QUERO* para continuar ou *SAIR* para não receber ofertas."
+      }
+    ]
+  },
+  "postSale": {
+    "enabled": true,
+    "sequence": [
+      {
+        "id": "post-5m",
+        "delayMinutes": 5,
+        "kind": "transactional",
+        "text": "✅ {{primeiroNome}}, sua compra de *{{produto}}* foi concluída. Guarde os dados recebidos. Caso precise de ajuda, envie *ATENDENTE*."
+      },
+      {
+        "id": "post-24h",
+        "delayMinutes": 1440,
+        "kind": "transactional",
+        "text": "Olá {{primeiroNome}}! Passando para confirmar se deu tudo certo com *{{produto}}*. Responda *1* para ‘funcionou’ ou envie *ATENDENTE* se precisar de ajuda."
+      },
+      {
+        "id": "post-72h",
+        "delayMinutes": 4320,
+        "kind": "marketing",
+        "text": "🎁 {{primeiroNome}}, temos uma opção complementar para quem já comprou *{{produto}}*. Digite *OFERTA* para conhecer ou *SAIR* para não receber ofertas."
+      }
+    ]
+  },
+  "renewal": {
+    "enabled": true,
+    "remindersDaysBefore": [7, 3, 1, 0],
+    "text": "⏰ {{primeiroNome}}, seu acesso de *{{produto}}* vence em {{dias}} dia(s), em {{vencimento}}. Digite *RENOVAR* para gerar o pagamento."
+  },
+  "monitoring": {
+    "enabled": true,
+    "intervalMinutes": 5,
+    "notifyCooldownMinutes": 180,
+    "staleTicketHours": 12,
+    "pendingPaymentHours": 2,
+    "lowStockThreshold": 3
+  },
+  "webhooks": {
+    "requireSecretInProduction": true
+  }
+}

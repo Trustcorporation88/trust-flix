@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#03130d">
+  <title>JETBOT — Robô Vendedor Automático</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="toast"></div>
+<section id="login" class="login-shell">
+  <div class="login-card">
+    <div class="brand-mark">AI</div>
+    <span class="eyebrow">AUTOMAÇÃO • IA • VENDAS</span>
+    <h1>JETBOT</h1>
+    <p>Seu robô vendedor automático: apresenta, atende, cobra, entrega e acompanha.</p>
+    <form id="loginForm">
+      <label>Usuário<input name="username" required autocomplete="username" placeholder="Seu usuário"></label>
+      <label>Senha<input name="password" type="password" required autocomplete="current-password" placeholder="Sua senha"></label>
+      <button>Entrar no painel</button>
+    </form>
+    <small>Os dados de acesso são definidos nas variáveis da hospedagem.</small>
+  </div>
+</section>
+<div id="app" class="app hidden">
+  <aside id="sidebar">
+    <div class="brand"><span>AI</span><div><b id="brandName">JETBOT</b><small>ROBÔ VENDEDOR AUTOMÁTICO</small></div></div>
+    <nav id="nav">
+      <button data-page="dashboard" class="active"><i>▦</i><span>Painel</span></button>
+      <button data-page="setup"><i>✦</i><span>Setup inicial</span></button>
+      <button data-page="products"><i>▣</i><span>Produtos</span></button>
+      <button data-page="orders"><i>◫</i><span>Pedidos</span></button>
+      <button data-page="crm"><i>◇</i><span>CRM / Leads</span></button>
+      <button data-page="tickets"><i>◉</i><span>Suporte</span></button>
+      <button data-page="automation"><i>⚡</i><span>Automação</span></button>
+      <button data-page="funnel"><i>🎁</i><span>Funil Presentes</span></button>
+      <button data-page="campaigns"><i>◌</i><span>Campanhas</span></button>
+      <button data-page="integrations"><i>⌘</i><span>Integrações</span></button>
+      <button data-page="settings"><i>⚙</i><span>Configurações</span></button>
+      <button data-page="security"><i>⌁</i><span>Logs e backups</span></button>
+    </nav>
+    <div class="sidebar-footer"><button id="logout" class="logout">Sair</button></div>
+  </aside>
+  <main>
+    <header>
+      <button id="menuToggle" class="menu-toggle">☰</button>
+      <div><h2 id="pageTitle">Painel</h2><p id="pageSubtitle">Visão geral da operação</p></div>
+      <div class="header-actions"><button class="icon-btn" id="quickSetup" title="Abrir setup">✦</button><div id="waBadge" class="badge">WhatsApp iniciando</div></div>
+    </header>
+    <div id="content"></div>
+  </main>
+</div>
+<div id="modal" class="modal hidden"><div class="modal-card"><button id="modalClose" class="modal-close">×</button><div id="modalContent"></div></div></div>
+<script src="/app.js"></script>
+</body>
+</html>

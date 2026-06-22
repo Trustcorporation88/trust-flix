@@ -1,0 +1,55 @@
+JETBOT V7 — TESTES, SEGURANÇA E LIMITAÇÕES
+
+PROTEÇÕES IMPLEMENTADAS
+- login e sessão do painel;
+- limitação de tentativas e chamadas;
+- headers de segurança;
+- proteção das rotas de escrita;
+- segredos criptografados com AES-GCM;
+- webhooks protegidos por segredo;
+- assinatura HMAC em webhooks de saída;
+- escrita atômica nos arquivos de dados;
+- reserva de estoque;
+- proteção contra entrega duplicada;
+- até cinco tentativas controladas;
+- fila persistente;
+- auditoria e backups;
+- consentimento de marketing;
+- horário silencioso e limites diários.
+
+TESTES AUTOMATIZADOS
+Execute:
+npm run check
+npm test
+npm audit --omit=dev
+
+A bateria cobre painel, setup, catálogo, explicação antes do PIX, leads, funil, estoque, entrega, retentativa, Evolution simulada, webhook de saída, interface e persistência.
+
+O QUE EXIGE TESTE REAL DO OPERADOR
+- QR e conta real do WhatsApp;
+- Evolution API real;
+- token e cobrança real do Mercado Pago;
+- token e cobrança real da PushinPay;
+- chave PIX manual;
+- Groq real;
+- webhook/entrega externa real;
+- grupos e campanhas reais.
+
+Faça uma transação de valor baixo antes de abrir a operação.
+
+LIMITAÇÕES HONESTAS
+- Nenhum software complexo pode prometer zero bugs em todos os ambientes.
+- Serviços externos podem mudar, ficar indisponíveis ou bloquear requisições.
+- O modo QR usa integração não oficial com WhatsApp Web e pode sofrer desconexão ou bloqueio.
+- Evolution API é externa e sua disponibilidade depende da instalação usada.
+- Automação não substitui análise humana em reembolso, contestação, reclamação grave, fraude, indisponibilidade ou caso técnico desconhecido.
+- Não há garantia de renda, vendas ou enriquecimento.
+
+BOAS PRÁTICAS
+- mantenha backup;
+- use senhas exclusivas;
+- não compartilhe .env, tokens ou sessão do WhatsApp;
+- atualize de forma controlada;
+- monitore logs e alertas;
+- respeite consentimento e regras de publicidade;
+- não prometa resultados falsos ao cliente.
