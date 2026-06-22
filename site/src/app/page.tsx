@@ -38,12 +38,12 @@ const modules = [
 ];
 
 const extraFeatures = [
-  { title: '🏪 Loja Online', description: 'Catálogo de produtos com carrinho e checkout' },
-  { title: '💳 Pagamentos', description: 'PIX, Mercado Pago e PushinPay integrados' },
-  { title: '📱 WhatsApp Bot', description: 'Atendimento automático integrado ao JETBOT' },
-  { title: '📊 Dashboard', description: 'Gestão de pedidos, clientes e vendas' },
-  { title: '🤖 Automações', description: 'Workflows inteligentes de vendas' },
-  { title: '📧 Marketing', description: 'Campanhas, leads e funil de vendas' },
+  { title: '🏪 Loja Online', description: 'Catálogo de produtos com carrinho e checkout', href: '/shop' },
+  { title: '💳 Pagamentos', description: 'PIX, Mercado Pago e PushinPay integrados', href: '/dashboard/integrations' },
+  { title: '📱 WhatsApp Bot', description: 'Atendimento automático integrado ao JETBOT', href: '/dashboard/whatsapp' },
+  { title: '📊 Dashboard', description: 'Gestão de pedidos, clientes e vendas', href: '/dashboard' },
+  { title: '🤖 Automações', description: 'Workflows inteligentes de vendas', href: '/dashboard/automations' },
+  { title: '📧 Marketing', description: 'Campanhas, leads e funil de vendas', href: '/dashboard/campaigns' },
 ];
 
 export default function Home() {
@@ -135,13 +135,17 @@ export default function Home() {
           <h2 className="text-4xl font-bold text-center mb-12">Recursos da Plataforma</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {extraFeatures.map((feature, i) => (
-              <div
+              <Link
                 key={i}
-                className="bg-white border border-gray-100 p-8 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                href={feature.href}
+                className="block bg-white border border-gray-100 p-8 rounded-lg shadow-sm hover:shadow-lg hover:border-blue-500 hover:scale-[1.02] transition-all cursor-pointer group"
               >
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
+                <h3 className="text-xl font-semibold mb-3 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                  {feature.title}
+                  <span className="text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-blue-500">→</span>
+                </h3>
                 <p className="text-gray-600">{feature.description}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
