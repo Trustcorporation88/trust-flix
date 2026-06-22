@@ -2,7 +2,7 @@
  * 🎨 Canvas Editor Hook - Gerencia estado do editor
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Design, Asset } from '@/services/designService';
 
 export interface EditorState {
@@ -18,6 +18,12 @@ export function useCanvasEditor(initialDesign: Design) {
     zoom: 1,
     isPanning: false,
   });
+
+  // Sincroniza o estado interno do editor quando o design inicial muda (por exemplo, ao usar um template ou abrir um salvo)
+  useEffect(() => {
+    setDesign(initialDesign);
+    setState(prev => ({ ...prev, selectedAssetId: null }));
+  }, [initialDesign.id]);
 
   const undoStackRef = useRef<Design[]>([initialDesign]);
   const redoStackRef = useRef<Design[]>([]);

@@ -53,7 +53,14 @@ function walk(dir) {
   });
 }
 for (const file of walk(root).filter((file) => file.endsWith('.js'))) {
-  try { new Function(fs.readFileSync(file, 'utf8')); ok(`Sintaxe ${path.relative(root, file)}`); }
+  try {
+    let content = fs.readFileSync(file, 'utf8');
+    if (content.startsWith('#!')) {
+      content = content.replace(/^#![^\r\n]*/, '');
+    }
+    new Function(content);
+    ok(`Sintaxe ${path.relative(root, file)}`);
+  }
   catch (error) { fail(`Sintaxe ${path.relative(root, file)}`, error); }
 }
 

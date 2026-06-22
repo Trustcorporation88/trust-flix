@@ -146,6 +146,7 @@ export const useAgentExecutor = () => {
     clearHistory,
     exportHistory,
     getCurrentProvider: () => aiExecutor.getCurrentProvider(),
+    resetProvider: () => aiExecutor.reset(),
   };
 };
 

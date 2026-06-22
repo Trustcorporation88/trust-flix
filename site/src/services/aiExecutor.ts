@@ -46,12 +46,52 @@ export interface ExecutionResult {
   duration: number; // em ms
 }
 
+const STORAGE_KEY = 'jetflix_ai_config';
+
 class AIExecutor {
   private config: AIExecutorConfig | null = null;
   private executionHistory: ExecutionResult[] = [];
+  private loadedFromStorage = false;
+
+  /** Lê a configuração persistida no localStorage (apenas no browser, uma vez). */
+  private ensureLoaded(): void {
+    if (this.loadedFromStorage || typeof window === 'undefined') return;
+    this.loadedFromStorage = true;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as AIExecutorConfig;
+        if (parsed && parsed.provider && parsed.apiKey && parsed.model) {
+          this.config = parsed;
+        }
+      }
+    } catch (error) {
+      console.error('Falha ao carregar config de IA do localStorage:', error);
+    }
+  }
 
   configure(config: AIExecutorConfig): void {
     this.config = config;
+    this.loadedFromStorage = true;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      } catch (error) {
+        console.error('Falha ao salvar config de IA no localStorage:', error);
+      }
+    }
+  }
+
+  /** Remove a configuração salva (logout da IA). */
+  reset(): void {
+    this.config = null;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error('Falha ao remover config de IA do localStorage:', error);
+      }
+    }
   }
 
   async executeAgent(
@@ -60,6 +100,7 @@ class AIExecutor {
     systemPrompt: string,
     userMessage: string
   ): Promise<ExecutionResult> {
+    this.ensureLoaded();
     if (!this.config) {
       throw new Error('AI Executor não configurado. Use configure() primeiro.');
     }
@@ -127,6 +168,7 @@ class AIExecutor {
   }
 
   getCurrentProvider(): AIExecutorConfig | null {
+    this.ensureLoaded();
     return this.config;
   }
 }

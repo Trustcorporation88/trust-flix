@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS } from '@/services/arsenalService';
 import { AIExecutorConfig, AIProvider, PROVIDERS, getProvider } from '@/services/aiExecutor';
@@ -19,6 +19,19 @@ export default function AgentsPage() {
   const [isConfigured, setIsConfigured] = useState(false);
 
   const providerInfo = getProvider(aiProvider);
+
+  // Reflete a configuração de IA já persistida (localStorage) ao abrir a página
+  useEffect(() => {
+    const saved = agentExecutor.getCurrentProvider();
+    if (saved) {
+      setAiProvider(saved.provider);
+      setModel(saved.model);
+      if (saved.baseUrl) setBaseUrl(saved.baseUrl);
+      setApiKey(saved.apiKey);
+      setIsConfigured(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Trocar de provider reseta o modelo e a base URL para o padrão dele
   const handleSelectProvider = (id: AIProvider) => {

@@ -34,7 +34,20 @@ function writeJson(filePath, data) {
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   const content = `${JSON.stringify(data, null, 2)}\n`;
   fs.writeFileSync(tempPath, content, { encoding: 'utf8', mode: 0o600 });
-  fs.renameSync(tempPath, filePath);
+  try {
+    fs.renameSync(tempPath, filePath);
+  } catch (error) {
+    if (process.platform === 'win32' && (error.code === 'EPERM' || error.code === 'EACCES' || error.code === 'EBUSY')) {
+      try {
+        fs.copyFileSync(tempPath, filePath);
+        fs.unlinkSync(tempPath);
+      } catch (innerError) {
+        throw new Error(`Falha no fallback atômico no Windows: ${innerError.message} (original: ${error.message})`);
+      }
+    } else {
+      throw error;
+    }
+  }
   return true;
 }
 
