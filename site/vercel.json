@@ -1,5 +1,5 @@
-// vercel.json - Configuração para Vercel
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "outputDirectory": ".next",
