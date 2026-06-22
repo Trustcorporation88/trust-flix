@@ -25,8 +25,8 @@ export function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg"></div>
-          <span className="text-xl font-bold text-gray-900 hidden sm:inline">JetFlix</span>
+          <img src="/logo.png" alt="TrustFlix Logo" className="w-10 h-10 object-contain" />
+          <span className="text-xl font-bold text-gray-900 hidden sm:inline">TrustFlix</span>
         </Link>
 
         {/* Desktop Menu */}

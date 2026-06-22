@@ -5,7 +5,7 @@ import { User } from '@/types';
 
 const DEMO_USER: User = {
   id: 'demo',
-  email: 'demo@jetflix.com',
+  email: 'demo@trustflix.com',
   name: 'Conta Demo',
   phone: '',
   role: 'admin',

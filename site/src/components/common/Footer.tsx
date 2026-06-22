@@ -13,8 +13,8 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg"></div>
-              <span className="text-xl font-bold text-white">JetFlix</span>
+              <img src="/logo.png" alt="TrustFlix Logo" className="w-10 h-10 object-contain" />
+              <span className="text-xl font-bold text-white">TrustFlix</span>
             </div>
             <p className="text-sm text-gray-400">
               Plataforma de vendas e atendimento automático via WhatsApp.
@@ -86,7 +86,7 @@ export function Footer() {
         <div className="border-t border-gray-800 pt-8">
           <div className="flex flex-col sm:flex-row items-center justify-between">
             <p className="text-sm text-gray-400">
-              © {currentYear} JetFlix. Todos os direitos reservados.
+              © {currentYear} TrustFlix. Todos os direitos reservados.
             </p>
             <div className="flex space-x-6 mt-4 sm:mt-0">
               <a href="#" className="hover:text-white">

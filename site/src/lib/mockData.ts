@@ -144,7 +144,7 @@ export const mockAutomations: Automation[] = [
 
 export const mockIntegrations: Integration[] = [
   { id: 'i-1', type: 'evolution_api', name: 'Evolution API (WhatsApp)', status: 'active', config: { instance: 'jetbot-main', url: 'https://evo.seudominio.com' }, lastSync: daysAgo(0), createdAt: daysAgo(60), updatedAt: daysAgo(0) },
-  { id: 'i-2', type: 'mercado_pago', name: 'Mercado Pago', status: 'active', config: { account: 'jetflix@mp.com' }, lastSync: daysAgo(0), createdAt: daysAgo(60), updatedAt: daysAgo(0) },
+  { id: 'i-2', type: 'mercado_pago', name: 'Mercado Pago', status: 'active', config: { account: 'trustflix@mp.com' }, lastSync: daysAgo(0), createdAt: daysAgo(60), updatedAt: daysAgo(0) },
   { id: 'i-3', type: 'pushinpay', name: 'PushinPay (PIX)', status: 'active', config: { token: '••••••••' }, lastSync: daysAgo(0), createdAt: daysAgo(45), updatedAt: daysAgo(0) },
   { id: 'i-4', type: 'zapier', name: 'Zapier', status: 'inactive', config: {}, createdAt: daysAgo(30), updatedAt: daysAgo(10) },
 ];

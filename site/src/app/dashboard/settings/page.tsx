@@ -73,9 +73,9 @@ export default function SettingsPage() {
           {tab === 'brand' && (
             <div className="space-y-5 max-w-xl">
               <h3 className="text-lg font-semibold text-gray-900">Identidade da Marca</h3>
-              <Field label="Nome da empresa" defaultValue="JetFlix" />
+              <Field label="Nome da empresa" defaultValue="TrustFlix" />
               <Field label="Slogan" defaultValue="Venda, crie e automatize em uma plataforma" />
-              <Field label="E-mail de contato" type="email" defaultValue="contato@jetflix.com" />
+              <Field label="E-mail de contato" type="email" defaultValue="contato@trustflix.com" />
               <Field label="Cor primária" defaultValue="#2563eb" />
             </div>
           )}
@@ -108,7 +108,7 @@ export default function SettingsPage() {
               <h3 className="text-lg font-semibold text-gray-900">Pagamentos</h3>
               <Field label="Token Mercado Pago" type="password" placeholder="APP_USR-..." />
               <Field label="Token PushinPay" type="password" placeholder="••••••••" />
-              <Field label="Chave PIX padrão" defaultValue="contato@jetflix.com" />
+              <Field label="Chave PIX padrão" defaultValue="contato@trustflix.com" />
             </div>
           )}
         </div>

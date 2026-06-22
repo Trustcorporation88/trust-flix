@@ -4,10 +4,10 @@ import { Layout } from '@/components/common/Layout';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'JetFlix - Plataforma de Vendas Automática',
+  title: 'TrustFlix - Plataforma de Vendas Automática',
   description: 'Venda e gerencie seus produtos com automação via WhatsApp',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/logo.png',
   },
 };
 

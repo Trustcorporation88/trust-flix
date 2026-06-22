@@ -81,8 +81,8 @@ export function DashboardShell({
       <aside className="w-64 bg-gray-900 text-white flex flex-col fixed h-screen overflow-y-auto">
         <div className="p-6 border-b border-gray-800">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg"></div>
-            <span className="text-xl font-bold">JetFlix Admin</span>
+            <img src="/logo.png" alt="TrustFlix Logo" className="w-8 h-8 object-contain" />
+            <span className="text-xl font-bold">TrustFlix Admin</span>
           </Link>
           {user?.name && <p className="text-gray-400 text-xs mt-2">{user.name}</p>}
         </div>
