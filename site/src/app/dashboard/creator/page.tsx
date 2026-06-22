@@ -34,16 +34,19 @@ export default function CreatorStudioPage() {
   useEffect(() => {
     if (designStore.currentDesign) {
       setCurrentDesign(designStore.currentDesign);
+      setActiveTab('editor'); // Sempre foca na aba Editor ao carregar/criar um design
     }
   }, [designStore.currentDesign]);
 
   const handleCreateNew = (type: 'post' | 'story' | 'carousel') => {
     designStore.createNewDesign(`Design ${Date.now()}`, type);
     setShowNewModal(false);
+    setActiveTab('editor');
   };
 
   const handleCreateFromTemplate = async (templateId: string) => {
     await designStore.createFromTemplate(templateId, `Template ${Date.now()}`);
+    setActiveTab('editor');
   };
 
   return (
@@ -395,7 +398,10 @@ export default function CreatorStudioPage() {
                     </p>
                     <div className="flex gap-2 mt-4">
                       <button
-                        onClick={() => designStore.loadDesign(design.id)}
+                        onClick={() => {
+                          designStore.loadDesign(design.id);
+                          setActiveTab('editor');
+                        }}
                         className="flex-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 py-2 rounded text-sm transition-all"
                       >
                         Abrir
