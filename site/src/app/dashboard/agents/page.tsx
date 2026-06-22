@@ -14,16 +14,29 @@ export default function AgentsPage() {
   const [userInput, setUserInput] = useState('');
   const [aiProvider, setAiProvider] = useState<AIProvider>('openai');
   const [model, setModel] = useState(getProvider('openai')?.defaultModel || '');
-  const [baseUrl, setBaseUrl] = useState('');
+  const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1');
   const [apiKey, setApiKey] = useState('');
   const [isConfigured, setIsConfigured] = useState(false);
 
   const providerInfo = getProvider(aiProvider);
 
-  // Trocar de provider reseta o modelo para o padrão dele
+  // Trocar de provider reseta o modelo e a base URL para o padrão dele
   const handleSelectProvider = (id: AIProvider) => {
     setAiProvider(id);
     setModel(getProvider(id)?.defaultModel || '');
+    if (id === 'openai') {
+      setBaseUrl('https://api.openai.com/v1');
+    } else if (id === 'deepseek') {
+      setBaseUrl('https://api.deepseek.com/v1');
+    } else if (id === 'groq') {
+      setBaseUrl('https://api.groq.com/openai/v1');
+    } else if (id === 'mistral') {
+      setBaseUrl('https://api.mistral.ai/v1');
+    } else if (id === 'openrouter') {
+      setBaseUrl('https://openrouter.ai/api/v1');
+    } else {
+      setBaseUrl('');
+    }
     setIsConfigured(false);
   };
 
@@ -37,8 +50,8 @@ export default function AgentsPage() {
       alert('Por favor, informe o modelo');
       return;
     }
-    if (aiProvider === 'custom' && !baseUrl) {
-      alert('Para o provider Custom, informe a Base URL (endpoint OpenAI-compatible)');
+    if ((aiProvider === 'custom' || aiProvider === 'openai') && !baseUrl) {
+      alert('Por favor, informe a Base URL do endpoint da API');
       return;
     }
 
@@ -46,7 +59,7 @@ export default function AgentsPage() {
       provider: aiProvider,
       apiKey,
       model,
-      ...(aiProvider === 'custom' ? { baseUrl } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
     };
 
     agentExecutor.configure(config);
@@ -276,15 +289,18 @@ export default function AgentsPage() {
                 </a>
               )}
 
-              {/* Base URL para custom */}
-              {aiProvider === 'custom' && (
-                <input
-                  type="text"
-                  placeholder="Base URL (ex: https://api.seuprovedor.com/v1)"
-                  value={baseUrl}
-                  onChange={e => setBaseUrl(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-3"
-                />
+              {/* Base URL para custom ou openai/compatíveis */}
+              {(aiProvider === 'custom' || aiProvider === 'openai' || aiProvider === 'deepseek' || aiProvider === 'groq' || aiProvider === 'openrouter' || aiProvider === 'mistral') && (
+                <div className="mb-3">
+                  <label className="block text-xs text-slate-400 mb-1">Base URL (API Endpoint)</label>
+                  <input
+                    type="text"
+                    placeholder="Base URL (ex: https://api.openai.com/v1)"
+                    value={baseUrl}
+                    onChange={e => setBaseUrl(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
               )}
 
               {/* Seletor de modelo */}
