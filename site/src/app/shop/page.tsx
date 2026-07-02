@@ -47,27 +47,30 @@ export default function ShopPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="relative min-h-screen bg-ink-950">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-grid-glow opacity-70" />
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Loja</h1>
-          <p className="text-gray-600">Explore nossos produtos e comece a comprar</p>
+      <div className="relative border-b border-white/10">
+        <div className="mx-auto max-w-7xl px-4 py-14">
+          <span className="section-badge">Catálogo</span>
+          <h1 className="mt-4 font-display text-4xl font-bold text-white sm:text-5xl">Loja</h1>
+          <p className="mt-3 text-ink-300">Explore nossos produtos e comece a comprar</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+      <div className="relative mx-auto max-w-7xl px-4 py-10">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row">
           {/* Search */}
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-3 text-gray-400" size={20} />
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" size={18} />
             <input
               type="text"
               placeholder="Buscar produtos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-dark pl-10"
             />
           </div>
 
@@ -75,7 +78,7 @@ export default function ShopPage() {
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-dark md:w-64 [&>option]:bg-ink-900"
           >
             <option value="all">Todas as Categorias</option>
             <option value="electronics">Eletrônicos</option>
@@ -86,24 +89,20 @@ export default function ShopPage() {
 
         {/* Products Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg h-80 animate-pulse"></div>
+              <div key={i} className="h-80 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
             ))}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-              />
+              <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">Nenhum produto encontrado</p>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] py-16 text-center">
+            <p className="text-lg text-ink-300">Nenhum produto encontrado</p>
           </div>
         )}
       </div>

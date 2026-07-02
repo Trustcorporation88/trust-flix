@@ -6,37 +6,47 @@ import { FiFacebook, FiTwitter, FiInstagram, FiLinkedin } from 'react-icons/fi';
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
+  const socials = [
+    { icon: FiFacebook, href: '#', label: 'Facebook' },
+    { icon: FiTwitter, href: '#', label: 'Twitter' },
+    { icon: FiInstagram, href: '#', label: 'Instagram' },
+    { icon: FiLinkedin, href: '#', label: 'LinkedIn' },
+  ];
+
   return (
-    <footer className="bg-gray-900 text-gray-300 mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <footer className="relative mt-24 border-t border-white/10 bg-ink-950">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-500/50 to-transparent" />
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-4">
           {/* Brand */}
           <div>
-            <div className="flex items-center space-x-2 mb-4">
-              <img src="/logo.png" alt="TrustFlix Logo" className="w-10 h-10 object-contain" />
-              <span className="text-xl font-bold text-white">TrustFlix</span>
+            <div className="mb-4 flex items-center space-x-2">
+              <img src="/logo.png" alt="TrustFlix Logo" className="h-9 w-9 rounded-lg object-contain" />
+              <span className="text-xl font-bold text-white font-display">
+                Trust<span className="gradient-text">Flix</span>
+              </span>
             </div>
-            <p className="text-sm text-gray-400">
-              Plataforma de vendas e atendimento automático via WhatsApp.
+            <p className="text-sm leading-relaxed text-ink-300">
+              Plataforma de vendas e atendimento automático com IA, integrada ao WhatsApp e Instagram.
             </p>
           </div>
 
           {/* Plataforma */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Plataforma</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Plataforma</h3>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/dashboard/agents" className="hover:text-white">
+                <Link href="/dashboard/agents" className="text-ink-300 transition-colors hover:text-accent-300">
                   Agentes IA
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/creator" className="hover:text-white">
+                <Link href="/dashboard/creator" className="text-ink-300 transition-colors hover:text-accent-300">
                   Creator Studio
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/instagram" className="hover:text-white">
+                <Link href="/dashboard/instagram" className="text-ink-300 transition-colors hover:text-accent-300">
                   Instagram
                 </Link>
               </li>
@@ -45,20 +55,20 @@ export function Footer() {
 
           {/* Loja */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Loja</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Loja</h3>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/shop" className="hover:text-white">
+                <Link href="/shop" className="text-ink-300 transition-colors hover:text-accent-300">
                   Produtos
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="hover:text-white">
+                <Link href="/cart" className="text-ink-300 transition-colors hover:text-accent-300">
                   Carrinho
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-white">
+                <Link href="/dashboard" className="text-ink-300 transition-colors hover:text-accent-300">
                   Painel Admin
                 </Link>
               </li>
@@ -67,15 +77,15 @@ export function Footer() {
 
           {/* Conta */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Conta</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Conta</h3>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/login" className="hover:text-white">
+                <Link href="/login" className="text-ink-300 transition-colors hover:text-accent-300">
                   Login
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-white">
+                <Link href="/dashboard" className="text-ink-300 transition-colors hover:text-accent-300">
                   Meu Painel
                 </Link>
               </li>
@@ -83,25 +93,21 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-sm text-gray-400">
-              © {currentYear} TrustFlix. Todos os direitos reservados.
-            </p>
-            <div className="flex space-x-6 mt-4 sm:mt-0">
-              <a href="#" className="hover:text-white">
-                <FiFacebook size={20} />
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
+          <p className="text-sm text-ink-400">
+            &copy; {currentYear} TrustFlix. Todos os direitos reservados.
+          </p>
+          <div className="flex space-x-3">
+            {socials.map(({ icon: Icon, href, label }) => (
+              <a
+                key={label}
+                href={href}
+                aria-label={label}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-ink-300 transition-all hover:border-accent-400/50 hover:bg-accent-500/10 hover:text-accent-300"
+              >
+                <Icon size={16} />
               </a>
-              <a href="#" className="hover:text-white">
-                <FiTwitter size={20} />
-              </a>
-              <a href="#" className="hover:text-white">
-                <FiInstagram size={20} />
-              </a>
-              <a href="#" className="hover:text-white">
-                <FiLinkedin size={20} />
-              </a>
-            </div>
+            ))}
           </div>
         </div>
       </div>

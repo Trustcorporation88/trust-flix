@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/lib/store/authStore';
 import toast from 'react-hot-toast';
+import clsx from 'clsx';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,12 +44,43 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-2">
-          {isRegister ? 'Criar Conta' : 'Bem-vindo'}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink-950 px-4 py-16">
+      <div className="pointer-events-none absolute inset-0 bg-grid-glow" />
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-accent-500/20 blur-[120px]" />
+
+      <div className="card-surface relative w-full max-w-md p-8">
+        <div className="mb-8 flex justify-center">
+          <img src="/logo.png" alt="TrustFlix" className="h-12 w-12 rounded-xl object-contain" />
+        </div>
+
+        {/* Toggle Tabs */}
+        <div className="mb-8 flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+          <button
+            type="button"
+            onClick={() => setIsRegister(false)}
+            className={clsx(
+              'flex-1 rounded-lg py-2 text-sm font-semibold transition-all',
+              !isRegister ? 'bg-white/[0.08] text-white' : 'text-ink-400 hover:text-ink-200'
+            )}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsRegister(true)}
+            className={clsx(
+              'flex-1 rounded-lg py-2 text-sm font-semibold transition-all',
+              isRegister ? 'bg-white/[0.08] text-white' : 'text-ink-400 hover:text-ink-200'
+            )}
+          >
+            Criar Conta
+          </button>
+        </div>
+
+        <h1 className="mb-1 text-center font-display text-2xl font-bold text-white">
+          {isRegister ? 'Criar Conta' : 'Bem-vindo de volta'}
         </h1>
-        <p className="text-center text-gray-600 mb-8">
+        <p className="mb-8 text-center text-sm text-ink-300">
           {isRegister ? 'Crie sua conta para começar' : 'Faça login na sua conta'}
         </p>
 
@@ -60,7 +92,7 @@ export default function LoginPage() {
                 placeholder="Nome Completo"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input-dark"
                 required
               />
               <input
@@ -68,7 +100,7 @@ export default function LoginPage() {
                 placeholder="Telefone (opcional)"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input-dark"
               />
             </>
           )}
@@ -78,7 +110,7 @@ export default function LoginPage() {
             placeholder="Email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-dark"
             required
           />
 
@@ -87,15 +119,11 @@ export default function LoginPage() {
             placeholder="Senha"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-dark"
             required
           />
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-semibold transition-colors"
-          >
+          <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-60">
             {isLoading ? 'Processando...' : isRegister ? 'Criar Conta' : 'Entrar'}
           </button>
         </form>
@@ -103,19 +131,19 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <button
             onClick={() => setIsRegister(!isRegister)}
-            className="text-blue-600 hover:text-blue-700 font-semibold"
+            className="text-sm font-semibold text-accent-300 hover:text-accent-200"
           >
             {isRegister ? 'Já tem conta? Faça login' : 'Não tem conta? Crie uma'}
           </button>
         </div>
 
-        <p className="text-center text-gray-600 text-sm mt-4">
+        <p className="mt-6 text-center text-xs text-ink-400">
           Ao continuar, você concorda com nossos{' '}
-          <Link href="/terms" className="text-blue-600 hover:text-blue-700">
+          <Link href="/terms" className="text-accent-300 hover:text-accent-200">
             Termos
           </Link>
           {' e '}
-          <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
+          <Link href="/privacy" className="text-accent-300 hover:text-accent-200">
             Privacidade
           </Link>
         </p>

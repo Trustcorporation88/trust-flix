@@ -1,0 +1,82 @@
+[
+  {
+    "id": "reel-antes-depois",
+    "format": "reel",
+    "title": "Antes & Depois",
+    "objetivo": "vendas",
+    "descricao": "Transição rápida mostrando a transformação/resultado do produto ou serviço.",
+    "estrutura": ["Gancho nos primeiros 2s (problema)", "Corte seco para o resultado", "CTA com oferta"],
+    "duracaoSugerida": "7-15s",
+    "tags": ["antesedepois", "transformacao", "resultado"]
+  },
+  {
+    "id": "reel-pov",
+    "format": "reel",
+    "title": "POV (ponto de vista)",
+    "objetivo": "engajamento",
+    "descricao": "Vídeo em primeira pessoa colocando o espectador na situação/dor que o produto resolve.",
+    "estrutura": ["Texto na tela 'POV: você...'", "Cena relatable", "Virada com a solução"],
+    "duracaoSugerida": "10-20s",
+    "tags": ["pov", "relatable", "storytelling"]
+  },
+  {
+    "id": "reel-top3",
+    "format": "reel",
+    "title": "Top 3 / Ranking",
+    "objetivo": "autoridade",
+    "descricao": "Lista rápida e objetiva ('3 erros que...', 'top 3 motivos...') com legendas na tela.",
+    "estrutura": ["Título chamativo", "3 pontos com corte rápido", "CTA para salvar/seguir"],
+    "duracaoSugerida": "15-30s",
+    "tags": ["listicle", "dicas", "ranking"]
+  },
+  {
+    "id": "story-enquete-oferta",
+    "format": "story",
+    "title": "Enquete + Oferta Relâmpago",
+    "objetivo": "oferta",
+    "descricao": "Sequência de stories com enquete de interesse seguida de oferta com contagem regressiva.",
+    "estrutura": ["Story 1: enquete ('quer 20% off?')", "Story 2: revela oferta com sticker de contagem", "Story 3: link/swipe up"],
+    "duracaoSugerida": "3 stories",
+    "tags": ["oferta", "promocao", "urgencia"]
+  },
+  {
+    "id": "story-bastidores",
+    "format": "story",
+    "title": "Bastidores do processo",
+    "objetivo": "engajamento",
+    "descricao": "Mostra o processo de produção/preparação, humaniza a marca.",
+    "estrutura": ["Story com processo em timelapse", "Caixinha de perguntas"],
+    "duracaoSugerida": "2-4 stories",
+    "tags": ["bastidores", "autenticidade", "processo"]
+  },
+  {
+    "id": "post-carrossel-dicas",
+    "format": "post",
+    "title": "Carrossel de Dicas",
+    "objetivo": "autoridade",
+    "descricao": "Carrossel educativo com uma dica por slide, capa forte e CTA no último slide.",
+    "estrutura": ["Capa com promessa clara", "4-6 slides de conteúdo", "Último slide com CTA"],
+    "duracaoSugerida": "6-8 slides",
+    "tags": ["carrossel", "educativo", "dicas"]
+  },
+  {
+    "id": "post-depoimento",
+    "format": "post",
+    "title": "Prova Social / Depoimento",
+    "objetivo": "vendas",
+    "descricao": "Print ou vídeo de depoimento real de cliente, com design de destaque.",
+    "estrutura": ["Depoimento em destaque", "Foto/print do cliente", "CTA de compra"],
+    "duracaoSugerida": "1 slide/imagem",
+    "tags": ["depoimento", "provasocial", "review"]
+  },
+  {
+    "id": "post-oferta-unica",
+    "format": "post",
+    "title": "Oferta Única com Escassez",
+    "objetivo": "oferta",
+    "descricao": "Post estático de oferta com preço, benefício principal e senso de urgência.",
+    "estrutura": ["Preço em destaque", "Benefício principal", "Selo de urgência (estoque/tempo)"],
+    "duracaoSugerida": "1 imagem",
+    "tags": ["oferta", "desconto", "urgencia"]
+  }
+]

@@ -3,18 +3,22 @@
 import { useCart } from '@/lib/store/cartStore';
 import { formatCurrency } from '@/lib/utils/formatters';
 import Link from 'next/link';
-import { FiTrash2, FiMinus, FiPlus } from 'react-icons/fi';
+import { FiTrash2, FiMinus, FiPlus, FiShoppingBag } from 'react-icons/fi';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal } = useCart();
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Carrinho Vazio</h1>
-          <p className="text-gray-600 mb-8">Você não tem nenhum produto no carrinho</p>
-          <Link href="/shop" className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700">
+      <div className="relative flex min-h-screen items-center justify-center bg-ink-950 px-4 py-20">
+        <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-70" />
+        <div className="relative text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
+            <FiShoppingBag size={28} className="text-ink-300" />
+          </div>
+          <h1 className="mb-3 font-display text-3xl font-bold text-white sm:text-4xl">Carrinho Vazio</h1>
+          <p className="mb-8 text-ink-300">Você não tem nenhum produto no carrinho</p>
+          <Link href="/shop" className="btn-primary">
             Continuar Comprando
           </Link>
         </div>
@@ -23,49 +27,52 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Carrinho</h1>
+    <div className="relative min-h-screen bg-ink-950 py-12">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-grid-glow opacity-60" />
+      <div className="relative mx-auto max-w-7xl px-4">
+        <h1 className="mb-8 font-display text-3xl font-bold text-white sm:text-4xl">Carrinho</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Items */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="table-wrapper card-surface p-6">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">Produto</th>
-                    <th className="text-center py-2">Quantidade</th>
-                    <th className="text-right py-2">Preço</th>
-                    <th className="text-right py-2"></th>
+                  <tr className="border-b border-white/10 text-ink-400">
+                    <th className="py-2 text-left text-sm font-semibold uppercase tracking-wide">Produto</th>
+                    <th className="py-2 text-center text-sm font-semibold uppercase tracking-wide">Quantidade</th>
+                    <th className="py-2 text-right text-sm font-semibold uppercase tracking-wide">Preço</th>
+                    <th className="py-2 text-right"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.productId} className="border-b hover:bg-gray-50">
-                      <td className="py-4">Produto #{item.productId}</td>
-                      <td className="text-center py-4">
+                    <tr key={item.productId} className="border-b border-white/5 transition-colors hover:bg-white/[0.03]">
+                      <td className="py-4 text-white">Produto #{item.productId}</td>
+                      <td className="py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1))}
-                            className="p-1 hover:bg-gray-200 rounded"
+                            className="rounded-lg border border-white/10 p-1.5 text-ink-300 hover:bg-white/[0.06] hover:text-white"
                           >
-                            <FiMinus size={16} />
+                            <FiMinus size={14} />
                           </button>
-                          <span className="w-8 text-center">{item.quantity}</span>
+                          <span className="w-8 text-center text-white">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            className="p-1 hover:bg-gray-200 rounded"
+                            className="rounded-lg border border-white/10 p-1.5 text-ink-300 hover:bg-white/[0.06] hover:text-white"
                           >
-                            <FiPlus size={16} />
+                            <FiPlus size={14} />
                           </button>
                         </div>
                       </td>
-                      <td className="text-right py-4">{formatCurrency(item.price * item.quantity)}</td>
-                      <td className="text-right py-4">
+                      <td className="py-4 text-right font-semibold text-white">
+                        {formatCurrency(item.price * item.quantity)}
+                      </td>
+                      <td className="py-4 text-right">
                         <button
                           onClick={() => removeItem(item.productId)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-danger-500 hover:text-danger-600"
                         >
                           <FiTrash2 size={18} />
                         </button>
@@ -79,26 +86,24 @@ export default function CartPage() {
 
           {/* Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Resumo</h2>
-              <div className="space-y-4 mb-6">
+            <div className="card-surface p-6">
+              <h2 className="mb-4 font-display text-xl font-bold text-white">Resumo</h2>
+              <div className="mb-6 space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold">{formatCurrency(getTotal())}</span>
+                  <span className="text-ink-300">Subtotal</span>
+                  <span className="font-semibold text-white">{formatCurrency(getTotal())}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Frete</span>
-                  <span className="font-semibold">Grátis</span>
+                  <span className="text-ink-300">Frete</span>
+                  <span className="font-semibold text-accent-300">Grátis</span>
                 </div>
-                <div className="border-t pt-4 flex justify-between">
-                  <span className="font-bold">Total</span>
-                  <span className="font-bold text-xl text-blue-600">{formatCurrency(getTotal())}</span>
+                <div className="flex justify-between border-t border-white/10 pt-4">
+                  <span className="font-bold text-white">Total</span>
+                  <span className="font-bold text-xl text-accent-300">{formatCurrency(getTotal())}</span>
                 </div>
               </div>
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold mb-3">
-                Finalizar Compra
-              </button>
-              <Link href="/shop" className="block text-center text-blue-600 hover:text-blue-700 py-2">
+              <button className="btn-primary mb-3 w-full">Finalizar Compra</button>
+              <Link href="/shop" className="block py-2 text-center text-sm font-semibold text-accent-300 hover:text-accent-200">
                 Continuar Comprando
               </Link>
             </div>
