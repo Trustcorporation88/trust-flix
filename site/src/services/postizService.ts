@@ -3,7 +3,7 @@
  * Docs: https://docs.postiz.com/public-api/introduction
  *
  * Requer as variáveis de ambiente:
- *   POSTIZ_API_URL  (ex: https://engine.trustflix.com/api/public/v1)
+ *   POSTIZ_API_URL  (ex: https://insta.trustcorp.com.br/api/public/v1)
  *   POSTIZ_API_KEY
  */
 import axios from 'axios';

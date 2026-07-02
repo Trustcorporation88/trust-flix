@@ -1,4 +1,4 @@
-# Arquitetura — TrustFlix Content Engine
+# Arquitetura — Trust Insta Content Engine
 
 ## Objetivo
 Cliente conecta a conta do Instagram e/ou TikTok. O sistema mostra modelos de post/reel/story

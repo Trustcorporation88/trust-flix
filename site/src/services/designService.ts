@@ -210,7 +210,7 @@ export const TEMPLATES: Template[] = [
         height: 120,
         rotation: 0,
         opacity: 1,
-        content: 'MENTORIA ELITE TRUSTFLIX',
+        content: 'MENTORIA ELITE TRUST INSTA',
         color: '#A78BFA',
         fontSize: 32,
         fontFamily: 'Arial',

@@ -12,7 +12,7 @@ sem modificar o código-fonte (mantém a licença AGPL simples e facilita atuali
    ```
 
 2. Copie `.env.example` para `.env` e configure:
-   - `MAIN_URL` / `FRONTEND_URL` / `NEXT_PUBLIC_BACKEND_URL` — domínio onde o Postiz vai rodar (ex: `https://engine.trustflix.com`)
+   - `MAIN_URL` / `FRONTEND_URL` / `NEXT_PUBLIC_BACKEND_URL` — domínio onde o Postiz vai rodar (ex: `https://insta.trustcorp.com.br`)
    - Credenciais do app Meta (Instagram): `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`
    - Credenciais do app TikTok: `TIKTOK_CLIENT_ID`, `TIKTOK_CLIENT_SECRET`
    - `STORAGE_PROVIDER=local` (ou `cloudflare` com credenciais R2)
@@ -24,8 +24,8 @@ sem modificar o código-fonte (mantém a licença AGPL simples e facilita atuali
 
 4. Acesse o painel do Postiz, crie sua organização, e em **Settings → API** gere uma API Key.
 
-5. No TrustFlix, configure as variáveis de ambiente (via secrets do Gumloop ou `.env` do site):
-   - `POSTIZ_API_URL=https://engine.trustflix.com/api/public/v1`
+5. No Trust Insta, configure as variáveis de ambiente (via secrets do Gumloop ou `.env` do site):
+   - `POSTIZ_API_URL=https://insta.trustcorp.com.br/api/public/v1`
    - `POSTIZ_API_KEY=<chave gerada no passo 4>`
 
 ## Onde hospedar

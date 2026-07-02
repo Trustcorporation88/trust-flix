@@ -19,7 +19,7 @@ export default function CreatorStudioPage() {
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
     {
       role: 'assistant',
-      content: '🤖 Olá, parceiro da **TrustFlix**! Sou o **DOUG.EXE**, seu estrategista neural de copy e vendas. Escolha um agente abaixo, digite seu produto/nicho e clique em gerar para criar copys de alta conversão! Depois, clique em **Adicionar ao Canvas** para aplicar diretamente no seu post!'
+      content: '🤖 Olá, parceiro da **Trust Insta**! Sou o **DOUG.EXE**, seu estrategista neural de copy e vendas. Escolha um agente abaixo, digite seu produto/nicho e clique em gerar para criar copys de alta conversão! Depois, clique em **Adicionar ao Canvas** para aplicar diretamente no seu post!'
     }
   ]);
   const [isAiLoading, setIsAiLoading] = useState(false);
