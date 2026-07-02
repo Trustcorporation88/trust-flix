@@ -95,17 +95,22 @@ export default function ContentStudioPage() {
     setCaption('');
     setIsGenerating(true);
     try {
-      const res = await fetch('/api/agents/execute', {
+      // Usa a chave de IA compartilhada da TrustFlix (server-side), não o BYOK do Arsenal —
+      // o cliente final do Content Studio não precisa ter/inserir a própria API key.
+      const res = await fetch('/api/content-studio/caption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agent: 'copywriter',
-          prompt: `Crie uma legenda para um ${template.format} do tipo "${template.title}" (objetivo: ${template.objetivo}), nicho: ${nicho || 'geral'}. Estrutura sugerida: ${template.estrutura.join(' -> ')}.`,
+          format: template.format,
+          title: template.title,
+          objetivo: template.objetivo,
+          nicho: nicho || 'geral',
+          estrutura: template.estrutura,
         }),
       });
       const json = await res.json();
-      setCaption(json?.data?.output || json?.output || '');
-      if (!res.ok) throw new Error();
+      if (!res.ok || !json.success) throw new Error(json?.error || 'Erro ao gerar legenda');
+      setCaption(json.caption || '');
     } catch {
       setCaption(
         `[Rascunho] ${template.title} — adicione sua legenda aqui.\n\nEstrutura: ${template.estrutura.join(' → ')}`
