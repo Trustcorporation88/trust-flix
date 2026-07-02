@@ -2,4 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
+  body {
+    @apply bg-ink-950 text-ink-100 antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent-500/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-ink-950;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ink-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-600;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-hover {
+    @apply hover:bg-white/[0.07] hover:border-white/20 transition-colors;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-300 via-accent-400 to-gold-400 bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-500 to-accent-600 px-6 py-3 font-semibold text-white shadow-glow transition-all hover:from-accent-400 hover:to-accent-500 hover:shadow-[0_0_50px_-6px_rgba(34,200,247,0.6)] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-6 py-3 font-semibold text-white backdrop-blur-md transition-all hover:bg-white/[0.08] hover:border-white/30 active:scale-[0.98];
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-400 to-gold-500 px-6 py-3 font-semibold text-ink-950 shadow-glow-gold transition-all hover:from-gold-300 hover:to-gold-400 active:scale-[0.98];
+  }
+
+  .input-dark {
+    @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-white placeholder-ink-400 outline-none transition-colors focus:border-accent-400/60 focus:ring-2 focus:ring-accent-500/30;
+  }
+
+  .section-badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent-300;
+  }
+
+  .card-surface {
+    @apply rounded-2xl border border-white/10 bg-ink-900/60 shadow-card backdrop-blur-sm;
+  }
+}
