@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { postizService } from '@/services/postizService';
 
+// Sem isso, essa rota GET (sem params, sem cookies/headers) é tratada pelo Next.js
+// como estatica e renderizada uma unica vez em build time -- o resultado (inclusive
+// erros) fica congelado e nao muda em requests subsequentes nem apos redeploys que so
+// alteram logica de runtime. Forcamos execucao dinamica a cada request.
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     if (!postizService.isConfigured()) {
