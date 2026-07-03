@@ -8,7 +8,7 @@ export default function TermsOfServicePage() {
         <div className="mt-8 space-y-6 leading-relaxed">
           <p>
             Estes Termos de Uso regem o acesso e uso da plataforma <strong>Trust Insta</strong>, acessível em{' '}
-            <strong>socialflow.site</strong> ("Plataforma"). Ao criar uma conta ou utilizar a Plataforma, você
+            <strong>socialflow.site</strong> (&quot;Plataforma&quot;). Ao criar uma conta ou utilizar a Plataforma, você
             concorda com estes termos.
           </p>
 
