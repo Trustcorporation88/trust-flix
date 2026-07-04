@@ -81,8 +81,8 @@ export function DashboardShell({
       <aside className="w-64 bg-gray-900 text-white flex flex-col fixed h-screen overflow-y-auto">
         <div className="p-6 border-b border-gray-800">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Trust Insta Logo" className="w-8 h-8 object-contain" />
-            <span className="text-xl font-bold">Trust Insta Admin</span>
+            <img src="/logo.png" alt="Social Flow Logo" className="w-8 h-8 object-contain" />
+            <span className="text-xl font-bold">Social Flow Admin</span>
           </Link>
           {user?.name && <p className="text-gray-400 text-xs mt-2">{user.name}</p>}
         </div>

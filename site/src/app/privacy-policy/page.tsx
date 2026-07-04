@@ -7,7 +7,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="mt-8 space-y-6 leading-relaxed">
           <p>
-            Esta Política de Privacidade descreve como a <strong>Trust Insta</strong> (&quot;nós&quot;, &quot;nosso&quot; ou &quot;Plataforma&quot;),
+            Esta Política de Privacidade descreve como a <strong>Social Flow</strong> (&quot;nós&quot;, &quot;nosso&quot; ou &quot;Plataforma&quot;),
             acessível em <strong>socialflow.site</strong> e <strong>trust-flix88.vercel.app</strong>, coleta, usa e
             protege as informações dos usuários que utilizam nossos serviços de automação, agendamento e publicação
             de conteúdo em redes sociais (Instagram, TikTok e outras plataformas suportadas).

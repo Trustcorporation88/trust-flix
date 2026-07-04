@@ -50,7 +50,7 @@ export default function LoginPage() {
 
       <div className="card-surface relative w-full max-w-md p-8">
         <div className="mb-8 flex justify-center">
-          <img src="/logo.png" alt="Trust Insta" className="h-12 w-12 rounded-xl object-contain" />
+          <img src="/logo.png" alt="Social Flow" className="h-12 w-12 rounded-xl object-contain" />
         </div>
 
         {/* Toggle Tabs */}

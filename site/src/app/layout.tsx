@@ -17,7 +17,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: 'Trust Insta — Vendas Automatizadas com IA',
+  title: 'Social Flow — Vendas Automatizadas com IA',
   description:
     'Agentes de IA, criativos e automação de Instagram e WhatsApp em uma única plataforma. Venda mais, com menos esforço.',
   icons: {

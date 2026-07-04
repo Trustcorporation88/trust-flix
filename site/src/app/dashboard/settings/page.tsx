@@ -73,7 +73,7 @@ export default function SettingsPage() {
           {tab === 'brand' && (
             <div className="space-y-5 max-w-xl">
               <h3 className="text-lg font-semibold text-gray-900">Identidade da Marca</h3>
-              <Field label="Nome da empresa" defaultValue="Trust Insta" />
+              <Field label="Nome da empresa" defaultValue="Social Flow" />
               <Field label="Slogan" defaultValue="Venda, crie e automatize em uma plataforma" />
               <Field label="E-mail de contato" type="email" defaultValue="contato@trustcorp.com.br" />
               <Field label="Cor primária" defaultValue="#2563eb" />
