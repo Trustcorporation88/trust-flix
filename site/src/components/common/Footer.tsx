@@ -21,9 +21,9 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="mb-4 flex items-center space-x-2">
-              <img src="/logo.png" alt="Trust Insta Logo" className="h-9 w-9 rounded-lg object-contain" />
+              <img src="/logo.png" alt="Social Flow Logo" className="h-9 w-9 rounded-lg object-contain" />
               <span className="text-xl font-bold text-white font-display">
-                Trust<span className="gradient-text">Insta</span>
+                Social<span className="gradient-text">Flow</span>
               </span>
             </div>
             <p className="text-sm leading-relaxed text-ink-300">
@@ -95,7 +95,7 @@ export function Footer() {
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
           <p className="text-sm text-ink-400">
-            &copy; {currentYear} Trust Insta. Todos os direitos reservados.
+            &copy; {currentYear} Social Flow. Todos os direitos reservados.
           </p>
           <div className="flex space-x-3">
             {socials.map(({ icon: Icon, href, label }) => (

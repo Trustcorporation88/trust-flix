@@ -24,7 +24,7 @@ const typeDescriptions: Record<string, string> = {
   evolution_api: 'Conexão WhatsApp via Evolution API para envio e recebimento de mensagens.',
   mercado_pago: 'Processamento de pagamentos via cartão, boleto e PIX.',
   pushinpay: 'Geração de cobranças PIX instantâneas com confirmação automática.',
-  zapier: 'Conecte o Trust Insta a mais de 5000 aplicativos.',
+  zapier: 'Conecte o Social Flow a mais de 5000 aplicativos.',
   custom: 'Integração customizada via webhook.',
 };
 
