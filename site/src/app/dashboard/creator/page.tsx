@@ -711,6 +711,25 @@ Clipe 3: [CTA] "Clique no link e garanta sua licença hoje!"`;
                             className="w-full bg-purple-900/30 text-white border border-purple-500/30 rounded px-2 py-1 text-sm"
                           />
                         </div>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Fonte</label>
+                          <select
+                            value={editor.selectedAsset.fontFamily || 'Arial'}
+                            onChange={(e) =>
+                              editor.updateAsset(editor.selectedAsset!.id, {
+                                fontFamily: e.target.value,
+                              })
+                            }
+                            className="w-full bg-purple-900/30 text-white border border-purple-500/30 rounded px-2 py-1 text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Impact">Impact</option>
+                            <option value="'Poppins', sans-serif">Poppins</option>
+                            <option value="'Montserrat', sans-serif">Montserrat</option>
+                            <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                            <option value="'Playfair Display', serif">Playfair Display</option>
+                          </select>
+                        </div>
                       </>
                     )}
 
