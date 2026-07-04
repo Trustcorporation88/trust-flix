@@ -5,6 +5,7 @@ import { FiInstagram, FiTrendingUp, FiCheck, FiLoader } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
 
 interface Template {
   id: string;
@@ -163,6 +164,14 @@ export default function ContentStudioPage() {
           legenda e aprove antes de publicar.
         </p>
 
+        <div className="mt-8">
+          <DailyContentGenerator />
+        </div>
+
+        <div className="mt-12 flex items-center gap-3">
+          <span className="section-badge">Ou navegue pelos modelos prontos</span>
+        </div>
+
         {!accounts?.configured && (
           <div className="mt-6 rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-3 text-sm text-gold-300">
             ⚠️ Motor de publicação (Postiz) ainda não conectado — você pode montar o conteúdo, mas o
@@ -184,105 +193,122 @@ export default function ContentStudioPage() {
             placeholder="Seu nicho (ex: moda, fitness, estética)..."
             value={nicho}
             onChange={(e) => setNicho(e.target.value)}
-            onBlur={loadTemplates}
-            className="input-dark md:flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && loadTemplates()}
+            className="input-dark flex-1"
           />
-          <select value={objetivo} onChange={(e) => setObjetivo(e.target.value)} className="input-dark md:w-56 [&>option]:bg-ink-900">
-            {objetivos.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select value={formato} onChange={(e) => setFormato(e.target.value)} className="input-dark md:w-48 [&>option]:bg-ink-900">
-            {formatos.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          <button onClick={loadTemplates} className="btn-secondary">
+            <FiTrendingUp /> Atualizar
+          </button>
         </div>
 
-        {/* Account selector */}
-        {accounts?.configured && accounts.data.integrations?.length > 0 && (
-          <div className="mt-4">
-            <label className="mb-2 block text-sm font-semibold text-white">Conta de destino</label>
-            <div className="flex flex-wrap gap-2">
-              {accounts.data.integrations.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedAccount(acc.id)}
-                  className={clsx(
-                    'flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
-                    selectedAccount === acc.id
-                      ? 'border-accent-400/60 bg-accent-500/10 text-accent-300'
-                      : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
-                  )}
-                >
-                  {acc.platform === 'tiktok' ? <SiTiktok /> : <FiInstagram />}
-                  {acc.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {objetivos.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setObjetivo(o.value)}
+              className={clsx(
+                'rounded-full border px-4 py-1.5 text-sm transition-colors',
+                objetivo === o.value
+                  ? 'border-accent-400 bg-accent-400/10 text-accent-400'
+                  : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {formatos.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFormato(f.value)}
+              className={clsx(
+                'rounded-full border px-4 py-1.5 text-sm transition-colors',
+                formato === f.value
+                  ? 'border-accent-400 bg-accent-400/10 text-accent-400'
+                  : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {/* Templates grid */}
-        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {isLoadingTemplates
-            ? [...Array(6)].map((_, i) => (
+            ? Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-56 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
               ))
-            : templates.map((t) => (
+            : templates.map((template) => (
                 <button
-                  key={t.id}
-                  onClick={() => handleSelectTemplate(t)}
+                  key={template.id}
+                  onClick={() => handleSelectTemplate(template)}
                   className={clsx(
                     'group flex flex-col rounded-2xl border p-6 text-left transition-all hover:-translate-y-1',
-                    selectedTemplate?.id === t.id
-                      ? 'border-accent-400/60 bg-accent-500/10'
+                    selectedTemplate?.id === template.id
+                      ? 'border-accent-400 bg-accent-400/10'
                       : 'border-white/10 bg-white/[0.03] hover:border-accent-400/40'
                   )}
                 >
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
-                      {t.format}
+                      {template.format}
                     </span>
-                    <span className="flex items-center gap-1 text-xs font-semibold text-gold-400">
-                      <FiTrendingUp size={14} />
-                      {t.trendScore}
-                    </span>
+                    {template.trendScore > 0 && (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-accent-400">
+                        <FiTrendingUp /> {template.trendScore}
+                      </span>
+                    )}
                   </div>
-                  <h3 className="mb-1 font-semibold text-white">{t.title}</h3>
-                  <p className="mb-3 text-xs uppercase tracking-wide text-accent-300">{t.objetivo}</p>
-                  <p className="mb-4 flex-1 text-sm text-ink-300">{t.descricao}</p>
-                  <p className="text-xs text-ink-500">{t.duracaoSugerida}</p>
+                  <h3 className="mt-4 font-display text-lg font-semibold text-white">{template.title}</h3>
+                  <p className="mt-2 text-sm text-ink-300">{template.descricao}</p>
+                  <div className="mt-4 flex flex-wrap gap-1">
+                    {template.tags.map((tag) => (
+                      <span key={tag} className="text-xs text-ink-400">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="mt-4 text-xs text-ink-400">{template.duracaoSugerida}</span>
                 </button>
               ))}
         </div>
 
-        {/* Selected template detail / caption editor */}
+        {/* Caption editor + accounts + schedule */}
         {selectedTemplate && (
           <div className="card-surface mt-10 p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold text-white">{selectedTemplate.title}</h2>
-              <span className="text-xs text-ink-400">{selectedTemplate.duracaoSugerida}</span>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold text-white">{selectedTemplate.title}</h2>
+              {isGenerating && <FiLoader className="animate-spin text-accent-400" />}
             </div>
 
-            <ol className="mb-6 space-y-2">
-              {selectedTemplate.estrutura.map((step, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-ink-200">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-accent-500/20 text-xs font-bold text-accent-300">
-                    {i + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
+            <div className="mt-4">
+              <label className="text-sm text-ink-300">Contas para publicar</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {accounts?.data?.integrations?.length ? (
+                  accounts.data.integrations.map((acc) => (
+                    <button
+                      key={acc.id}
+                      onClick={() => setSelectedAccount(acc.id)}
+                      className={clsx(
+                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                        selectedAccount === acc.id
+                          ? 'border-accent-400 bg-accent-400/10 text-accent-400'
+                          : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+                      )}
+                    >
+                      {acc.platform === 'tiktok' ? <SiTiktok /> : <FiInstagram />}
+                      {acc.name}
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-sm text-ink-400">Nenhuma conta conectada</span>
+                )}
+              </div>
+            </div>
 
-            <label className="mb-2 block text-sm font-semibold text-white">
-              Legenda/roteiro {isGenerating && <FiLoader className="inline animate-spin" />}
-            </label>
+            <label className="mt-6 block text-sm text-ink-300">Legenda gerada pela IA</label>
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
