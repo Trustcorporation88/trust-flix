@@ -49,7 +49,14 @@ export async function POST(request: NextRequest) {
       );
     }
     const body = await request.json();
-    const result = await postizService.createPost(body);
+    const result = await postizService.createPost({
+      integrationId: body.integrationId,
+      integrationType: body.integrationType,
+      content: body.content,
+      media: body.media,
+      postType: body.postType,
+      scheduledFor: body.scheduledFor,
+    });
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
     return NextResponse.json(
