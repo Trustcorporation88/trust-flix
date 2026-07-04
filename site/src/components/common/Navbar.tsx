@@ -29,7 +29,7 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2 shrink-0">
-          <img src="/logo.png" alt="Social Flow Logo" className="h-9 w-9 rounded-lg object-contain" />
+          <img src="/logo.png" alt="Social Flow Logo" className="h-11 w-11 rounded-lg object-contain" />
           <span className="hidden text-xl font-bold tracking-tight text-white sm:inline font-display">
             Social<span className="gradient-text">Flow</span>
           </span>

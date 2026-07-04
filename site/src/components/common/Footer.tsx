@@ -21,7 +21,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="mb-4 flex items-center space-x-2">
-              <img src="/logo.png" alt="Social Flow Logo" className="h-9 w-9 rounded-lg object-contain" />
+              <img src="/logo.png" alt="Social Flow Logo" className="h-11 w-11 rounded-lg object-contain" />
               <span className="text-xl font-bold text-white font-display">
                 Social<span className="gradient-text">Flow</span>
               </span>
