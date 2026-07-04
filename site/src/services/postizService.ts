@@ -28,17 +28,29 @@ export interface PostizGroup {
 export interface PostizIntegration {
   id: string;
   name: string;
-  platform: string; // 'instagram' | 'tiktok' | ...
+  /** Identificador da plataforma retornado pelo Postiz, ex: 'instagram', 'instagram-standalone', 'tiktok' */
+  identifier: string;
   picture?: string;
+  disabled?: boolean;
+  profile?: string;
   customer?: { id: string; name: string };
 }
 
+export interface PostizMedia {
+  id: string;
+  path: string;
+}
+
 export interface CreatePostPayload {
-  groupId: string;
-  integrationIds: string[];
+  /** ID da integração (conta) de destino, retornado por listIntegrations() */
+  integrationId: string;
+  /** identifier da integração (ex: 'instagram', 'instagram-standalone') -- define o schema de settings aceito */
+  integrationType: string;
   content: string;
-  mediaUrls?: string[];
-  scheduledFor?: string; // ISO date
+  media?: PostizMedia[];
+  /** 'post' = feed/Reel (Reel quando ha um unico video), 'story' = Story de 24h */
+  postType?: 'post' | 'story';
+  scheduledFor?: string; // ISO date; se omitido, publica agora
 }
 
 function assertConfigured() {
@@ -75,6 +87,9 @@ async function withDiagnostics<T>(label: string, fn: () => Promise<T>): Promise<
   }
 }
 
+/** __type aceito pelas settings do Postiz para contas Instagram */
+const INSTAGRAM_TYPES = new Set(['instagram', 'instagram-standalone']);
+
 export const postizService = {
   /** Lista os clientes/tenants (multi-tenant nativo do Postiz) */
   async listGroups(): Promise<PostizGroup[]> {
@@ -90,35 +105,58 @@ export const postizService = {
     assertConfigured();
     return withDiagnostics('listIntegrations', async () => {
       const { data } = await client.get('/integrations', {
-        params: groupId ? { customer: groupId } : undefined,
+        params: groupId ? { group: groupId } : undefined,
       });
       return data;
     });
   },
 
   /**
-   * Gera a URL de OAuth para o cliente conectar uma nova conta (Instagram ou TikTok).
-   * `platform` deve ser o identificador de integração usado pelo Postiz (ex: 'instagram', 'tiktok').
+   * Faz upload de um arquivo de mídia (imagem ou vídeo) para o Postiz e retorna
+   * a referência {id, path} usada no campo `image` do post.
    */
-  async getConnectUrl(platform: string, groupId: string): Promise<{ url: string }> {
+  async uploadMedia(file: Blob, filename: string): Promise<PostizMedia> {
     assertConfigured();
-    return withDiagnostics('getConnectUrl', async () => {
-      const { data } = await client.post(`/integrations/${platform}/connect`, { customer: groupId });
-      return data;
+    return withDiagnostics('uploadMedia', async () => {
+      const form = new FormData();
+      form.append('file', file, filename);
+      const res = await fetch(`${baseURL.replace(/\/$/, '')}/upload`, {
+        method: 'POST',
+        headers: { Authorization: apiKey },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`(${res.status}) ${text}`);
+      }
+      return res.json();
     });
   },
 
-  /** Cria/agenda uma publicação para uma ou mais contas conectadas */
+  /**
+   * Cria/agenda uma publicação para uma conta conectada, seguindo o schema oficial
+   * da Public API: POST /posts com { type, date, posts: [{ integration, value, settings }] }.
+   * Docs: https://docs.postiz.com/public-api/posts/create
+   */
   async createPost(payload: CreatePostPayload) {
     assertConfigured();
     return withDiagnostics('createPost', async () => {
+      const settings: Record<string, unknown> = INSTAGRAM_TYPES.has(payload.integrationType)
+        ? { __type: payload.integrationType, post_type: payload.postType || 'post', is_trial_reel: false }
+        : { __type: payload.integrationType };
+
       const { data } = await client.post('/posts', {
         type: payload.scheduledFor ? 'schedule' : 'now',
-        date: payload.scheduledFor,
-        content: payload.content,
-        integrations: payload.integrationIds,
-        media: payload.mediaUrls,
-        customer: payload.groupId,
+        date: payload.scheduledFor || new Date().toISOString(),
+        shortLink: false,
+        tags: [],
+        posts: [
+          {
+            integration: { id: payload.integrationId },
+            value: [{ content: payload.content, image: payload.media || [] }],
+            settings,
+          },
+        ],
       });
       return data;
     });

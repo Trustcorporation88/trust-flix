@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiInstagram, FiTrendingUp, FiCheck, FiLoader } from 'react-icons/fi';
+import { FiInstagram, FiTrendingUp, FiCheck, FiLoader, FiUpload, FiX, FiFilm } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -19,13 +19,22 @@ interface Template {
   trendScore: number;
 }
 
+interface PostizIntegration {
+  id: string;
+  name: string;
+  identifier: string;
+}
+
 interface AccountsResponse {
   configured: boolean;
   data: {
     groups: { id: string; name: string }[];
-    integrations: { id: string; name: string; platform: string }[];
+    integrations: PostizIntegration[];
   };
 }
+
+/** Tamanho máximo aceito no upload -- limite de corpo de requisição da Vercel (~4.5MB) */
+const MAX_UPLOAD_BYTES = 4.4 * 1024 * 1024;
 
 const objetivos = [
   { value: 'all', label: 'Todos os objetivos' },
@@ -57,6 +66,9 @@ export default function ContentStudioPage() {
   const [caption, setCaption] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [postType, setPostType] = useState<'post' | 'story'>('post');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -94,6 +106,8 @@ export default function ContentStudioPage() {
   const handleSelectTemplate = async (template: Template) => {
     setSelectedTemplate(template);
     setCaption('');
+    setMediaFile(null);
+    setPostType(template.format === 'story' ? 'story' : 'post');
     setIsGenerating(true);
     try {
       // Usa a chave de IA compartilhada da TrustFlix (server-side), não o BYOK do Arsenal —
@@ -122,31 +136,65 @@ export default function ContentStudioPage() {
     }
   };
 
+  const handleMediaChange = (file: File | null) => {
+    if (file && file.size > MAX_UPLOAD_BYTES) {
+      toast.error('Arquivo maior que ~4.4MB -- comprima o vídeo ou publique esse post direto no painel do Postiz.');
+      return;
+    }
+    setMediaFile(file);
+  };
+
   const handleApproveAndSchedule = async () => {
     if (!selectedTemplate) return;
     if (!selectedAccount) {
       toast.error('Selecione uma conta conectada antes de agendar');
       return;
     }
+    const account = accounts?.data?.integrations?.find((a) => a.id === selectedAccount);
+    if (!account) {
+      toast.error('Conta selecionada não encontrada -- atualize a página e tente de novo');
+      return;
+    }
+
     setIsScheduling(true);
     try {
+      let media: { id: string; path: string }[] | undefined;
+
+      if (mediaFile) {
+        setIsUploadingMedia(true);
+        const form = new FormData();
+        form.append('file', mediaFile, mediaFile.name);
+        const uploadRes = await fetch('/api/content-studio/upload-media', { method: 'POST', body: form });
+        const uploadJson = await uploadRes.json();
+        setIsUploadingMedia(false);
+        if (!uploadRes.ok || !uploadJson.success) {
+          throw new Error(uploadJson?.error || 'Erro ao enviar o arquivo de mídia');
+        }
+        media = [uploadJson.data];
+      }
+
       const res = await fetch('/api/content-studio/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          integrationIds: [selectedAccount],
+          integrationId: account.id,
+          integrationType: account.identifier,
           content: caption,
+          media,
+          postType,
         }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      toast.success('Post agendado com sucesso!');
+      toast.success(postType === 'story' ? 'Story publicado/agendado!' : 'Post/Reel publicado/agendado!');
       setSelectedTemplate(null);
       setCaption('');
+      setMediaFile(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao agendar');
     } finally {
       setIsScheduling(false);
+      setIsUploadingMedia(false);
     }
   };
 
@@ -298,7 +346,7 @@ export default function ContentStudioPage() {
                           : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
                       )}
                     >
-                      {acc.platform === 'tiktok' ? <SiTiktok /> : <FiInstagram />}
+                      {acc.identifier === 'tiktok' ? <SiTiktok /> : <FiInstagram />}
                       {acc.name}
                     </button>
                   ))
@@ -317,6 +365,66 @@ export default function ContentStudioPage() {
               className="input-dark resize-none"
             />
 
+            <div className="mt-6">
+              <label className="text-sm text-ink-300">Formato da publicação</label>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => setPostType('post')}
+                  className={clsx(
+                    'rounded-full border px-4 py-1.5 text-sm transition-colors',
+                    postType === 'post'
+                      ? 'border-accent-400 bg-accent-400/10 text-accent-400'
+                      : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+                  )}
+                >
+                  Feed / Reel
+                </button>
+                <button
+                  onClick={() => setPostType('story')}
+                  className={clsx(
+                    'rounded-full border px-4 py-1.5 text-sm transition-colors',
+                    postType === 'story'
+                      ? 'border-accent-400 bg-accent-400/10 text-accent-400'
+                      : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+                  )}
+                >
+                  Story
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-ink-400">
+                Um único vídeo em &quot;Feed / Reel&quot; é publicado como Reel no Instagram.
+              </p>
+            </div>
+
+            <div className="mt-6">
+              <label className="text-sm text-ink-300">Vídeo ou imagem do Reel/post</label>
+              {mediaFile ? (
+                <div className="mt-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm text-ink-200">
+                    <FiFilm /> {mediaFile.name} ({(mediaFile.size / (1024 * 1024)).toFixed(1)}MB)
+                  </span>
+                  <button onClick={() => setMediaFile(null)} className="text-ink-400 hover:text-white">
+                    <FiX />
+                  </button>
+                </div>
+              ) : (
+                <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/[0.02] px-4 py-6 text-sm text-ink-300 transition-colors hover:border-accent-400/50 hover:text-white">
+                  <FiUpload />
+                  Escolher vídeo (MP4) ou imagem
+                  <input
+                    type="file"
+                    accept="video/*,image/*"
+                    className="hidden"
+                    onChange={(e) => handleMediaChange(e.target.files?.[0] || null)}
+                  />
+                </label>
+              )}
+              <p className="mt-1 text-xs text-ink-400">
+                Limite de ~4.4MB por este envio (limite da Vercel). Vídeo maior? Comprima antes ou publique esse
+                post direto no painel do Postiz.
+              </p>
+            </div>
+
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleApproveAndSchedule}
@@ -324,7 +432,7 @@ export default function ContentStudioPage() {
                 className="btn-primary disabled:opacity-50"
               >
                 {isScheduling ? <FiLoader className="animate-spin" /> : <FiCheck />}
-                Aprovar e Agendar
+                {isUploadingMedia ? 'Enviando mídia...' : 'Aprovar e Publicar'}
               </button>
               <button onClick={() => setSelectedTemplate(null)} className="btn-secondary">
                 Cancelar
