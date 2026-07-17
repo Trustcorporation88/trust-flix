@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useDesignStore } from '@/stores/designStore';
 import { useCanvasEditor } from '@/hooks/useCanvasEditor';
 import { Design } from '@/services/designService';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
+import { saveContentDraft } from '@/lib/contentDraft';
+import toast from 'react-hot-toast';
 
 export default function CreatorStudioPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'library' | 'saved'>('editor');
   const [showNewModal, setShowNewModal] = useState(false);
   const designStore = useDesignStore();
@@ -199,19 +204,46 @@ Clipe 3: [CTA] "Clique no link e garanta sua licença hoje!"`;
       {/* Header */}
       <header className="bg-black/40 backdrop-blur-md border-b border-purple-500/20">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                🎨 Creator Studio
+                Creator Studio
               </h1>
-              <p className="text-gray-400 text-sm mt-1">Suite completa de criação de conteúdo para Instagram</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Crie o visual e envie a copy para o Content Studio publicar
+              </p>
             </div>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all"
-            >
-              ✨ Novo Design
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/dashboard"
+                className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              >
+                ← Painel
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  const lastAssistant = [...aiMessages].reverse().find((m) => m.role === 'assistant');
+                  const text = lastAssistant?.content?.replace(/\*\*/g, '') || '';
+                  if (!text || text.includes('Sou o **DOUG')) {
+                    toast.error('Gere uma copy no copiloto antes de enviar');
+                    return;
+                  }
+                  saveContentDraft({ caption: text, source: 'Creator Studio' });
+                  toast.success('Copy enviada ao Content Studio');
+                  router.push('/dashboard/content-studio');
+                }}
+                className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-semibold text-white hover:bg-signal-600"
+              >
+                Usar copy no Content Studio
+              </button>
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+              >
+                Novo Design
+              </button>
+            </div>
           </div>
         </div>
       </header>

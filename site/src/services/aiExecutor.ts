@@ -47,13 +47,15 @@ export interface ExecutionResult {
 }
 
 const STORAGE_KEY = 'jetflix_ai_config';
+const HISTORY_KEY = 'sf_agent_history';
+const HISTORY_MAX = 40;
 
 class AIExecutor {
   private config: AIExecutorConfig | null = null;
   private executionHistory: ExecutionResult[] = [];
   private loadedFromStorage = false;
 
-  /** Lê a configuração persistida no localStorage (apenas no browser, uma vez). */
+  /** Lê config + histórico persistidos (apenas no browser). */
   private ensureLoaded(): void {
     if (this.loadedFromStorage || typeof window === 'undefined') return;
     this.loadedFromStorage = true;
@@ -67,6 +69,30 @@ class AIExecutor {
       }
     } catch (error) {
       console.error('Falha ao carregar config de IA do localStorage:', error);
+    }
+    try {
+      const histRaw = window.localStorage.getItem(HISTORY_KEY);
+      if (histRaw) {
+        const parsed = JSON.parse(histRaw) as ExecutionResult[];
+        if (Array.isArray(parsed)) {
+          this.executionHistory = parsed.map((item) => ({
+            ...item,
+            executedAt: new Date(item.executedAt),
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Falha ao carregar histórico de agentes:', error);
+    }
+  }
+
+  private persistHistory(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      this.executionHistory = this.executionHistory.slice(-HISTORY_MAX);
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(this.executionHistory));
+    } catch (error) {
+      console.error('Falha ao salvar histórico de agentes:', error);
     }
   }
 
@@ -114,9 +140,13 @@ class AIExecutor {
     let response: string;
 
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch('/api/agents/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           provider: this.config.provider,
           apiKey: this.config.apiKey,
@@ -152,18 +182,28 @@ class AIExecutor {
     };
 
     this.executionHistory.push(result);
+    this.persistHistory();
     return result;
   }
 
   getHistory(): ExecutionResult[] {
+    this.ensureLoaded();
     return this.executionHistory;
   }
 
   clearHistory(): void {
     this.executionHistory = [];
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(HISTORY_KEY);
+      } catch {
+        // ignore
+      }
+    }
   }
 
   exportHistory(): string {
+    this.ensureLoaded();
     return JSON.stringify(this.executionHistory, null, 2);
   }
 

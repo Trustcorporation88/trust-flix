@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
 import { authFetch } from '@/lib/auth/clientFetch';
+import { loadContentDraft, clearContentDraft } from '@/lib/contentDraft';
 import type { PostizPost } from '@/services/postizService';
 
 interface Template {
@@ -199,6 +200,15 @@ export default function ContentStudioPage() {
     loadTemplates();
     loadAccounts();
   }, [loadTemplates, loadAccounts]);
+
+  useEffect(() => {
+    const draft = loadContentDraft();
+    if (draft?.caption) {
+      setCaption(draft.caption);
+      toast.success(draft.source ? `Draft de ${draft.source} carregado` : 'Draft de copy carregado');
+      clearContentDraft();
+    }
+  }, []);
 
   useEffect(() => {
     loadPosts();

@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS, CHEAT_SHEET_ITEMS, getAgentById, Agent } from '@/services/arsenalService';
 import { AIExecutorConfig, AIProvider, PROVIDERS, getProvider } from '@/services/aiExecutor';
+import { saveContentDraft } from '@/lib/contentDraft';
+import toast from 'react-hot-toast';
 
 export default function AgentsPage() {
+  const router = useRouter();
   const agentExecutor = useAgentExecutor();
 
   const [activeTab, setActiveTab] = useState<'discover' | 'workflow' | 'cheatsheet' | 'execute' | 'schedule'>('discover');
@@ -457,7 +461,7 @@ export default function AgentsPage() {
             {/* Resultado */}
             {agentExecutor.result && (
               <div className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-green-500/30">
-                <h3 className="text-xl font-bold text-white mb-4">📊 Resultado</h3>
+                <h3 className="text-xl font-bold text-white mb-4">Resultado</h3>
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs text-slate-400">Agente:</p>
@@ -465,24 +469,112 @@ export default function AgentsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400">Provedor:</p>
-                    <p className="text-purple-300">{agentExecutor.result.provider} ({agentExecutor.result.model})</p>
+                    <p className="text-purple-300">
+                      {agentExecutor.result.provider} ({agentExecutor.result.model})
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-400">Resposta:</p>
-                    <div className="bg-slate-700/50 p-4 rounded-lg text-white mt-2 max-h-96 overflow-y-auto">
+                    <div className="bg-slate-700/50 p-4 rounded-lg text-white mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap">
                       {agentExecutor.result.response}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Tempo: {(agentExecutor.result.duration / 1000).toFixed(2)}s</p>
+                    <p className="text-xs text-slate-400">
+                      Tempo: {(agentExecutor.result.duration / 1000).toFixed(2)}s · salvo no navegador
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(agentExecutor.result!.response);
+                          toast.success('Copiado');
+                        } catch {
+                          toast.error('Não foi possível copiar');
+                        }
+                      }}
+                    >
+                      Copiar texto
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-semibold text-white hover:bg-signal-600"
+                      onClick={() => {
+                        saveContentDraft({
+                          caption: agentExecutor.result!.response,
+                          source: agentExecutor.result!.agentName,
+                        });
+                        toast.success('Draft enviado ao Content Studio');
+                        router.push('/dashboard/content-studio');
+                      }}
+                    >
+                      Usar no Content Studio
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-ink-200 hover:bg-white/5"
+                      onClick={() => agentExecutor.exportHistory()}
+                    >
+                      Exportar histórico JSON
+                    </button>
                   </div>
                 </div>
               </div>
             )}
 
+            {agentExecutor.history.length > 0 && (
+              <div className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-purple-500/30">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-white">
+                    Histórico ({agentExecutor.history.length})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => agentExecutor.clearHistory()}
+                    className="text-xs font-semibold text-red-300 hover:text-red-200"
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <ul className="max-h-80 space-y-2 overflow-y-auto">
+                  {[...agentExecutor.history].reverse().map((item, idx) => (
+                    <li key={`${item.agentId}-${item.executedAt}-${idx}`}>
+                      <button
+                        type="button"
+                        className="w-full rounded-lg border border-white/10 bg-slate-700/40 p-3 text-left hover:border-purple-400/40"
+                        onClick={() => {
+                          setSelectedAgent(
+                            getAgentById(item.agentId) || {
+                              ...selectedAgent,
+                              id: item.agentId,
+                              name: item.agentName,
+                            }
+                          );
+                          setUserInput('');
+                          // rehydrate result view by copying into a fake select — use save draft instead
+                          saveContentDraft({ caption: item.response, source: item.agentName });
+                          toast.success('Output restaurado no draft — abra Content Studio ou copie abaixo');
+                          navigator.clipboard?.writeText(item.response).catch(() => undefined);
+                        }}
+                      >
+                        <p className="text-sm font-semibold text-white">{item.agentName}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-300">{item.response}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {new Date(item.executedAt).toLocaleString('pt-BR')}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {agentExecutor.error && (
               <div className="bg-red-900/20 border border-red-500/50 p-4 rounded-lg">
-                <p className="text-red-400">❌ Erro: {agentExecutor.error}</p>
+                <p className="text-red-400">Erro: {agentExecutor.error}</p>
               </div>
             )}
           </div>

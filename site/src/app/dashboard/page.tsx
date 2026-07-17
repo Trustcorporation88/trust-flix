@@ -1,124 +1,204 @@
 'use client';
 
-import { DashboardShell, StatCard, StatusBadge } from '@/components/dashboard/DashboardShell';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { authFetch } from '@/lib/auth/clientFetch';
+import { aiExecutor } from '@/services/aiExecutor';
 import {
-  mockStats,
-  mockSalesByDay,
-  mockTopProducts,
-  mockOrders,
-  formatBRL,
-  formatDate,
-  statusColors,
-} from '@/lib/mockData';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  CartesianGrid,
-} from 'recharts';
-import { FiCpu, FiEdit3, FiInstagram } from 'react-icons/fi';
+  FiCpu,
+  FiEdit3,
+  FiInstagram,
+  FiImage,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiArrowRight,
+} from 'react-icons/fi';
 
-const shortcuts = [
-  { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents', color: 'from-ink-800 to-ink-950' },
-  { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio', color: 'from-signal-500 to-signal-700' },
-  { icon: FiInstagram, label: 'Instagram', href: '/dashboard/instagram', color: 'from-flow-600 to-flow-800' },
+interface HubStatus {
+  postizConfigured: boolean;
+  accounts: number;
+  igAccounts: number;
+  agentRuns: number;
+  aiConfigured: boolean;
+}
+
+const steps = [
+  {
+    n: '01',
+    title: 'Agentes IA',
+    text: 'Diagnóstico, oferta e copy — outputs ficam salvos no navegador.',
+    href: '/dashboard/agents',
+    icon: FiCpu,
+  },
+  {
+    n: '02',
+    title: 'Creator Studio',
+    text: 'Monte o criativo (post/story) e leve a copy para o Content Studio.',
+    href: '/dashboard/creator',
+    icon: FiImage,
+  },
+  {
+    n: '03',
+    title: 'Content Studio',
+    text: 'Agende ou publique no Instagram via Postiz.',
+    href: '/dashboard/content-studio',
+    icon: FiEdit3,
+  },
 ];
 
 export default function DashboardPage() {
+  const [status, setStatus] = useState<HubStatus>({
+    postizConfigured: false,
+    accounts: 0,
+    igAccounts: 0,
+    agentRuns: 0,
+    aiConfigured: false,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const aiConfigured = Boolean(aiExecutor.getCurrentProvider()?.apiKey);
+      const agentRuns = aiExecutor.getHistory().length;
+
+      let postizConfigured = false;
+      let accounts = 0;
+      let igAccounts = 0;
+
+      try {
+        const res = await authFetch('/api/content-studio/accounts');
+        const json = await res.json();
+        postizConfigured = json.configured === true;
+        const list = json?.data?.integrations || [];
+        accounts = list.length;
+        igAccounts = list.filter((i: { identifier?: string }) =>
+          String(i.identifier || '')
+            .toLowerCase()
+            .includes('instagram')
+        ).length;
+      } catch {
+        // silencioso
+      }
+
+      if (!cancelled) {
+        setStatus({ postizConfigured, accounts, igAccounts, agentRuns, aiConfigured });
+        setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <DashboardShell title="Dashboard" subtitle="Visão geral do seu negócio em tempo real">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatCard label="Receita Total" value={formatBRL(mockStats.totalRevenue)} icon="💰" trend="+18% no mês" />
-        <StatCard label="Pedidos" value={mockStats.totalOrders} icon="📦" trend={`${mockStats.pendingOrders} pendentes`} />
-        <StatCard label="Clientes" value={mockStats.totalCustomers} icon="👥" trend="+12 novos" />
-        <StatCard label="Taxa de Conversão" value={`${mockStats.conversionRate}%`} icon="📈" trend={`Ticket ${formatBRL(mockStats.avgOrderValue)}`} />
+    <DashboardShell title="Dashboard" subtitle="Hub operacional SocialFlow — sem dados inventados">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatusCard
+          label="Postiz"
+          value={loading ? '…' : status.postizConfigured ? 'Conectado' : 'Pendente'}
+          ok={status.postizConfigured}
+        />
+        <StatusCard
+          label="Contas Instagram"
+          value={loading ? '…' : String(status.igAccounts)}
+          ok={status.igAccounts > 0}
+        />
+        <StatusCard
+          label="IA (Agentes)"
+          value={loading ? '…' : status.aiConfigured ? 'Configurada' : 'Sem API key'}
+          ok={status.aiConfigured}
+        />
+        <StatusCard
+          label="Execuções salvas"
+          value={loading ? '…' : String(status.agentRuns)}
+          ok={status.agentRuns > 0}
+        />
       </div>
 
-      {/* Quick shortcuts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {shortcuts.map((s) => (
-          <Link
-            key={s.href}
-            href={s.href}
-            className={`bg-gradient-to-r ${s.color} text-white rounded-xl p-5 flex items-center gap-4 hover:opacity-90 transition-opacity`}
-          >
-            <s.icon size={28} />
-            <span className="font-semibold text-lg">{s.label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Receita por Dia</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={mockSalesByDay}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="day" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip formatter={(v: number) => formatBRL(v)} />
-              <Line type="monotone" dataKey="receita" stroke="#7c3aed" strokeWidth={3} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Produtos Mais Vendidos</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={mockTopProducts} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" stroke="#9ca3af" fontSize={12} />
-              <YAxis type="category" dataKey="name" width={120} stroke="#9ca3af" fontSize={11} />
-              <Tooltip />
-              <Bar dataKey="vendas" fill="#2563eb" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="mb-8 rounded-xl border border-ink-950/10 bg-white p-6">
+        <h2 className="font-display text-xl font-bold text-ink-950">Fluxo recomendado (sem post ainda)</h2>
+        <p className="mt-2 text-sm text-ink-950/60">
+          Use os agentes para estruturar oferta e copy, crie o visual no Creator e publique no Content
+          Studio quando tiver mídia.
+        </p>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {steps.map((s) => (
+            <Link
+              key={s.href}
+              href={s.href}
+              className="group rounded-xl border border-ink-950/10 p-5 transition-all hover:border-signal-500/40 hover:shadow-sm"
+            >
+              <p className="font-display text-sm font-semibold text-signal-500">{s.n}</p>
+              <div className="mt-3 flex items-center gap-2">
+                <s.icon className="text-ink-950" size={20} />
+                <h3 className="font-display text-lg font-bold text-ink-950">{s.title}</h3>
+              </div>
+              <p className="mt-2 text-sm text-ink-950/60">{s.text}</p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-flow-700 group-hover:text-signal-600">
+                Abrir <FiArrowRight />
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* Recent orders */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Pedidos Recentes</h3>
-          <Link href="/dashboard/orders" className="text-sm text-blue-600 hover:underline">
-            Ver todos →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-100">
-                <th className="pb-3 font-medium">Pedido</th>
-                <th className="pb-3 font-medium">Produto</th>
-                <th className="pb-3 font-medium">Total</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockOrders.slice(0, 5).map((o) => (
-                <tr key={o.id} className="border-b border-gray-50 last:border-0">
-                  <td className="py-3 font-medium text-gray-900">{o.id}</td>
-                  <td className="py-3 text-gray-600">{o.items[0]?.productName}</td>
-                  <td className="py-3 text-gray-900">{formatBRL(o.total)}</td>
-                  <td className="py-3">
-                    <StatusBadge status={o.status} colorClass={statusColors[o.status]} />
-                  </td>
-                  <td className="py-3 text-gray-500">{formatDate(o.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link
+          href="/dashboard/instagram"
+          className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
+        >
+          <div className="flex items-center gap-3">
+            <FiInstagram size={22} className="text-signal-500" />
+            <div>
+              <p className="font-semibold text-ink-950">Instagram / Postiz</p>
+              <p className="text-sm text-ink-950/55">
+                {status.igAccounts > 0
+                  ? `${status.igAccounts} conta(s) · agenda e analytics`
+                  : 'Conecte contas no Postiz'}
+              </p>
+            </div>
+          </div>
+          <FiArrowRight className="text-ink-950/40" />
+        </Link>
+        <Link
+          href="/dashboard/agents"
+          className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
+        >
+          <div className="flex items-center gap-3">
+            <FiCpu size={22} className="text-signal-500" />
+            <div>
+              <p className="font-semibold text-ink-950">Continuar com Agentes</p>
+              <p className="text-sm text-ink-950/55">
+                {status.agentRuns > 0
+                  ? `${status.agentRuns} execução(ões) no histórico`
+                  : 'Comece pelo DOUG.EXE ou Money Models'}
+              </p>
+            </div>
+          </div>
+          <FiArrowRight className="text-ink-950/40" />
+        </Link>
       </div>
     </DashboardShell>
+  );
+}
+
+function StatusCard({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className="rounded-xl border border-ink-950/10 bg-white p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">{label}</p>
+        {ok ? (
+          <FiCheckCircle className="text-flow-600" size={16} />
+        ) : (
+          <FiAlertCircle className="text-signal-500" size={16} />
+        )}
+      </div>
+      <p className="mt-2 font-display text-2xl font-bold text-ink-950">{value}</p>
+    </div>
   );
 }

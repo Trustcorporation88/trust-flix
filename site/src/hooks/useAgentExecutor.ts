@@ -2,7 +2,7 @@
  * 🤖 useAgentExecutor - Hook para executar agentes com qualquer IA
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { aiExecutor, AIExecutorConfig, ExecutionResult } from '@/services/aiExecutor';
 import { Agent } from '@/services/arsenalService';
 
@@ -21,47 +21,38 @@ export const useAgentExecutor = () => {
     history: [],
   });
 
-  /**
-   * Configurar qual IA usar
-   */
-  const configure = useCallback((config: AIExecutorConfig) => {
-    aiExecutor.configure(config);
-    setState(prev => ({ ...prev, error: null }));
+  useEffect(() => {
+    setState((prev) => ({
+      ...prev,
+      history: aiExecutor.getHistory(),
+    }));
   }, []);
 
-  /**
-   * Executar um agente
-   */
+  const configure = useCallback((config: AIExecutorConfig) => {
+    aiExecutor.configure(config);
+    setState((prev) => ({ ...prev, error: null }));
+  }, []);
+
   const executeAgent = useCallback(
-    async (
-      agent: Agent,
-      userInput: string,
-      systemPromptOverride?: string
-    ) => {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
+    async (agent: Agent, userInput: string, systemPromptOverride?: string) => {
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        // Se houver systemPrompt definido no agente, usar ele
         const systemPrompt = systemPromptOverride || agent.systemPrompt || generateSystemPrompt(agent);
 
-        const result = await aiExecutor.executeAgent(
-          agent.id,
-          agent.name,
-          systemPrompt,
-          userInput
-        );
+        const result = await aiExecutor.executeAgent(agent.id, agent.name, systemPrompt, userInput);
 
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           isLoading: false,
           result,
-          history: [...prev.history, result],
+          history: aiExecutor.getHistory(),
         }));
 
         return result;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           isLoading: false,
           error: errorMessage,
@@ -72,9 +63,6 @@ export const useAgentExecutor = () => {
     []
   );
 
-  /**
-   * Executar sequência de agentes (workflow)
-   */
   const executeWorkflow = useCallback(
     async (agents: Agent[], userInputs: string[]) => {
       const results: ExecutionResult[] = [];
@@ -85,7 +73,7 @@ export const useAgentExecutor = () => {
           const agent = agents[i];
           const input = userInputs[i] || currentInput;
 
-          setState(prev => ({
+          setState((prev) => ({
             ...prev,
             isLoading: true,
             error: null,
@@ -93,12 +81,10 @@ export const useAgentExecutor = () => {
 
           const result = await executeAgent(agent, input);
           results.push(result);
-
-          // Usar output do agente anterior como input do próximo
           currentInput = result.response;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Erro na execução';
-          setState(prev => ({
+          setState((prev) => ({
             ...prev,
             isLoading: false,
             error: errorMessage,
@@ -112,21 +98,15 @@ export const useAgentExecutor = () => {
     [executeAgent]
   );
 
-  /**
-   * Limpar histórico
-   */
   const clearHistory = useCallback(() => {
     aiExecutor.clearHistory();
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       history: [],
       result: null,
     }));
   }, []);
 
-  /**
-   * Exportar histórico
-   */
   const exportHistory = useCallback(() => {
     const json = aiExecutor.exportHistory();
     const element = document.createElement('a');
@@ -150,9 +130,6 @@ export const useAgentExecutor = () => {
   };
 };
 
-/**
- * Gerar system prompt baseado no tipo de agente
- */
 function generateSystemPrompt(agent: Agent): string {
   const basePrompts: Record<string, string> = {
     'doug-exe-6': `Você é DOUG.EXE 6.0, especialista em diagnóstico e posicionamento de ofertas.
@@ -173,7 +150,7 @@ Sua função é estruturar a oferta usando os 4 pilares:
 
 Estruture de forma clara e persuasiva.`,
 
-    'dissecacao': `Você é DISSECAÇÃO NEURAL, especialista em análise profunda do cliente ideal.
+    dissecacao: `Você é DISSECAÇÃO NEURAL, especialista em análise profunda do cliente ideal.
 Sua função é extrair e mapear:
 1. Medos e inseguranças do cliente
 2. Desejos e sonhos não realizados
@@ -210,7 +187,7 @@ Sua função é injetar FOMO (medo de perder):
 
 Seja persuasivo sem ser manipulador.`,
 
-    'storyads': `Você é STORYADS, especialista em roteiros de vídeos e anúncios.
+    storyads: `Você é STORYADS, especialista em roteiros de vídeos e anúncios.
 Sua função é gerar roteiros para:
 1. Instagram Stories
 2. Reels
@@ -238,5 +215,8 @@ Sua função é:
 Seja criativo e estruturado.`,
   };
 
-  return basePrompts[agent.id] || `Você é ${agent.name}. ${agent.description}. Use case: ${agent.useCase}. Seja profissional e orientado a resultados.`;
+  return (
+    basePrompts[agent.id] ||
+    `Você é ${agent.name}. ${agent.description}. Use case: ${agent.useCase}. Seja profissional e orientado a resultados.`
+  );
 }
