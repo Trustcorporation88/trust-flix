@@ -70,8 +70,47 @@ export default function AgentsPage() {
   const phaseAgents = ARSENAL_AGENTS.filter(a => a.tier === selectedPhase);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <img src="/logo.png" alt="SocialFlow" className="h-8 w-8 rounded-md object-contain" />
+              <span className="hidden font-semibold text-white sm:inline">
+                Social<span className="text-purple-400">Flow</span>
+              </span>
+            </Link>
+            <span className="text-white/20">/</span>
+            <Link href="/dashboard" className="text-sm text-purple-200/80 transition-colors hover:text-white">
+              Painel
+            </Link>
+            <span className="text-white/20">/</span>
+            <span className="text-sm text-white">Agentes</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-white/15 px-3 py-1.5 text-sm font-semibold text-purple-100 hover:bg-white/5"
+            >
+              ← Voltar
+            </Link>
+            <Link
+              href="/dashboard/content-studio"
+              className="rounded-lg border border-purple-500/40 bg-purple-600/20 px-3 py-1.5 text-sm font-semibold text-purple-200 hover:bg-purple-600/30"
+            >
+              Content Studio
+            </Link>
+            <Link
+              href="/"
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/15"
+            >
+              Home
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl p-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">🤖 Arsenal de Agentes DOUG.EXE</h1>
