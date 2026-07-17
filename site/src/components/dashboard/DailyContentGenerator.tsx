@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { FiCopy, FiCheck, FiLoader, FiZap } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { authFetch } from '@/lib/auth/clientFetch';
 
 interface DailyPlanItem {
   titulo: string;
@@ -45,7 +46,7 @@ export default function DailyContentGenerator() {
     setIsGenerating(true);
     setPlan(null);
     try {
-      const res = await fetch('/api/content-studio/daily-plan', {
+      const res = await authFetch('/api/content-studio/daily-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tema }),

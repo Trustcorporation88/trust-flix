@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         configured: false,
-        data: [],
+        data: { groups: [], integrations: [] },
         message: 'Postiz ainda não configurado. Veja postiz-deploy/README.md.',
       });
     }

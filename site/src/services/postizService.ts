@@ -41,6 +41,19 @@ export interface PostizMedia {
   path: string;
 }
 
+/** Item retornado por GET /posts (shape flexível — a API self-hosted varia um pouco) */
+export interface PostizPost {
+  id?: string;
+  content?: string;
+  state?: string;
+  status?: string;
+  publishDate?: string;
+  releaseURL?: string;
+  date?: string;
+  integration?: { id?: string; name?: string; identifier?: string; picture?: string };
+  [key: string]: unknown;
+}
+
 export interface CreatePostPayload {
   /** ID da integração (conta) de destino, retornado por listIntegrations() */
   integrationId: string;
@@ -168,6 +181,26 @@ export const postizService = {
     return withDiagnostics('getAnalytics', async () => {
       const { data } = await client.get(`/analytics/${integrationId}`);
       return data;
+    });
+  },
+
+  /**
+   * Lista posts (agendados/publicados/rascunhos) em um intervalo de datas.
+   * Docs: GET /posts?startDate=&endDate=
+   */
+  async listPosts(startDate: string, endDate: string, customer?: string): Promise<PostizPost[]> {
+    assertConfigured();
+    return withDiagnostics('listPosts', async () => {
+      const { data } = await client.get('/posts', {
+        params: {
+          startDate,
+          endDate,
+          ...(customer ? { customer } : {}),
+        },
+      });
+      if (Array.isArray(data)) return data as PostizPost[];
+      if (Array.isArray(data?.posts)) return data.posts as PostizPost[];
+      return [];
     });
   },
 
