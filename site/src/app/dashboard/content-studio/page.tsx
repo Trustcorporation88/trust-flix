@@ -14,6 +14,8 @@ import {
   FiClock,
   FiChevronLeft,
   FiChevronRight,
+  FiPlus,
+  FiTrash2,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
@@ -21,6 +23,12 @@ import clsx from 'clsx';
 import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { loadContentDraft, clearContentDraft } from '@/lib/contentDraft';
+import {
+  deleteCustomTemplate,
+  listCustomTemplates,
+  parseEstruturaFromText,
+  saveCustomTemplate,
+} from '@/lib/customTemplates';
 import type { PostizPost } from '@/services/postizService';
 
 interface Template {
@@ -33,6 +41,7 @@ interface Template {
   duracaoSugerida: string;
   tags: string[];
   trendScore: number;
+  custom?: boolean;
 }
 
 interface PostizIntegration {
@@ -131,6 +140,17 @@ export default function ContentStudioPage() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('schedule');
   const [scheduledLocal, setScheduledLocal] = useState(defaultScheduleLocal);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importForm, setImportForm] = useState({
+    title: '',
+    format: 'reel' as 'reel' | 'story' | 'post',
+    objetivo: 'engajamento',
+    descricao: '',
+    estruturaText: '',
+    duracaoSugerida: '',
+    tags: '',
+    sourceNote: '',
+  });
 
   const [weekAnchor, setWeekAnchor] = useState(() => startOfWeek(new Date()));
   const [posts, setPosts] = useState<PostizPost[]>([]);
@@ -149,7 +169,22 @@ export default function ContentStudioPage() {
       const res = await authFetch(`/api/content-studio/templates?${params}`);
       const json = await res.json();
       if (json.success) {
-        setTemplates(json.data);
+        let custom = listCustomTemplates().map((t) => ({
+          id: t.id,
+          format: t.format,
+          title: t.title,
+          objetivo: t.objetivo,
+          descricao: t.descricao,
+          estrutura: t.estrutura,
+          duracaoSugerida: t.duracaoSugerida,
+          tags: t.tags,
+          trendScore: t.trendScore,
+          custom: true,
+        }));
+        if (objetivo !== 'all') custom = custom.filter((t) => t.objetivo === objetivo);
+        if (formato !== 'all') custom = custom.filter((t) => t.format === formato);
+        const merged = [...custom, ...(json.data || [])];
+        setTemplates(merged);
         setTrendsConfigured(json.trendsConfigured);
       } else if (res.status !== 401) {
         toast.error(json.error || 'Erro ao carregar modelos');
@@ -352,6 +387,53 @@ export default function ContentStudioPage() {
     }
   };
 
+  const handleSaveImportedTemplate = () => {
+    const estrutura = parseEstruturaFromText(importForm.estruturaText);
+    if (!importForm.title.trim()) {
+      toast.error('Informe um título para o modelo');
+      return;
+    }
+    if (estrutura.length < 2) {
+      toast.error('Cole pelo menos 2 passos da estrutura (um por linha)');
+      return;
+    }
+    saveCustomTemplate({
+      title: importForm.title.trim(),
+      format: importForm.format,
+      objetivo: importForm.objetivo,
+      descricao:
+        importForm.descricao.trim() ||
+        `Modelo capturado do Instagram${importForm.sourceNote ? ` · ${importForm.sourceNote}` : ''}`,
+      estrutura,
+      duracaoSugerida: importForm.duracaoSugerida.trim() || (importForm.format === 'story' ? '2-4 stories' : 'conforme referência'),
+      tags: importForm.tags
+        .split(',')
+        .map((t) => t.trim().replace(/^#/, ''))
+        .filter(Boolean),
+      sourceNote: importForm.sourceNote.trim() || undefined,
+    });
+    toast.success('Modelo salvo neste navegador');
+    setShowImportModal(false);
+    setImportForm({
+      title: '',
+      format: 'reel',
+      objetivo: 'engajamento',
+      descricao: '',
+      estruturaText: '',
+      duracaoSugerida: '',
+      tags: '',
+      sourceNote: '',
+    });
+    loadTemplates();
+  };
+
+  const handleDeleteCustom = (id: string) => {
+    deleteCustomTemplate(id);
+    toast.success('Modelo removido');
+    if (selectedTemplate?.id === id) setSelectedTemplate(null);
+    loadTemplates();
+  };
+
   const weekLabel = `${weekDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${weekDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
 
   return (
@@ -490,9 +572,21 @@ export default function ContentStudioPage() {
           <DailyContentGenerator />
         </div>
 
-        <div className="mt-12 flex items-center gap-3">
+        <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="section-badge">Modelos prontos</span>
+          <button
+            type="button"
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-signal-500/40 bg-signal-500/10 px-4 py-2 text-sm font-semibold text-signal-300 hover:bg-signal-500/20"
+          >
+            <FiPlus /> Capturar modelo do Instagram
+          </button>
         </div>
+
+        <p className="mt-3 max-w-2xl text-sm text-ink-400">
+          No Instagram: salve um Reel/carrossel → anote gancho + passos + CTA → cole aqui. O modelo fica
+          salvo neste navegador e aparece junto dos modelos oficiais.
+        </p>
 
         {!accounts?.configured && (
           <div className="mt-6 rounded-xl border border-signal-500/30 bg-signal-500/10 px-4 py-3 text-sm text-signal-200">
@@ -561,19 +655,30 @@ export default function ContentStudioPage() {
                 <div key={i} className="h-56 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]" />
               ))
             : templates.map((template) => (
-                <button
-                  key={template.id}
-                  onClick={() => handleSelectTemplate(template)}
-                  className={clsx(
-                    'group flex flex-col rounded-xl border p-6 text-left transition-all hover:-translate-y-0.5',
-                    selectedTemplate?.id === template.id
-                      ? 'border-signal-500 bg-signal-500/10'
-                      : 'border-white/10 bg-white/[0.03] hover:border-signal-500/40'
+                <div key={template.id} className="relative">
+                  {template.custom && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCustom(template.id)}
+                      className="absolute right-3 top-3 z-10 rounded-md border border-white/10 bg-ink-950/80 p-1.5 text-ink-400 hover:text-signal-400"
+                      title="Remover modelo personalizado"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
                   )}
-                >
+                  <button
+                    onClick={() => handleSelectTemplate(template)}
+                    className={clsx(
+                      'group flex h-full w-full flex-col rounded-xl border p-6 text-left transition-all hover:-translate-y-0.5',
+                      selectedTemplate?.id === template.id
+                        ? 'border-signal-500 bg-signal-500/10'
+                        : 'border-white/10 bg-white/[0.03] hover:border-signal-500/40'
+                    )}
+                  >
                   <div className="flex items-center justify-between">
                     <span className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
                       {template.format}
+                      {template.custom ? ' · meu' : ''}
                     </span>
                     {template.trendScore > 0 && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-signal-400">
@@ -592,8 +697,96 @@ export default function ContentStudioPage() {
                   </div>
                   <span className="mt-4 text-xs text-ink-400">{template.duracaoSugerida}</span>
                 </button>
+                </div>
               ))}
         </div>
+
+        {showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/10 bg-ink-900 p-6 shadow-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-display text-xl font-bold text-white">Capturar modelo do Instagram</h3>
+                <button type="button" onClick={() => setShowImportModal(false)} className="text-ink-400 hover:text-white">
+                  <FiX size={20} />
+                </button>
+              </div>
+              <p className="mb-4 text-sm text-ink-300">
+                Cole a estrutura que você anotou (um passo por linha). Exemplo:
+                <br />
+                <span className="text-ink-400">Hook nos 3s · dor · solução · CTA salvar</span>
+              </p>
+              <div className="space-y-3">
+                <input
+                  className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder="Título do modelo (ex: Carrossel mitos fitness)"
+                  value={importForm.title}
+                  onChange={(e) => setImportForm({ ...importForm, title: e.target.value })}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                    value={importForm.format}
+                    onChange={(e) =>
+                      setImportForm({ ...importForm, format: e.target.value as 'reel' | 'story' | 'post' })
+                    }
+                  >
+                    <option value="reel">Reel</option>
+                    <option value="story">Story</option>
+                    <option value="post">Post / Carrossel</option>
+                  </select>
+                  <select
+                    className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                    value={importForm.objetivo}
+                    onChange={(e) => setImportForm({ ...importForm, objetivo: e.target.value })}
+                  >
+                    <option value="vendas">Vendas</option>
+                    <option value="engajamento">Engajamento</option>
+                    <option value="autoridade">Autoridade</option>
+                    <option value="oferta">Oferta</option>
+                  </select>
+                </div>
+                <textarea
+                  className="input-dark min-h-[120px] resize-y !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder={'Estrutura (um passo por linha):\nGancho\nProblema\nSolução\nCTA'}
+                  value={importForm.estruturaText}
+                  onChange={(e) => setImportForm({ ...importForm, estruturaText: e.target.value })}
+                />
+                <input
+                  className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder="Descrição (opcional)"
+                  value={importForm.descricao}
+                  onChange={(e) => setImportForm({ ...importForm, descricao: e.target.value })}
+                />
+                <input
+                  className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder="Duração (ex: 30-60s ou 7 slides)"
+                  value={importForm.duracaoSugerida}
+                  onChange={(e) => setImportForm({ ...importForm, duracaoSugerida: e.target.value })}
+                />
+                <input
+                  className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder="Tags separadas por vírgula"
+                  value={importForm.tags}
+                  onChange={(e) => setImportForm({ ...importForm, tags: e.target.value })}
+                />
+                <input
+                  className="input-dark !border-white/10 !bg-white/[0.04] !text-white"
+                  placeholder="@conta de referência (opcional)"
+                  value={importForm.sourceNote}
+                  onChange={(e) => setImportForm({ ...importForm, sourceNote: e.target.value })}
+                />
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button type="button" onClick={handleSaveImportedTemplate} className="btn-primary flex-1">
+                  Salvar modelo
+                </button>
+                <button type="button" onClick={() => setShowImportModal(false)} className="btn-secondary">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedTemplate && (
           <div className="card-surface mt-10 border-white/10 bg-ink-900/80 p-6">
