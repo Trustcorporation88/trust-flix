@@ -35,7 +35,16 @@ export async function GET(request: NextRequest) {
       console.warn('Postiz: GET /groups indisponível nesta instância, seguindo sem multi-tenant groups.', groupsError);
     }
 
-    return NextResponse.json({ success: true, configured: true, data: { groups, integrations } });
+    return NextResponse.json({
+      success: true,
+      configured: true,
+      data: { groups, integrations },
+      meta: {
+        total: integrations.length,
+        identifiers: integrations.map((i) => i.identifier),
+        names: integrations.map((i) => i.name),
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Erro interno' },

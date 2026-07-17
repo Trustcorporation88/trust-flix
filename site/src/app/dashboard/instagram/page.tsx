@@ -20,6 +20,11 @@ interface Integration {
 
 const IG_TYPES = new Set(['instagram', 'instagram-standalone']);
 
+function isInstagramAccount(identifier: string): boolean {
+  const id = String(identifier || '').toLowerCase();
+  return IG_TYPES.has(id) || id.includes('instagram');
+}
+
 function startOfWeek(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay();
@@ -80,6 +85,8 @@ export default function InstagramPage() {
   const [tab, setTab] = useState<Tab>('accounts');
   const [configured, setConfigured] = useState(true);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [meta, setMeta] = useState<{ total: number; identifiers: string[]; names: string[] } | null>(null);
+  const [accountsError, setAccountsError] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [posts, setPosts] = useState<PostizPost[]>([]);
   const [analytics, setAnalytics] = useState<unknown>(null);
@@ -88,24 +95,41 @@ export default function InstagramPage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-  const igAccounts = useMemo(
-    () => integrations.filter((i) => IG_TYPES.has(i.identifier) && !i.disabled),
-    [integrations]
-  );
+  const igAccounts = useMemo(() => {
+    const ig = integrations.filter((i) => isInstagramAccount(i.identifier) && !i.disabled);
+    // Se a API trouxe canais mas nenhum passou no filtro Instagram, mostra todos
+    // para o operador não ficar "cego" (identifier pode variar no self-host).
+    if (ig.length === 0 && integrations.length > 0) {
+      return integrations.filter((i) => !i.disabled);
+    }
+    return ig;
+  }, [integrations]);
 
   const selected = igAccounts.find((a) => a.id === selectedId) || igAccounts[0];
 
   const loadAccounts = useCallback(async () => {
     setLoadingAccounts(true);
+    setAccountsError('');
     try {
       const res = await authFetch('/api/content-studio/accounts');
       const json = await res.json();
+      if (!res.ok || json.success === false) {
+        setConfigured(json.configured !== false);
+        setIntegrations([]);
+        setMeta(null);
+        setAccountsError(json.error || 'Falha ao listar contas no Postiz.');
+        return;
+      }
       setConfigured(json.configured !== false);
       const list: Integration[] = json?.data?.integrations || [];
       setIntegrations(list);
-      const firstIg = list.find((i) => IG_TYPES.has(i.identifier) && !i.disabled);
+      setMeta(json.meta || { total: list.length, identifiers: list.map((i) => i.identifier), names: list.map((i) => i.name) });
+      const firstIg =
+        list.find((i) => isInstagramAccount(i.identifier) && !i.disabled) ||
+        list.find((i) => !i.disabled);
       if (firstIg) setSelectedId((prev) => prev || firstIg.id);
     } catch {
+      setAccountsError('Erro de rede ao carregar contas.');
       toast.error('Erro ao carregar contas');
     } finally {
       setLoadingAccounts(false);
@@ -247,6 +271,15 @@ export default function InstagramPage() {
             <div className="flex items-center gap-2 text-ink-950/50">
               <FiLoader className="animate-spin" /> Carregando contas...
             </div>
+          ) : accountsError ? (
+            <div className="rounded-xl border border-danger-500/30 bg-danger-50 p-6 text-sm text-danger-700">
+              <p className="font-semibold">Erro ao falar com o Postiz</p>
+              <p className="mt-2">{accountsError}</p>
+              <p className="mt-3 text-xs opacity-80">
+                Confira na Vercel: <code>POSTIZ_API_URL=https://insta.trustcorp.com.br/api/public/v1</code> e a{' '}
+                <code>POSTIZ_API_KEY</code> da mesma organização onde a conta &quot;socialflow&quot; está conectada.
+              </p>
+            </div>
           ) : igAccounts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
               <FiInstagram className="mx-auto text-ink-950/30" size={32} />
@@ -254,7 +287,17 @@ export default function InstagramPage() {
                 Nenhuma conta Instagram encontrada
               </p>
               <p className="mt-2 text-sm text-ink-950/55">
-                Conecte o Instagram em{' '}
+                {configured
+                  ? `A API respondeu, mas veio vazia (total: ${meta?.total ?? 0}). A API Key na Vercel precisa ser da mesma org do Postiz onde a conta aparece.`
+                  : 'Postiz ainda não configurado nas variáveis de ambiente.'}
+              </p>
+              {meta && meta.total > 0 && (
+                <p className="mt-2 text-xs text-ink-950/45">
+                  Canais retornados: {meta.names.join(', ')} ({meta.identifiers.join(', ')})
+                </p>
+              )}
+              <p className="mt-3 text-sm text-ink-950/55">
+                Conecte/verifique em{' '}
                 <a
                   href="https://insta.trustcorp.com.br"
                   target="_blank"
@@ -263,7 +306,7 @@ export default function InstagramPage() {
                 >
                   insta.trustcorp.com.br
                 </a>{' '}
-                e atualize esta página.
+                → Settings → API (mesma organização).
               </p>
             </div>
           ) : (

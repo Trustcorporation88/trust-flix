@@ -103,6 +103,41 @@ async function withDiagnostics<T>(label: string, fn: () => Promise<T>): Promise<
 /** __type aceito pelas settings do Postiz para contas Instagram */
 const INSTAGRAM_TYPES = new Set(['instagram', 'instagram-standalone']);
 
+function normalizeIntegrations(data: unknown): PostizIntegration[] {
+  const raw = Array.isArray(data)
+    ? data
+    : Array.isArray((data as { integrations?: unknown })?.integrations)
+      ? (data as { integrations: unknown[] }).integrations
+      : Array.isArray((data as { data?: unknown })?.data)
+        ? (data as { data: unknown[] }).data
+        : [];
+
+  return raw
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const id = String(row.id || row._id || '').trim();
+      if (!id) return null;
+      return {
+        id,
+        name: String(row.name || row.profile || 'Conta'),
+        identifier: String(row.identifier || row.providerIdentifier || row.provider || '').toLowerCase(),
+        picture: typeof row.picture === 'string' ? row.picture : undefined,
+        disabled: Boolean(row.disabled),
+        profile: typeof row.profile === 'string' ? row.profile : undefined,
+        customer:
+          row.customer && typeof row.customer === 'object'
+            ? (row.customer as PostizIntegration['customer'])
+            : undefined,
+      } as PostizIntegration;
+    })
+    .filter(Boolean) as PostizIntegration[];
+}
+
+export function isInstagramIntegration(identifier: string): boolean {
+  const id = String(identifier || '').toLowerCase();
+  return INSTAGRAM_TYPES.has(id) || id.includes('instagram');
+}
+
 export const postizService = {
   /** Lista os clientes/tenants (multi-tenant nativo do Postiz) */
   async listGroups(): Promise<PostizGroup[]> {
@@ -120,7 +155,7 @@ export const postizService = {
       const { data } = await client.get('/integrations', {
         params: groupId ? { group: groupId } : undefined,
       });
-      return data;
+      return normalizeIntegrations(data);
     });
   },
 
