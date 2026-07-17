@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   FiInstagram,
   FiTrendingUp,
@@ -346,6 +347,36 @@ export default function ContentStudioPage() {
   return (
     <div className="relative min-h-screen bg-ink-950 pb-20">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-grid-glow opacity-60" />
+
+      <header className="relative z-10 border-b border-white/10 bg-ink-950/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <img src="/logo.png" alt="SocialFlow" className="h-8 w-8 rounded-md object-contain" />
+              <span className="hidden font-display text-sm font-bold text-white sm:inline">
+                Social<span className="text-signal-500">Flow</span>
+              </span>
+            </Link>
+            <span className="text-white/20">/</span>
+            <Link href="/dashboard" className="text-sm text-ink-300 transition-colors hover:text-white">
+              Painel
+            </Link>
+            <span className="text-white/20">/</span>
+            <span className="text-sm text-white">Content Studio</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-ink-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              ← Voltar
+            </Link>
+            <Link href="/" className="btn-secondary !px-3 !py-1.5 !text-sm">
+              Home
+            </Link>
+          </div>
+        </div>
+      </header>
 
       <div className="relative mx-auto max-w-7xl px-4 py-12">
         <span className="section-badge">Content Studio</span>
