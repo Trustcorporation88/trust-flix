@@ -12,10 +12,14 @@ import {
   FiLogOut,
   FiExternalLink,
 } from 'react-icons/fi';
-import { ReactNode } from 'react';
+import { SiTiktok } from 'react-icons/si';
+import { ComponentType, ReactNode } from 'react';
 
 /** Só o que está conectado de verdade — vendas/WhatsApp/etc. ficam fora até existirem. */
-const menuGroups: { title: string; items: { icon: typeof FiHome; label: string; href: string }[] }[] = [
+const menuGroups: {
+  title: string;
+  items: { icon: ComponentType<{ size?: number | string }>; label: string; href: string }[];
+}[] = [
   {
     title: 'Visão Geral',
     items: [{ icon: FiHome, label: 'Dashboard', href: '/dashboard' }],
@@ -27,6 +31,7 @@ const menuGroups: { title: string; items: { icon: typeof FiHome; label: string; 
       { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio' },
       { icon: FiEdit3, label: 'Creator Studio', href: '/dashboard/creator' },
       { icon: FiInstagram, label: 'Instagram', href: '/dashboard/instagram' },
+      { icon: SiTiktok, label: 'TikTok', href: '/dashboard/tiktok' },
     ],
   },
   {

@@ -39,6 +39,11 @@ export function Footer() {
                   Instagram
                 </Link>
               </li>
+              <li>
+                <Link href="/dashboard/tiktok" className="text-ink-950/60 hover:text-signal-600">
+                  TikTok
+                </Link>
+              </li>
             </ul>
           </div>
 

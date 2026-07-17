@@ -13,6 +13,7 @@ const navLinks = [
   { href: '/dashboard/content-studio', label: 'Content Studio' },
   { href: '/dashboard/agents', label: 'Agentes IA' },
   { href: '/dashboard/instagram', label: 'Instagram' },
+  { href: '/dashboard/tiktok', label: 'TikTok' },
   { href: '/dashboard', label: 'Painel' },
 ];
 

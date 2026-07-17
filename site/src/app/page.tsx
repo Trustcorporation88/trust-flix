@@ -3,7 +3,7 @@ import Link from 'next/link';
 const pillars = [
   {
     title: 'Content Studio',
-    text: 'Planeje o dia, gere legendas e publique no Instagram pelo Postiz — sem sair do fluxo.',
+    text: 'Planeje o dia, gere legendas e publique no Instagram e TikTok pelo Postiz — sem sair do fluxo.',
     href: '/dashboard/content-studio',
   },
   {
@@ -12,7 +12,7 @@ const pillars = [
     href: '/dashboard/agents',
   },
   {
-    title: 'Instagram',
+    title: 'Instagram & TikTok',
     text: 'Contas, agenda e analytics da operação real via Postiz — no mesmo painel.',
     href: '/dashboard/instagram',
   },

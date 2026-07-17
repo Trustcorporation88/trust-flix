@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       media: body.media,
       postType: body.postType,
       scheduledFor: body.scheduledFor,
+      tiktok: body.tiktok,
     });
     return NextResponse.json({ success: true, data: result });
   } catch (error) {

@@ -7,6 +7,9 @@
  *   POSTIZ_API_KEY
  */
 import axios, { AxiosError } from 'axios';
+import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
+
+export { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
 
 const baseURL = process.env.POSTIZ_API_URL || '';
 const apiKey = process.env.POSTIZ_API_KEY || '';
@@ -57,13 +60,30 @@ export interface PostizPost {
 export interface CreatePostPayload {
   /** ID da integração (conta) de destino, retornado por listIntegrations() */
   integrationId: string;
-  /** identifier da integração (ex: 'instagram', 'instagram-standalone') -- define o schema de settings aceito */
+  /** identifier da integração (ex: 'instagram', 'instagram-standalone', 'tiktok') */
   integrationType: string;
   content: string;
   media?: PostizMedia[];
-  /** 'post' = feed/Reel (Reel quando ha um unico video), 'story' = Story de 24h */
+  /** 'post' = feed/Reel (Reel quando ha um unico video), 'story' = Story de 24h — só Instagram */
   postType?: 'post' | 'story';
   scheduledFor?: string; // ISO date; se omitido, publica agora
+  /** Overrides do schema TikTok (docs.postiz.com/public-api/providers/tiktok) */
+  tiktok?: Partial<TikTokPostSettings>;
+}
+
+/** Settings oficiais Postiz para TikTok */
+export interface TikTokPostSettings {
+  __type: 'tiktok';
+  title: string;
+  privacy_level: 'PUBLIC_TO_EVERYONE' | 'MUTUAL_FOLLOW_FRIENDS' | 'FOLLOWER_OF_CREATOR' | 'SELF_ONLY';
+  duet: boolean;
+  stitch: boolean;
+  comment: boolean;
+  autoAddMusic: 'yes' | 'no';
+  brand_content_toggle: boolean;
+  brand_organic_toggle: boolean;
+  video_made_with_ai: boolean;
+  content_posting_method: 'DIRECT_POST' | 'UPLOAD';
 }
 
 function assertConfigured() {
@@ -103,6 +123,37 @@ async function withDiagnostics<T>(label: string, fn: () => Promise<T>): Promise<
 /** __type aceito pelas settings do Postiz para contas Instagram */
 const INSTAGRAM_TYPES = new Set(['instagram', 'instagram-standalone']);
 
+function buildPostSettings(payload: CreatePostPayload): Record<string, unknown> {
+  const type = String(payload.integrationType || '').toLowerCase();
+
+  if (isTikTokIntegration(type)) {
+    const defaults: TikTokPostSettings = {
+      __type: 'tiktok',
+      title: (payload.tiktok?.title || '').slice(0, 90),
+      privacy_level: payload.tiktok?.privacy_level || 'PUBLIC_TO_EVERYONE',
+      duet: payload.tiktok?.duet ?? true,
+      stitch: payload.tiktok?.stitch ?? true,
+      comment: payload.tiktok?.comment ?? true,
+      autoAddMusic: payload.tiktok?.autoAddMusic || 'no',
+      brand_content_toggle: payload.tiktok?.brand_content_toggle ?? false,
+      brand_organic_toggle: payload.tiktok?.brand_organic_toggle ?? false,
+      video_made_with_ai: payload.tiktok?.video_made_with_ai ?? false,
+      content_posting_method: payload.tiktok?.content_posting_method || 'DIRECT_POST',
+    };
+    return { ...defaults, ...payload.tiktok, __type: 'tiktok' };
+  }
+
+  if (INSTAGRAM_TYPES.has(type) || isInstagramIntegration(type)) {
+    return {
+      __type: INSTAGRAM_TYPES.has(type) ? type : 'instagram',
+      post_type: payload.postType || 'post',
+      is_trial_reel: false,
+    };
+  }
+
+  return { __type: payload.integrationType };
+}
+
 function normalizeIntegrations(data: unknown): PostizIntegration[] {
   const raw = Array.isArray(data)
     ? data
@@ -131,11 +182,6 @@ function normalizeIntegrations(data: unknown): PostizIntegration[] {
       } as PostizIntegration;
     })
     .filter(Boolean) as PostizIntegration[];
-}
-
-export function isInstagramIntegration(identifier: string): boolean {
-  const id = String(identifier || '').toLowerCase();
-  return INSTAGRAM_TYPES.has(id) || id.includes('instagram');
 }
 
 export const postizService = {
@@ -189,9 +235,7 @@ export const postizService = {
   async createPost(payload: CreatePostPayload) {
     assertConfigured();
     return withDiagnostics('createPost', async () => {
-      const settings: Record<string, unknown> = INSTAGRAM_TYPES.has(payload.integrationType)
-        ? { __type: payload.integrationType, post_type: payload.postType || 'post', is_trial_reel: false }
-        : { __type: payload.integrationType };
+      const settings = buildPostSettings(payload);
 
       const { data } = await client.post('/posts', {
         type: payload.scheduledFor ? 'schedule' : 'now',

@@ -33,6 +33,7 @@ interface RequestBody {
   objetivo: string;
   nicho: string;
   estrutura: string[];
+  platforms?: string[];
 }
 
 function isConfigured(): boolean {
@@ -128,25 +129,51 @@ export async function POST(request: NextRequest) {
     const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-chat';
     const baseUrl = process.env.CONTENT_STUDIO_AI_BASE_URL;
 
+    const platforms = (body.platforms || ['instagram', 'tiktok']).map((p) => p.toLowerCase());
+    const forTikTok = platforms.includes('tiktok');
+    const forIg = platforms.includes('instagram');
+    const platformHint =
+      forTikTok && forIg
+        ? 'A legenda deve funcionar bem em Instagram e TikTok (gancho forte, CTA, hashtags leves).'
+        : forTikTok
+          ? 'Otimize para TikTok: gancho nos primeiros segundos, linguagem oral, CTA e 3–5 hashtags.'
+          : 'Otimize para Instagram: legenda escaneável, emoji com moderação e CTA claro.';
+
     const systemPrompt =
       'Você é um copywriter especialista em Instagram e TikTok. Escreva legendas curtas, ' +
-      'diretas e com CTA claro, no tom da marca do cliente. Responda apenas com a legenda final, sem explicações.';
+      'diretas e com CTA claro. ' +
+      platformHint +
+      ' Responda APENAS com JSON válido no formato ' +
+      '{"caption":"...","tiktokTitle":"..."} sem markdown. ' +
+      'tiktokTitle deve ter no máximo 90 caracteres (título do vídeo TikTok).';
     const userMessage =
-      `Crie uma legenda para um ${body.format} do tipo "${body.title}" (objetivo: ${body.objetivo}), ` +
-      `nicho: ${body.nicho || 'geral'}. Estrutura sugerida: ${(body.estrutura || []).join(' -> ')}.`;
+      `Crie copy para um ${body.format} do tipo "${body.title}" (objetivo: ${body.objetivo}), ` +
+      `nicho: ${body.nicho || 'geral'}. Estrutura sugerida: ${(body.estrutura || []).join(' -> ')}. ` +
+      `Plataformas: ${platforms.join(', ')}.`;
 
-    let caption = '';
+    let raw = '';
     if (provider === 'anthropic') {
-      caption = await callAnthropic(apiKey, model, systemPrompt, userMessage);
+      raw = await callAnthropic(apiKey, model, systemPrompt, userMessage);
     } else if (provider === 'google') {
-      caption = await callGoogle(apiKey, model, systemPrompt, userMessage);
+      raw = await callGoogle(apiKey, model, systemPrompt, userMessage);
     } else {
       const base = provider === 'custom' ? baseUrl : OPENAI_COMPATIBLE_BASE[provider];
       if (!base) throw new Error(`Provider "${provider}" não suportado ou CONTENT_STUDIO_AI_BASE_URL não definido.`);
-      caption = await callOpenAICompatible(base, apiKey, model, systemPrompt, userMessage);
+      raw = await callOpenAICompatible(base, apiKey, model, systemPrompt, userMessage);
     }
 
-    return NextResponse.json({ success: true, caption, provider, model });
+    let caption = raw.trim();
+    let tiktokTitle = body.title.slice(0, 90);
+    try {
+      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+      const parsed = JSON.parse(cleaned) as { caption?: string; tiktokTitle?: string };
+      if (parsed.caption) caption = parsed.caption;
+      if (parsed.tiktokTitle) tiktokTitle = String(parsed.tiktokTitle).slice(0, 90);
+    } catch {
+      // resposta em texto puro — usa como caption
+    }
+
+    return NextResponse.json({ success: true, caption, tiktokTitle, provider, model });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Erro ao gerar legenda' },

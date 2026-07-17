@@ -14,11 +14,14 @@ import {
   FiAlertCircle,
   FiArrowRight,
 } from 'react-icons/fi';
+import { SiTiktok } from 'react-icons/si';
+import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
 
 interface HubStatus {
   postizConfigured: boolean;
   accounts: number;
   igAccounts: number;
+  ttAccounts: number;
   agentRuns: number;
   aiConfigured: boolean;
 }
@@ -41,7 +44,7 @@ const steps = [
   {
     n: '03',
     title: 'Content Studio',
-    text: 'Agende ou publique no Instagram via Postiz.',
+    text: 'Agende ou publique no Instagram e TikTok via Postiz.',
     href: '/dashboard/content-studio',
     icon: FiEdit3,
   },
@@ -52,6 +55,7 @@ export default function DashboardPage() {
     postizConfigured: false,
     accounts: 0,
     igAccounts: 0,
+    ttAccounts: 0,
     agentRuns: 0,
     aiConfigured: false,
   });
@@ -67,6 +71,7 @@ export default function DashboardPage() {
       let postizConfigured = false;
       let accounts = 0;
       let igAccounts = 0;
+      let ttAccounts = 0;
 
       try {
         const res = await authFetch('/api/content-studio/accounts');
@@ -75,16 +80,17 @@ export default function DashboardPage() {
         const list = json?.data?.integrations || [];
         accounts = list.length;
         igAccounts = list.filter((i: { identifier?: string }) =>
-          String(i.identifier || '')
-            .toLowerCase()
-            .includes('instagram')
+          isInstagramIntegration(String(i.identifier || ''))
+        ).length;
+        ttAccounts = list.filter((i: { identifier?: string }) =>
+          isTikTokIntegration(String(i.identifier || ''))
         ).length;
       } catch {
         // silencioso
       }
 
       if (!cancelled) {
-        setStatus({ postizConfigured, accounts, igAccounts, agentRuns, aiConfigured });
+        setStatus({ postizConfigured, accounts, igAccounts, ttAccounts, agentRuns, aiConfigured });
         setLoading(false);
       }
     }
@@ -97,16 +103,21 @@ export default function DashboardPage() {
 
   return (
     <DashboardShell title="Dashboard" subtitle="Hub operacional SocialFlow — sem dados inventados">
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatusCard
           label="Postiz"
           value={loading ? '…' : status.postizConfigured ? 'Conectado' : 'Pendente'}
           ok={status.postizConfigured}
         />
         <StatusCard
-          label="Contas Instagram"
+          label="Instagram"
           value={loading ? '…' : String(status.igAccounts)}
           ok={status.igAccounts > 0}
+        />
+        <StatusCard
+          label="TikTok"
+          value={loading ? '…' : String(status.ttAccounts)}
+          ok={status.ttAccounts > 0}
         />
         <StatusCard
           label="IA (Agentes)"
@@ -147,7 +158,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Link
           href="/dashboard/instagram"
           className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
@@ -155,11 +166,28 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <FiInstagram size={22} className="text-signal-500" />
             <div>
-              <p className="font-semibold text-ink-950">Instagram / Postiz</p>
+              <p className="font-semibold text-ink-950">Instagram</p>
               <p className="text-sm text-ink-950/55">
                 {status.igAccounts > 0
                   ? `${status.igAccounts} conta(s) · agenda e analytics`
-                  : 'Conecte contas no Postiz'}
+                  : 'Conecte no Postiz'}
+              </p>
+            </div>
+          </div>
+          <FiArrowRight className="text-ink-950/40" />
+        </Link>
+        <Link
+          href="/dashboard/tiktok"
+          className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
+        >
+          <div className="flex items-center gap-3">
+            <SiTiktok size={22} className="text-ink-950" />
+            <div>
+              <p className="font-semibold text-ink-950">TikTok</p>
+              <p className="text-sm text-ink-950/55">
+                {status.ttAccounts > 0
+                  ? `${status.ttAccounts} conta(s) · agenda e analytics`
+                  : 'Conecte no Postiz'}
               </p>
             </div>
           </div>

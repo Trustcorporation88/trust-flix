@@ -33,6 +33,7 @@ import {
   parseEstruturaFromText,
   saveCustomTemplate,
 } from '@/lib/customTemplates';
+import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
 import type { PostizPost } from '@/services/postizService';
 
 interface Template {
@@ -52,6 +53,7 @@ interface PostizIntegration {
   id: string;
   name: string;
   identifier: string;
+  disabled?: boolean;
 }
 
 interface AccountsResponse {
@@ -133,7 +135,11 @@ export default function ContentStudioPage() {
   const [trendsConfigured, setTrendsConfigured] = useState(false);
 
   const [accounts, setAccounts] = useState<AccountsResponse | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [tiktokTitle, setTiktokTitle] = useState('');
+  const [tiktokPrivacy, setTiktokPrivacy] = useState<
+    'PUBLIC_TO_EVERYONE' | 'MUTUAL_FOLLOW_FRIENDS' | 'FOLLOWER_OF_CREATOR' | 'SELF_ONLY'
+  >('PUBLIC_TO_EVERYONE');
 
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [caption, setCaption] = useState('');
@@ -206,6 +212,18 @@ export default function ContentStudioPage() {
       const res = await authFetch('/api/content-studio/accounts');
       const json = await res.json();
       setAccounts(json);
+      const list: PostizIntegration[] = json?.data?.integrations || [];
+      if (list.length > 0) {
+        setSelectedAccountIds((prev) => {
+          if (prev.length > 0) return prev.filter((id) => list.some((a) => a.id === id));
+          const ig = list.find((a) => isInstagramIntegration(a.identifier) && !a.disabled);
+          const tt = list.find((a) => isTikTokIntegration(a.identifier) && !a.disabled);
+          const picks = [ig?.id, tt?.id].filter(Boolean) as string[];
+          return picks.length > 0
+            ? picks
+            : ([list.find((a) => !a.disabled)?.id].filter(Boolean) as string[]);
+        });
+      }
     } catch {
       // silencioso — tela funciona em modo preview sem Postiz
     }
@@ -290,6 +308,7 @@ export default function ContentStudioPage() {
   const handleSelectTemplate = async (template: Template) => {
     setSelectedTemplate(template);
     setCaption('');
+    setTiktokTitle(template.title.slice(0, 90));
     setMediaFile(null);
     if (mediaPreviewUrl) {
       URL.revokeObjectURL(mediaPreviewUrl);
@@ -300,6 +319,12 @@ export default function ContentStudioPage() {
     setScheduledLocal(defaultScheduleLocal());
     setIsGenerating(true);
     try {
+      const platforms: string[] = [];
+      const selected = accounts?.data?.integrations?.filter((a) => selectedAccountIds.includes(a.id)) || [];
+      if (selected.some((a) => isInstagramIntegration(a.identifier))) platforms.push('instagram');
+      if (selected.some((a) => isTikTokIntegration(a.identifier))) platforms.push('tiktok');
+      if (platforms.length === 0) platforms.push('instagram', 'tiktok');
+
       const res = await authFetch('/api/content-studio/caption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,11 +334,13 @@ export default function ContentStudioPage() {
           objetivo: template.objetivo,
           nicho: nicho || 'geral',
           estrutura: template.estrutura,
+          platforms,
         }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json?.error || 'Erro ao gerar legenda');
       setCaption(json.caption || '');
+      if (json.tiktokTitle) setTiktokTitle(String(json.tiktokTitle).slice(0, 90));
     } catch {
       setCaption(
         `[Rascunho] ${template.title} — adicione sua legenda aqui.\n\nEstrutura: ${template.estrutura.join(' → ')}`
@@ -343,17 +370,24 @@ export default function ContentStudioPage() {
 
   const handleApproveAndSchedule = async () => {
     if (!selectedTemplate) return;
-    if (!selectedAccount) {
-      toast.error('Selecione uma conta conectada antes de publicar');
+    if (selectedAccountIds.length === 0) {
+      toast.error('Selecione ao menos uma conta (Instagram e/ou TikTok)');
       return;
     }
     if (!mediaFile) {
-      toast.error('Envie um vídeo ou imagem — Instagram exige mídia no Postiz');
+      toast.error('Envie um vídeo ou imagem — redes sociais exigem mídia no Postiz');
       return;
     }
-    const account = accounts?.data?.integrations?.find((a) => a.id === selectedAccount);
-    if (!account) {
-      toast.error('Conta selecionada não encontrada — atualize a página');
+    const targets =
+      accounts?.data?.integrations?.filter((a) => selectedAccountIds.includes(a.id)) || [];
+    if (targets.length === 0) {
+      toast.error('Contas selecionadas não encontradas — atualize a página');
+      return;
+    }
+
+    const hasTikTok = targets.some((a) => isTikTokIntegration(a.identifier));
+    if (hasTikTok && mediaFile.type.startsWith('image/')) {
+      toast.error('TikTok precisa de vídeo (MP4). Troque a mídia ou desmarque o TikTok.');
       return;
     }
 
@@ -373,48 +407,66 @@ export default function ContentStudioPage() {
 
     setIsScheduling(true);
     try {
-      let media: { id: string; path: string }[] | undefined;
-
-      if (mediaFile) {
-        setIsUploadingMedia(true);
-        const form = new FormData();
-        form.append('file', mediaFile, mediaFile.name);
-        const uploadRes = await authFetch('/api/content-studio/upload-media', {
-          method: 'POST',
-          body: form,
-        });
-        const uploadJson = await uploadRes.json();
-        setIsUploadingMedia(false);
-        if (!uploadRes.ok || !uploadJson.success) {
-          throw new Error(uploadJson?.error || 'Erro ao enviar o arquivo de mídia');
-        }
-        media = [uploadJson.data];
-      }
-
-      const res = await authFetch('/api/content-studio/accounts', {
+      setIsUploadingMedia(true);
+      const form = new FormData();
+      form.append('file', mediaFile, mediaFile.name);
+      const uploadRes = await authFetch('/api/content-studio/upload-media', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          integrationId: account.id,
-          integrationType: account.identifier,
-          content: caption,
-          media,
-          postType,
-          scheduledFor,
-        }),
+        body: form,
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      const uploadJson = await uploadRes.json();
+      setIsUploadingMedia(false);
+      if (!uploadRes.ok || !uploadJson.success) {
+        throw new Error(uploadJson?.error || 'Erro ao enviar o arquivo de mídia');
+      }
+      const media = [uploadJson.data];
+
+      const results: string[] = [];
+      for (const account of targets) {
+        const isTt = isTikTokIntegration(account.identifier);
+        const res = await authFetch('/api/content-studio/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            integrationId: account.id,
+            integrationType: account.identifier,
+            content: caption,
+            media,
+            postType: isTt ? 'post' : postType,
+            scheduledFor,
+            ...(isTt
+              ? {
+                  tiktok: {
+                    title: (tiktokTitle || selectedTemplate.title).slice(0, 90),
+                    privacy_level: tiktokPrivacy,
+                    duet: true,
+                    stitch: true,
+                    comment: true,
+                    autoAddMusic: 'no',
+                    brand_content_toggle: false,
+                    brand_organic_toggle: false,
+                    video_made_with_ai: false,
+                    content_posting_method: 'DIRECT_POST',
+                  },
+                }
+              : {}),
+          }),
+        });
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(`${account.name}: ${json.error || 'falha ao publicar'}`);
+        }
+        results.push(account.name);
+      }
 
       toast.success(
         publishMode === 'schedule'
-          ? 'Conteúdo agendado com sucesso'
-          : postType === 'story'
-            ? 'Story publicado'
-            : 'Post/Reel publicado'
+          ? `Agendado em: ${results.join(', ')}`
+          : `Publicado em: ${results.join(', ')}`
       );
       setSelectedTemplate(null);
       setCaption('');
+      setTiktokTitle('');
       setMediaFile(null);
       if (mediaPreviewUrl) {
         URL.revokeObjectURL(mediaPreviewUrl);
@@ -428,6 +480,17 @@ export default function ContentStudioPage() {
       setIsUploadingMedia(false);
     }
   };
+
+  const toggleAccount = (id: string) => {
+    setSelectedAccountIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectedTargets =
+    accounts?.data?.integrations?.filter((a) => selectedAccountIds.includes(a.id)) || [];
+  const hasTikTokSelected = selectedTargets.some((a) => isTikTokIntegration(a.identifier));
+  const hasInstagramSelected = selectedTargets.some((a) => isInstagramIntegration(a.identifier));
 
   const handleSaveImportedTemplate = () => {
     const estrutura = parseEstruturaFromText(importForm.estruturaText);
@@ -543,7 +606,7 @@ export default function ContentStudioPage() {
           Crie, aprove e agenda no mesmo fluxo
         </h1>
         <p className="mt-3 max-w-2xl text-ink-300">
-          Modelos, legenda com IA e publicação via Postiz — com calendário da semana.
+          Modelos, legenda com IA e publicação no Instagram e TikTok via Postiz.
         </p>
 
         {/* Calendar */}
@@ -886,24 +949,33 @@ export default function ContentStudioPage() {
             </div>
 
             <div className="mt-4">
-              <label className="text-sm text-ink-300">Contas para publicar</label>
+              <label className="text-sm text-ink-300">Contas (Instagram e/ou TikTok)</label>
+              <p className="mt-1 text-xs text-ink-500">Toque para marcar várias — publica em todas.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {accounts?.data?.integrations?.length ? (
-                  accounts.data.integrations.map((acc) => (
-                    <button
-                      key={acc.id}
-                      onClick={() => setSelectedAccount(acc.id)}
-                      className={clsx(
-                        'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                        selectedAccount === acc.id
-                          ? 'border-signal-500 bg-signal-500/10 text-signal-400'
-                          : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
-                      )}
-                    >
-                      {acc.identifier === 'tiktok' ? <SiTiktok /> : <FiInstagram />}
-                      {acc.name}
-                    </button>
-                  ))
+                  accounts.data.integrations.map((acc) => {
+                    const active = selectedAccountIds.includes(acc.id);
+                    const isTt = isTikTokIntegration(acc.identifier);
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => toggleAccount(acc.id)}
+                        className={clsx(
+                          'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+                          active
+                            ? 'border-signal-500 bg-signal-500/10 text-signal-400'
+                            : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+                        )}
+                      >
+                        {isTt ? <SiTiktok /> : <FiInstagram />}
+                        {acc.name}
+                        <span className="text-[10px] uppercase opacity-60">
+                          {isTt ? 'TT' : 'IG'}
+                        </span>
+                      </button>
+                    );
+                  })
                 ) : (
                   <span className="text-sm text-ink-400">Nenhuma conta conectada no Postiz</span>
                 )}
@@ -919,25 +991,66 @@ export default function ContentStudioPage() {
               className="input-dark resize-none !border-white/10 !bg-white/[0.04] !text-white"
             />
 
-            <div className="mt-6">
-              <label className="text-sm text-ink-300">Formato</label>
-              <div className="mt-2 flex gap-2">
-                {(['post', 'story'] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setPostType(type)}
-                    className={clsx(
-                      'rounded-md border px-4 py-1.5 text-sm transition-colors',
-                      postType === type
-                        ? 'border-signal-500 bg-signal-500/10 text-signal-400'
-                        : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
-                    )}
+            {hasTikTokSelected && (
+              <div className="mt-6 space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-sm font-semibold text-white">Opções TikTok</p>
+                <div>
+                  <label className="text-sm text-ink-300">Título do vídeo (máx. 90)</label>
+                  <input
+                    type="text"
+                    maxLength={90}
+                    value={tiktokTitle}
+                    onChange={(e) => setTiktokTitle(e.target.value.slice(0, 90))}
+                    placeholder="Título curto para o TikTok"
+                    className="input-dark mt-1 !border-white/10 !bg-white/[0.04] !text-white"
+                  />
+                  <p className="mt-1 text-xs text-ink-500">{tiktokTitle.length}/90</p>
+                </div>
+                <div>
+                  <label className="text-sm text-ink-300">Privacidade</label>
+                  <select
+                    value={tiktokPrivacy}
+                    onChange={(e) =>
+                      setTiktokPrivacy(
+                        e.target.value as typeof tiktokPrivacy
+                      )
+                    }
+                    className="input-dark mt-1 !border-white/10 !bg-white/[0.04] !text-white"
                   >
-                    {type === 'post' ? 'Feed / Reel' : 'Story'}
-                  </button>
-                ))}
+                    <option value="PUBLIC_TO_EVERYONE">Público</option>
+                    <option value="FOLLOWER_OF_CREATOR">Seguidores</option>
+                    <option value="MUTUAL_FOLLOW_FRIENDS">Amigos mútuos</option>
+                    <option value="SELF_ONLY">Só eu (rascunho)</option>
+                  </select>
+                  <p className="mt-1 text-xs text-ink-500">
+                    Se o app TikTok no Postiz ainda não passou no audit, pode forçar privado.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {hasInstagramSelected && (
+              <div className="mt-6">
+                <label className="text-sm text-ink-300">Formato Instagram</label>
+                <div className="mt-2 flex gap-2">
+                  {(['post', 'story'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setPostType(type)}
+                      className={clsx(
+                        'rounded-md border px-4 py-1.5 text-sm transition-colors',
+                        postType === type
+                          ? 'border-signal-500 bg-signal-500/10 text-signal-400'
+                          : 'border-white/10 bg-white/[0.03] text-ink-300 hover:bg-white/[0.06]'
+                      )}
+                    >
+                      {type === 'post' ? 'Feed / Reel' : 'Story'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6">
               <label className="text-sm text-ink-300">Quando publicar</label>
@@ -1018,7 +1131,9 @@ export default function ContentStudioPage() {
                 >
                   <FiUpload size={22} />
                   <span>Arraste ou escolha vídeo (MP4) / imagem</span>
-                  <span className="text-xs text-ink-500">Obrigatório para publicar no Instagram</span>
+                  <span className="text-xs text-ink-500">
+                    Obrigatório · TikTok exige vídeo
+                  </span>
                   <input
                     type="file"
                     accept="video/*,image/*"
