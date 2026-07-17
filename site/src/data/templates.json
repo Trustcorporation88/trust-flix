@@ -30,6 +30,46 @@
     "tags": ["listicle", "dicas", "ranking"]
   },
   {
+    "id": "reel-quick-tip",
+    "format": "reel",
+    "title": "Quick Tip (dica em 60–90s)",
+    "objetivo": "autoridade",
+    "descricao": "Modelo open-source de Reel educativo: uma dica acionável com alta taxa de conclusão.",
+    "estrutura": ["Hook falado + texto (0–3s)", "Contexto em 1 frase", "Dica passo a passo", "Prova rápida / exemplo", "CTA: salvar e comentar"],
+    "duracaoSugerida": "60-90s",
+    "tags": ["dica", "educativo", "hook", "salvar"]
+  },
+  {
+    "id": "reel-day-in-life",
+    "format": "reel",
+    "title": "Day in the Life",
+    "objetivo": "engajamento",
+    "descricao": "Bastidores do dia mostrando rotina + um insight do negócio (humaniza a marca).",
+    "estrutura": ["Abertura 'um dia comigo / na marca'", "3–5 cenas do processo", "Insight ou erro comum", "CTA suave (seguir / DM)"],
+    "duracaoSugerida": "30-60s",
+    "tags": ["bastidores", "rotina", "autenticidade"]
+  },
+  {
+    "id": "reel-trending-audio",
+    "format": "reel",
+    "title": "Áudio em alta + mensagem",
+    "objetivo": "engajamento",
+    "descricao": "Usa trend de áudio, mas ancora na sua oferta/nicho (sem watermark de outra rede).",
+    "estrutura": ["Entrada no beat do áudio", "Texto-gancho na tela", "Virada para o seu ângulo", "CTA no final"],
+    "duracaoSugerida": "7-20s",
+    "tags": ["trend", "audio", "viral"]
+  },
+  {
+    "id": "reel-hook-story-offer",
+    "format": "reel",
+    "title": "Hook → História → Oferta",
+    "objetivo": "vendas",
+    "descricao": "Fórmula clássica de conversão: prende, emociona, oferece.",
+    "estrutura": ["Hook forte (problema ou resultado)", "Micro-história real", "Oferta clara + como comprar", "Urgência ou próximo passo"],
+    "duracaoSugerida": "30-60s",
+    "tags": ["vendas", "storytelling", "oferta", "hook"]
+  },
+  {
     "id": "story-enquete-oferta",
     "format": "story",
     "title": "Enquete + Oferta Relâmpago",
@@ -50,6 +90,36 @@
     "tags": ["bastidores", "autenticidade", "processo"]
   },
   {
+    "id": "story-qa-caixa",
+    "format": "story",
+    "title": "Caixinha de perguntas",
+    "objetivo": "engajamento",
+    "descricao": "Abre interação e gera conteúdo a partir das dúvidas reais da audiência.",
+    "estrutura": ["Story 1: sticker de perguntas", "Story 2–4: responde 1 pergunta por story", "Story final: CTA (DM / link)"],
+    "duracaoSugerida": "3-6 stories",
+    "tags": ["qa", "interacao", "comunidade"]
+  },
+  {
+    "id": "story-quiz-nicho",
+    "format": "story",
+    "title": "Quiz do nicho",
+    "objetivo": "engajamento",
+    "descricao": "Quiz curto para segmentar interesse e aquecer para oferta.",
+    "estrutura": ["Pergunta com quiz sticker", "Revela 'resposta certa'", "Transição para dica ou oferta"],
+    "duracaoSugerida": "2-3 stories",
+    "tags": ["quiz", "interacao", "segmentacao"]
+  },
+  {
+    "id": "story-share-this",
+    "format": "story",
+    "title": "Mande pra alguém",
+    "objetivo": "engajamento",
+    "descricao": "Conteúdo feito para compartilhar (algoritmo prioriza shares/DMs).",
+    "estrutura": ["Frase 'mande pra quem precisa disso'", "Insight útil em 1 tela", "CTA: compartilhar no close friends / DM"],
+    "duracaoSugerida": "1-2 stories",
+    "tags": ["share", "dm", "utilidade"]
+  },
+  {
     "id": "post-carrossel-dicas",
     "format": "post",
     "title": "Carrossel de Dicas",
@@ -58,6 +128,66 @@
     "estrutura": ["Capa com promessa clara", "4-6 slides de conteúdo", "Último slide com CTA"],
     "duracaoSugerida": "6-8 slides",
     "tags": ["carrossel", "educativo", "dicas"]
+  },
+  {
+    "id": "post-carrossel-problema-solucao",
+    "format": "post",
+    "title": "Carrossel Problema → Solução",
+    "objetivo": "autoridade",
+    "descricao": "Framework open-source de alta taxa de salvamento: dor → solução passo a passo.",
+    "estrutura": ["Capa: problema em negrito", "Amplifica a dor / cenário", "Slide 'aqui está o caminho'", "3–5 passos numerados", "Resumo para print", "CTA: salvar + seguir"],
+    "duracaoSugerida": "7-10 slides",
+    "tags": ["carrossel", "problema", "solucao", "salvar"]
+  },
+  {
+    "id": "post-carrossel-mito",
+    "format": "post",
+    "title": "Carrossel Mito vs Verdade",
+    "objetivo": "autoridade",
+    "descricao": "Quebra crenças do nicho e gera comentários (debate + autoridade).",
+    "estrutura": ["Capa: 'mito que todo mundo acredita'", "Mito declarado", "Por que é falso", "O que fazer no lugar", "CTA: comenta se já caiu nisso"],
+    "duracaoSugerida": "5-8 slides",
+    "tags": ["mito", "autoridade", "comentarios"]
+  },
+  {
+    "id": "post-carrossel-tutorial",
+    "format": "post",
+    "title": "Carrossel Tutorial Passo a Passo",
+    "objetivo": "autoridade",
+    "descricao": "Tutorial swipeável — ideal para saves e compartilhamentos.",
+    "estrutura": ["Capa: resultado prometido", "O que você precisa", "Passos 1–N (1 por slide)", "Erro comum a evitar", "CTA: salvar para depois"],
+    "duracaoSugerida": "7-10 slides",
+    "tags": ["tutorial", "howto", "salvar"]
+  },
+  {
+    "id": "post-carrossel-comparacao",
+    "format": "post",
+    "title": "Carrossel Comparação A vs B",
+    "objetivo": "vendas",
+    "descricao": "Compara caminho errado vs certo (ou produto vs improviso) e fecha com CTA.",
+    "estrutura": ["Capa: A vs B", "Lado ruim / caro / lento", "Lado bom / claro / rápido", "Tabela mental de diferenças", "CTA de oferta"],
+    "duracaoSugerida": "5-7 slides",
+    "tags": ["comparacao", "vendas", "posicionamento"]
+  },
+  {
+    "id": "post-carrossel-dados",
+    "format": "post",
+    "title": "Carrossel com Dados",
+    "objetivo": "autoridade",
+    "descricao": "Abre com estatística forte e transforma em insight acionável.",
+    "estrutura": ["Capa com número chocante", "O que o dado significa", "Implicação para o cliente", "3 ações práticas", "CTA: salvar"],
+    "duracaoSugerida": "5-8 slides",
+    "tags": ["dados", "estatistica", "autoridade"]
+  },
+  {
+    "id": "post-carrossel-storytelling",
+    "format": "post",
+    "title": "Carrossel Storytelling",
+    "objetivo": "engajamento",
+    "descricao": "História em slides (personagem, conflito, virada, moral).",
+    "estrutura": ["Capa emocional", "Contexto", "Conflito", "Virada", "Lição", "CTA suave"],
+    "duracaoSugerida": "6-9 slides",
+    "tags": ["historia", "emocao", "engajamento"]
   },
   {
     "id": "post-depoimento",
@@ -78,5 +208,35 @@
     "estrutura": ["Preço em destaque", "Benefício principal", "Selo de urgência (estoque/tempo)"],
     "duracaoSugerida": "1 imagem",
     "tags": ["oferta", "desconto", "urgencia"]
+  },
+  {
+    "id": "post-legenda-pas",
+    "format": "post",
+    "title": "Legenda PAS (Problema–Agitação–Solução)",
+    "objetivo": "vendas",
+    "descricao": "Fórmula de legenda open-source: problema → agita → solução → CTA.",
+    "estrutura": ["Problema em 1 linha", "Agitação (custo de não resolver)", "Solução / produto", "Prova rápida", "CTA + pergunta no final"],
+    "duracaoSugerida": "1 imagem + legenda longa",
+    "tags": ["legenda", "pas", "copy", "vendas"]
+  },
+  {
+    "id": "post-opiniao-polemica",
+    "format": "post",
+    "title": "Opinião polêmica (controverso)",
+    "objetivo": "engajamento",
+    "descricao": "Take forte do nicho para gerar comentários longos (algoritmo valoriza).",
+    "estrutura": ["Afirmação ousada na capa", "Por que a maioria erra", "Seu ponto de vista", "Convite: 'discordo? comenta'"],
+    "duracaoSugerida": "1-3 slides",
+    "tags": ["opiniao", "comentarios", "debate"]
+  },
+  {
+    "id": "post-lista-salva",
+    "format": "post",
+    "title": "Lista pra salvar",
+    "objetivo": "autoridade",
+    "descricao": "Checklist ou lista numerada feita para print/salvar.",
+    "estrutura": ["Capa: 'salve isto'", "Lista 5–10 itens", "CTA: salvar + marcar alguém"],
+    "duracaoSugerida": "1-2 imagens ou carrossel curto",
+    "tags": ["lista", "checklist", "salvar", "share"]
   }
 ]
