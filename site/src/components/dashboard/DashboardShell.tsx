@@ -8,27 +8,20 @@ import {
   FiCpu,
   FiEdit3,
   FiInstagram,
-  FiShoppingCart,
-  FiUsers,
-  FiUserPlus,
-  FiSend,
-  FiZap,
-  FiLink,
-  FiSmartphone,
-  FiBarChart2,
   FiSettings,
   FiLogOut,
   FiExternalLink,
 } from 'react-icons/fi';
 import { ReactNode } from 'react';
 
+/** Só o que está conectado de verdade — vendas/WhatsApp/etc. ficam fora até existirem. */
 const menuGroups: { title: string; items: { icon: typeof FiHome; label: string; href: string }[] }[] = [
   {
     title: 'Visão Geral',
     items: [{ icon: FiHome, label: 'Dashboard', href: '/dashboard' }],
   },
   {
-    title: 'Ferramentas IA',
+    title: 'Conteúdo & IA',
     items: [
       { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents' },
       { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio' },
@@ -37,28 +30,8 @@ const menuGroups: { title: string; items: { icon: typeof FiHome; label: string; 
     ],
   },
   {
-    title: 'Vendas',
-    items: [
-      { icon: FiShoppingCart, label: 'Pedidos', href: '/dashboard/orders' },
-      { icon: FiUsers, label: 'Clientes', href: '/dashboard/customers' },
-      { icon: FiUserPlus, label: 'CRM / Leads', href: '/dashboard/leads' },
-    ],
-  },
-  {
-    title: 'Marketing',
-    items: [
-      { icon: FiSend, label: 'Campanhas', href: '/dashboard/campaigns' },
-      { icon: FiZap, label: 'Automações', href: '/dashboard/automations' },
-    ],
-  },
-  {
     title: 'Sistema',
-    items: [
-      { icon: FiSmartphone, label: 'WhatsApp', href: '/dashboard/whatsapp' },
-      { icon: FiLink, label: 'Integrações', href: '/dashboard/integrations' },
-      { icon: FiBarChart2, label: 'Relatórios', href: '/dashboard/reports' },
-      { icon: FiSettings, label: 'Configurações', href: '/dashboard/settings' },
-    ],
+    items: [{ icon: FiSettings, label: 'Configurações', href: '/dashboard/settings' }],
   },
 ];
 

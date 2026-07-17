@@ -1,64 +1,156 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { FiBriefcase, FiCpu, FiShoppingBag, FiCreditCard, FiSave } from 'react-icons/fi';
+import {
+  AIExecutorConfig,
+  AIProvider,
+  PROVIDERS,
+  getProvider,
+  aiExecutor,
+} from '@/services/aiExecutor';
+import { FiBriefcase, FiCpu, FiSave, FiTrash2, FiExternalLink } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+
+const BRAND_KEY = 'sf_brand_settings';
 
 const tabs = [
-  { id: 'brand', label: 'Marca', icon: FiBriefcase },
   { id: 'ai', label: 'IA', icon: FiCpu },
-  { id: 'sales', label: 'Vendas', icon: FiShoppingBag },
-  { id: 'payment', label: 'Pagamento', icon: FiCreditCard },
+  { id: 'brand', label: 'Marca', icon: FiBriefcase },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
 
-function Field({ label, defaultValue, type = 'text', placeholder }: { label: string; defaultValue?: string; type?: string; placeholder?: string }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        type={type}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-      />
-    </div>
-  );
+interface BrandSettings {
+  name: string;
+  slogan: string;
+  email: string;
+  nicho: string;
+  tone: string;
+}
+
+const defaultBrand: BrandSettings = {
+  name: 'SocialFlow',
+  slogan: 'Crie, publique e venda no mesmo ritmo',
+  email: '',
+  nicho: '',
+  tone: 'Consultivo e direto',
+};
+
+function defaultBaseUrl(id: AIProvider): string {
+  if (id === 'openai') return 'https://api.openai.com/v1';
+  if (id === 'deepseek') return 'https://api.deepseek.com/v1';
+  if (id === 'groq') return 'https://api.groq.com/openai/v1';
+  if (id === 'mistral') return 'https://api.mistral.ai/v1';
+  if (id === 'openrouter') return 'https://openrouter.ai/api/v1';
+  return '';
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabId>('brand');
-  const [saved, setSaved] = useState(false);
+  const [tab, setTab] = useState<TabId>('ai');
+  const [brand, setBrand] = useState<BrandSettings>(defaultBrand);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const [aiProvider, setAiProvider] = useState<AIProvider>('openai');
+  const [apiKey, setApiKey] = useState('');
+  const [model, setModel] = useState(getProvider('openai')?.defaultModel || '');
+  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl('openai'));
+  const [isConfigured, setIsConfigured] = useState(false);
+
+  const providerInfo = getProvider(aiProvider);
+
+  useEffect(() => {
+    const saved = aiExecutor.getCurrentProvider();
+    if (saved) {
+      setAiProvider(saved.provider);
+      setApiKey(saved.apiKey);
+      setModel(saved.model);
+      setBaseUrl(saved.baseUrl || defaultBaseUrl(saved.provider));
+      setIsConfigured(true);
+    }
+    try {
+      const raw = localStorage.getItem(BRAND_KEY);
+      if (raw) setBrand({ ...defaultBrand, ...JSON.parse(raw) });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleSelectProvider = (id: AIProvider) => {
+    setAiProvider(id);
+    setModel(getProvider(id)?.defaultModel || '');
+    setBaseUrl(defaultBaseUrl(id));
+    setIsConfigured(false);
+  };
+
+  const handleSaveAi = () => {
+    if (!apiKey.trim()) {
+      toast.error('Informe a API key');
+      return;
+    }
+    if (!model.trim()) {
+      toast.error('Informe o modelo');
+      return;
+    }
+    if ((aiProvider === 'custom' || aiProvider === 'openai') && !baseUrl.trim()) {
+      toast.error('Informe a Base URL');
+      return;
+    }
+
+    const config: AIExecutorConfig = {
+      provider: aiProvider,
+      apiKey: apiKey.trim(),
+      model: model.trim(),
+      ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+    };
+    aiExecutor.configure(config);
+    setIsConfigured(true);
+    toast.success('IA salva — Agentes e Content Studio usam esta config');
+  };
+
+  const handleClearAi = () => {
+    aiExecutor.reset();
+    setApiKey('');
+    setIsConfigured(false);
+    toast.success('Configuração de IA removida');
+  };
+
+  const handleSaveBrand = () => {
+    localStorage.setItem(BRAND_KEY, JSON.stringify(brand));
+    toast.success('Marca salva neste navegador');
   };
 
   return (
     <DashboardShell
       title="Configurações"
-      subtitle="Configure marca, IA, vendas e pagamentos"
+      subtitle="IA e marca — o que os Agentes usam de verdade"
       actions={
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          <FiSave /> {saved ? 'Salvo!' : 'Salvar'}
-        </button>
+        tab === 'ai' ? (
+          <button
+            onClick={handleSaveAi}
+            className="flex items-center gap-2 rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white hover:bg-signal-600"
+          >
+            <FiSave /> {isConfigured ? 'Atualizar IA' : 'Salvar IA'}
+          </button>
+        ) : (
+          <button
+            onClick={handleSaveBrand}
+            className="flex items-center gap-2 rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white hover:bg-signal-600"
+          >
+            <FiSave /> Salvar marca
+          </button>
+        )
       }
     >
-      <div className="flex gap-6">
-        {/* Tabs */}
-        <div className="w-56 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-2 space-y-1">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="w-full shrink-0 lg:w-56">
+          <div className="space-y-1 rounded-xl border border-gray-100 bg-white p-2 shadow-sm">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  tab === t.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                  tab === t.id ? 'bg-ink-950 text-white' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 <t.icon size={18} />
@@ -66,49 +158,164 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+          <p className="mt-4 text-xs leading-relaxed text-gray-400">
+            Vendas, pagamentos e WhatsApp ainda não estão conectados — por isso sumiram do menu.
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-          {tab === 'brand' && (
-            <div className="space-y-5 max-w-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Identidade da Marca</h3>
-              <Field label="Nome da empresa" defaultValue="Social Flow" />
-              <Field label="Slogan" defaultValue="Venda, crie e automatize em uma plataforma" />
-              <Field label="E-mail de contato" type="email" defaultValue="contato@trustcorp.com.br" />
-              <Field label="Cor primária" defaultValue="#2563eb" />
-            </div>
-          )}
+        <div className="flex-1 rounded-xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
           {tab === 'ai' && (
-            <div className="space-y-5 max-w-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Configuração de IA</h3>
+            <div className="max-w-xl space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Provedor padrão</label>
-                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>OpenAI (GPT-4)</option>
-                  <option>Anthropic (Claude)</option>
-                  <option>Google (Gemini)</option>
-                </select>
+                <h3 className="text-lg font-semibold text-gray-900">Provedor de IA</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  A chave fica só neste navegador e é enviada ao servidor na hora de executar um
+                  agente. Mesma config usada em{' '}
+                  <Link href="/dashboard/agents" className="text-signal-600 underline">
+                    Agentes IA
+                  </Link>
+                  .
+                </p>
               </div>
-              <Field label="API Key" type="password" placeholder="sk-..." />
-              <Field label="Tom de voz do bot" defaultValue="Consultivo e direto" />
-              <p className="text-xs text-gray-400">As chaves são usadas apenas no seu ambiente. Configure no Arsenal de Agentes para execução real.</p>
+
+              {isConfigured && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  Ativo: <strong>{aiProvider}</strong> · {model}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {PROVIDERS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectProvider(p.id)}
+                    className={`rounded-lg px-2 py-2.5 text-left text-xs font-semibold transition-all sm:text-sm ${
+                      aiProvider === p.id
+                        ? 'bg-ink-950 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span className="mr-1">{p.emoji}</span>
+                    {p.label.replace(/ \(.*\)/, '')}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setIsConfigured(false);
+                  }}
+                  placeholder="sk-..."
+                  className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                />
+                {providerInfo?.keyUrl && (
+                  <a
+                    href={providerInfo.keyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-signal-600 hover:underline"
+                  >
+                    Obter API key <FiExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+
+              {(aiProvider === 'custom' ||
+                aiProvider === 'openai' ||
+                aiProvider === 'deepseek' ||
+                aiProvider === 'groq' ||
+                aiProvider === 'openrouter' ||
+                aiProvider === 'mistral') && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Base URL</label>
+                  <input
+                    type="text"
+                    value={baseUrl}
+                    onChange={(e) => {
+                      setBaseUrl(e.target.value);
+                      setIsConfigured(false);
+                    }}
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Modelo</label>
+                {providerInfo && providerInfo.models.length > 0 ? (
+                  <select
+                    value={model}
+                    onChange={(e) => {
+                      setModel(e.target.value);
+                      setIsConfigured(false);
+                    }}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                  >
+                    {providerInfo.models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={model}
+                    onChange={(e) => {
+                      setModel(e.target.value);
+                      setIsConfigured(false);
+                    }}
+                    placeholder="nome-do-modelo"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                  />
+                )}
+              </div>
+
+              {isConfigured && (
+                <button
+                  type="button"
+                  onClick={handleClearAi}
+                  className="inline-flex items-center gap-2 text-sm text-red-600 hover:underline"
+                >
+                  <FiTrash2 /> Remover chave deste navegador
+                </button>
+              )}
             </div>
           )}
-          {tab === 'sales' && (
-            <div className="space-y-5 max-w-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Vendas</h3>
-              <Field label="Moeda" defaultValue="BRL (R$)" />
-              <Field label="Prazo de expiração do PIX (horas)" type="number" defaultValue="72" />
-              <Field label="Mensagem pós-venda" defaultValue="Obrigado pela compra! Seu acesso foi liberado." />
-            </div>
-          )}
-          {tab === 'payment' && (
-            <div className="space-y-5 max-w-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Pagamentos</h3>
-              <Field label="Token Mercado Pago" type="password" placeholder="APP_USR-..." />
-              <Field label="Token PushinPay" type="password" placeholder="••••••••" />
-              <Field label="Chave PIX padrão" defaultValue="contato@trustcorp.com.br" />
+
+          {tab === 'brand' && (
+            <div className="max-w-xl space-y-5">
+              <h3 className="text-lg font-semibold text-gray-900">Identidade da marca</h3>
+              <p className="text-sm text-gray-500">
+                Salvo neste navegador. Nicho e tom ajudam a pré-preencher o Content Studio.
+              </p>
+              {(
+                [
+                  ['name', 'Nome', 'text'],
+                  ['slogan', 'Slogan', 'text'],
+                  ['email', 'E-mail', 'email'],
+                  ['nicho', 'Nicho padrão', 'text'],
+                  ['tone', 'Tom de voz', 'text'],
+                ] as const
+              ).map(([key, label, type]) => (
+                <div key={key}>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+                  <input
+                    type={type}
+                    value={brand[key]}
+                    onChange={(e) => setBrand((b) => ({ ...b, [key]: e.target.value }))}
+                    placeholder={key === 'nicho' ? 'ex: estética, fitness' : undefined}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                  />
+                </div>
+              ))}
             </div>
           )}
         </div>

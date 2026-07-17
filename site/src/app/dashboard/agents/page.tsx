@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS, CHEAT_SHEET_ITEMS, getAgentById, Agent } from '@/services/arsenalService';
-import { AIExecutorConfig, AIProvider, PROVIDERS, getProvider } from '@/services/aiExecutor';
 import { saveContentDraft } from '@/lib/contentDraft';
 import toast from 'react-hot-toast';
 
@@ -16,14 +16,9 @@ export default function AgentsPage() {
   const [selectedPhase, setSelectedPhase] = useState(1);
   const [selectedAgent, setSelectedAgent] = useState(ARSENAL_AGENTS[0]);
   const [userInput, setUserInput] = useState('');
-  const [aiProvider, setAiProvider] = useState<AIProvider>('openai');
-  const [model, setModel] = useState(getProvider('openai')?.defaultModel || '');
-  const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1');
-  const [apiKey, setApiKey] = useState('');
   const [isConfigured, setIsConfigured] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [agentNotice, setAgentNotice] = useState<string | null>(null);
-
-  const providerInfo = getProvider(aiProvider);
 
   const selectAgent = (agent: Agent, options?: { tab?: typeof activeTab; notice?: string }) => {
     setSelectedAgent(agent);
@@ -35,75 +30,33 @@ export default function AgentsPage() {
     }
   };
 
-  // Reflete a configuração de IA já persistida (localStorage) ao abrir a página
-  useEffect(() => {
+  const refreshAiStatus = () => {
     const saved = agentExecutor.getCurrentProvider();
     if (saved) {
-      setAiProvider(saved.provider);
-      setModel(saved.model);
-      if (saved.baseUrl) setBaseUrl(saved.baseUrl);
-      setApiKey(saved.apiKey);
       setIsConfigured(true);
+      setAiSummary(`${saved.provider} · ${saved.model}`);
+    } else {
+      setIsConfigured(false);
+      setAiSummary(null);
     }
+  };
+
+  // Config de IA vem de Configurações (mesmo localStorage / aiExecutor)
+  useEffect(() => {
+    refreshAiStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Trocar de provider reseta o modelo e a base URL para o padrão dele
-  const handleSelectProvider = (id: AIProvider) => {
-    setAiProvider(id);
-    setModel(getProvider(id)?.defaultModel || '');
-    if (id === 'openai') {
-      setBaseUrl('https://api.openai.com/v1');
-    } else if (id === 'deepseek') {
-      setBaseUrl('https://api.deepseek.com/v1');
-    } else if (id === 'groq') {
-      setBaseUrl('https://api.groq.com/openai/v1');
-    } else if (id === 'mistral') {
-      setBaseUrl('https://api.mistral.ai/v1');
-    } else if (id === 'openrouter') {
-      setBaseUrl('https://openrouter.ai/api/v1');
-    } else {
-      setBaseUrl('');
-    }
-    setIsConfigured(false);
-  };
-
-  // Configurar IA
-  const handleConfigureAI = () => {
-    if (!apiKey) {
-      alert('Por favor, insira a API key');
-      return;
-    }
-    if (!model) {
-      alert('Por favor, informe o modelo');
-      return;
-    }
-    if ((aiProvider === 'custom' || aiProvider === 'openai') && !baseUrl) {
-      alert('Por favor, informe a Base URL do endpoint da API');
-      return;
-    }
-
-    const config: AIExecutorConfig = {
-      provider: aiProvider,
-      apiKey,
-      model,
-      ...(baseUrl ? { baseUrl } : {}),
-    };
-
-    agentExecutor.configure(config);
-    setIsConfigured(true);
-    alert('✅ IA configurada com sucesso!');
-  };
-
   // Executar agente
   const handleExecuteAgent = async () => {
-    if (!isConfigured) {
-      alert('Configure a IA primeiro');
+    refreshAiStatus();
+    if (!agentExecutor.getCurrentProvider()) {
+      toast.error('Configure a IA em Configurações primeiro');
       return;
     }
 
     if (!userInput.trim()) {
-      alert('Digite sua pergunta/input');
+      toast.error('Digite sua pergunta/input');
       return;
     }
 
@@ -301,100 +254,43 @@ export default function AgentsPage() {
         {/* TAB 4: EXECUTAR AGENTE */}
         {activeTab === 'execute' && (
           <div className="space-y-6">
-            {/* Configuração de IA */}
-            <div className="bg-slate-800/50 backdrop-blur p-6 rounded-lg border border-purple-500/30">
-              <h3 className="text-xl font-bold text-white mb-4">⚙️ Configurar Provedor de IA</h3>
-
-              <p className="text-sm text-slate-400 mb-3">
-                Escolha o provedor, cole sua API key e selecione o modelo. A chave é enviada apenas
-                ao servidor para executar a chamada — funciona com OpenAI, DeepSeek, Claude, Gemini e mais.
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                {PROVIDERS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelectProvider(p.id)}
-                    className={`py-3 px-3 rounded-lg font-semibold text-sm transition-all ${
-                      aiProvider === p.id
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    }`}
-                  >
-                    {p.emoji} {p.label}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                type="password"
-                placeholder="Cole sua API Key aqui"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-3"
-              />
-
-              {providerInfo?.keyUrl && (
-                <a
-                  href={providerInfo.keyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-400 hover:underline mb-3 inline-block"
-                >
-                  Obter API key da {providerInfo.label} →
-                </a>
-              )}
-
-              {/* Base URL para custom ou openai/compatíveis */}
-              {(aiProvider === 'custom' || aiProvider === 'openai' || aiProvider === 'deepseek' || aiProvider === 'groq' || aiProvider === 'openrouter' || aiProvider === 'mistral') && (
-                <div className="mb-3">
-                  <label className="block text-xs text-slate-400 mb-1">Base URL (API Endpoint)</label>
-                  <input
-                    type="text"
-                    placeholder="Base URL (ex: https://api.openai.com/v1)"
-                    value={baseUrl}
-                    onChange={e => setBaseUrl(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-              )}
-
-              {/* Seletor de modelo */}
-              <label className="block text-xs text-slate-400 mb-1">Modelo</label>
-              {providerInfo && providerInfo.models.length > 0 ? (
-                <select
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white border border-slate-600 focus:border-purple-500 focus:outline-none mb-4"
-                >
-                  {providerInfo.models.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="Nome do modelo (ex: gpt-4o-mini)"
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:border-purple-500 focus:outline-none mb-4"
-                />
-              )}
-
-              <button
-                onClick={handleConfigureAI}
-                className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all"
-              >
-                {isConfigured ? '✅ IA Configurada' : '🔐 Configurar IA'}
-              </button>
-
-              {isConfigured && agentExecutor.getCurrentProvider() && (
-                <div className="mt-4 p-3 bg-purple-600/20 border border-purple-500 rounded-lg">
-                  <p className="text-sm text-purple-300">
-                    ✅ Usando <strong>{agentExecutor.getCurrentProvider()!.provider}</strong> ({agentExecutor.getCurrentProvider()!.model})
+            {/* Status da IA — config real em /dashboard/settings */}
+            <div
+              className={`rounded-lg border p-5 backdrop-blur ${
+                isConfigured
+                  ? 'border-emerald-500/40 bg-emerald-500/10'
+                  : 'border-amber-500/40 bg-amber-500/10'
+              }`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {isConfigured ? 'IA pronta' : 'IA ainda não configurada'}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-300">
+                    {isConfigured
+                      ? `Usando ${aiSummary}`
+                      : 'Salve provedor, API key e modelo em Configurações.'}
                   </p>
                 </div>
-              )}
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/dashboard/settings"
+                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+                  >
+                    {isConfigured ? 'Alterar em Configurações' : 'Configurar IA'}
+                  </Link>
+                  {isConfigured && (
+                    <button
+                      type="button"
+                      onClick={refreshAiStatus}
+                      className="rounded-lg border border-white/20 px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
+                    >
+                      Atualizar status
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Seletor de Agente */}

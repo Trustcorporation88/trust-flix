@@ -546,10 +546,10 @@ Clipe 3: [CTA] "Clique no link e garanta sua licença hoje!"`;
                           {mounted && !agentExecutor.getCurrentProvider() && (
                             <div className="mb-3 text-[10px] leading-relaxed bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-lg p-2">
                               ⚡ <strong>Modo Livre:</strong> respostas de exemplo. Para gerar copy real com IA (OpenAI, Gemini, Groq, Claude...),{' '}
-                              <a href="/dashboard/agents" className="underline font-bold hover:text-amber-100">
-                                conecte sua API key na aba Agentes
-                              </a>.
-                            </div>
+                              <a href="/dashboard/settings" className="underline font-bold hover:text-amber-100">
+                                conecte sua API key em Configurações
+                              </a>
+                              .                            </div>
                           )}
 
                           {/* Chat Messages */}

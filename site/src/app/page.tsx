@@ -12,9 +12,9 @@ const pillars = [
     href: '/dashboard/agents',
   },
   {
-    title: 'Vendas no WhatsApp',
-    text: 'Atenda, cobre e entregue com o bot JETBOT conectado à mesma operação.',
-    href: '/dashboard/whatsapp',
+    title: 'Instagram',
+    text: 'Contas, agenda e analytics da operação real via Postiz — no mesmo painel.',
+    href: '/dashboard/instagram',
   },
 ];
 
@@ -74,7 +74,7 @@ export default function Home() {
             Crie, publique e venda no mesmo ritmo.
           </h1>
           <p className="animate-rise-delay-2 mt-4 max-w-xl text-base leading-relaxed text-ink-950/70 sm:text-lg">
-            Conteúdo, IA e WhatsApp em um fluxo contínuo — menos abas, mais execução.
+            Conteúdo e IA em um fluxo contínuo — menos abas, mais execução.
           </p>
           <div className="animate-rise-delay-2 mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href="/login" className="btn-primary">

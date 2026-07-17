@@ -35,8 +35,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/whatsapp" className="text-ink-950/60 hover:text-signal-600">
-                  WhatsApp
+                <Link href="/dashboard/instagram" className="text-ink-950/60 hover:text-signal-600">
+                  Instagram
                 </Link>
               </li>
             </ul>

@@ -16,6 +16,8 @@ import {
   FiChevronRight,
   FiPlus,
   FiTrash2,
+  FiDownload,
+  FiFileText,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
@@ -25,6 +27,8 @@ import { authFetch } from '@/lib/auth/clientFetch';
 import { loadContentDraft, clearContentDraft } from '@/lib/contentDraft';
 import {
   deleteCustomTemplate,
+  downloadCustomTemplates,
+  importCustomTemplatesJson,
   listCustomTemplates,
   parseEstruturaFromText,
   saveCustomTemplate,
@@ -137,6 +141,7 @@ export default function ContentStudioPage() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [postType, setPostType] = useState<'post' | 'story'>('post');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('schedule');
   const [scheduledLocal, setScheduledLocal] = useState(defaultScheduleLocal);
@@ -237,6 +242,18 @@ export default function ContentStudioPage() {
   }, [loadTemplates, loadAccounts]);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('sf_brand_settings');
+      if (!raw) return;
+      const brand = JSON.parse(raw) as { nicho?: string };
+      if (brand.nicho && !nicho) setNicho(brand.nicho);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const draft = loadContentDraft();
     if (draft?.caption) {
       setCaption(draft.caption);
@@ -244,6 +261,12 @@ export default function ContentStudioPage() {
       clearContentDraft();
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl);
+    };
+  }, [mediaPreviewUrl]);
 
   useEffect(() => {
     loadPosts();
@@ -268,6 +291,10 @@ export default function ContentStudioPage() {
     setSelectedTemplate(template);
     setCaption('');
     setMediaFile(null);
+    if (mediaPreviewUrl) {
+      URL.revokeObjectURL(mediaPreviewUrl);
+      setMediaPreviewUrl(null);
+    }
     setPostType(template.format === 'story' ? 'story' : 'post');
     setPublishMode('schedule');
     setScheduledLocal(defaultScheduleLocal());
@@ -298,6 +325,10 @@ export default function ContentStudioPage() {
   };
 
   const handleMediaChange = (file: File | null) => {
+    if (mediaPreviewUrl) {
+      URL.revokeObjectURL(mediaPreviewUrl);
+      setMediaPreviewUrl(null);
+    }
     if (file && file.size > MAX_UPLOAD_BYTES) {
       toast.error(
         'Arquivo maior que ~4.4MB — comprima o vídeo ou publique esse post direto no painel do Postiz.'
@@ -305,12 +336,19 @@ export default function ContentStudioPage() {
       return;
     }
     setMediaFile(file);
+    if (file && file.type.startsWith('image/')) {
+      setMediaPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
   const handleApproveAndSchedule = async () => {
     if (!selectedTemplate) return;
     if (!selectedAccount) {
       toast.error('Selecione uma conta conectada antes de publicar');
+      return;
+    }
+    if (!mediaFile) {
+      toast.error('Envie um vídeo ou imagem — Instagram exige mídia no Postiz');
       return;
     }
     const account = accounts?.data?.integrations?.find((a) => a.id === selectedAccount);
@@ -378,6 +416,10 @@ export default function ContentStudioPage() {
       setSelectedTemplate(null);
       setCaption('');
       setMediaFile(null);
+      if (mediaPreviewUrl) {
+        URL.revokeObjectURL(mediaPreviewUrl);
+        setMediaPreviewUrl(null);
+      }
       loadPosts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao publicar');
@@ -432,6 +474,31 @@ export default function ContentStudioPage() {
     toast.success('Modelo removido');
     if (selectedTemplate?.id === id) setSelectedTemplate(null);
     loadTemplates();
+  };
+
+  const handleExportTemplates = () => {
+    const n = downloadCustomTemplates();
+    if (n === 0) {
+      toast.error('Nenhum modelo personalizado para exportar');
+      return;
+    }
+    toast.success(`${n} modelo(s) baixado(s) em JSON`);
+  };
+
+  const handleImportTemplatesFile = async (file: File | null, mode: 'merge' | 'replace') => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const result = importCustomTemplatesJson(text, mode);
+      toast.success(
+        mode === 'replace'
+          ? `${result.imported} modelo(s) importado(s) (substituiu os anteriores)`
+          : `${result.imported} modelo(s) importado(s) · total ${result.total}`
+      );
+      loadTemplates();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao importar JSON');
+    }
   };
 
   const weekLabel = `${weekDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${weekDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
@@ -574,18 +641,41 @@ export default function ContentStudioPage() {
 
         <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="section-badge">Modelos prontos</span>
-          <button
-            type="button"
-            onClick={() => setShowImportModal(true)}
-            className="inline-flex items-center gap-2 rounded-md border border-signal-500/40 bg-signal-500/10 px-4 py-2 text-sm font-semibold text-signal-300 hover:bg-signal-500/20"
-          >
-            <FiPlus /> Capturar modelo do Instagram
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportTemplates}
+              className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-ink-200 hover:bg-white/[0.08]"
+              title="Baixar modelos personalizados em JSON"
+            >
+              <FiDownload /> Exportar
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-ink-200 hover:bg-white/[0.08]">
+              <FiFileText /> Importar JSON
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  void handleImportTemplatesFile(file, 'merge');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 rounded-md border border-signal-500/40 bg-signal-500/10 px-4 py-2 text-sm font-semibold text-signal-300 hover:bg-signal-500/20"
+            >
+              <FiPlus /> Capturar modelo do Instagram
+            </button>
+          </div>
         </div>
 
         <p className="mt-3 max-w-2xl text-sm text-ink-400">
-          No Instagram: salve um Reel/carrossel → anote gancho + passos + CTA → cole aqui. O modelo fica
-          salvo neste navegador e aparece junto dos modelos oficiais.
+          Modelos personalizados ficam neste navegador. Use Exportar/Importar JSON para backup ou
+          outro aparelho. No Instagram: anote gancho + passos + CTA → Capturar.
         </p>
 
         {!accounts?.configured && (
@@ -886,20 +976,49 @@ export default function ContentStudioPage() {
             </div>
 
             <div className="mt-6">
-              <label className="text-sm text-ink-300">Vídeo ou imagem</label>
+              <label className="text-sm text-ink-300">
+                Vídeo ou imagem <span className="text-signal-400">*</span>
+              </label>
               {mediaFile ? (
-                <div className="mt-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm text-ink-200">
-                    <FiFilm /> {mediaFile.name} ({(mediaFile.size / (1024 * 1024)).toFixed(1)}MB)
-                  </span>
-                  <button onClick={() => setMediaFile(null)} className="text-ink-400 hover:text-white">
-                    <FiX />
-                  </button>
+                <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                  {mediaPreviewUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={mediaPreviewUrl}
+                      alt="Prévia"
+                      className="max-h-48 rounded-lg object-contain"
+                    />
+                  )}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 truncate text-sm text-ink-200">
+                      <FiFilm /> {mediaFile.name} ({(mediaFile.size / (1024 * 1024)).toFixed(1)}MB)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleMediaChange(null)}
+                      className="shrink-0 text-ink-400 hover:text-white"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/[0.02] px-4 py-6 text-sm text-ink-300 transition-colors hover:border-signal-500/50 hover:text-white">
-                  <FiUpload />
-                  Escolher vídeo (MP4) ou imagem
+                <label
+                  className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/[0.02] px-4 py-8 text-sm text-ink-300 transition-colors hover:border-signal-500/50 hover:text-white"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleMediaChange(file);
+                  }}
+                >
+                  <FiUpload size={22} />
+                  <span>Arraste ou escolha vídeo (MP4) / imagem</span>
+                  <span className="text-xs text-ink-500">Obrigatório para publicar no Instagram</span>
                   <input
                     type="file"
                     accept="video/*,image/*"
@@ -909,14 +1028,23 @@ export default function ContentStudioPage() {
                 </label>
               )}
               <p className="mt-1 text-xs text-ink-400">
-                Limite ~4.4MB neste envio (Vercel). Arquivo maior: comprima ou publique no painel Postiz.
+                Limite ~4.4MB neste envio (Vercel). Arquivo maior: comprima ou publique no painel{' '}
+                <a
+                  href="https://insta.trustcorp.com.br"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-flow-400 underline"
+                >
+                  Postiz
+                </a>
+                .
               </p>
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleApproveAndSchedule}
-                disabled={isScheduling || !caption}
+                disabled={isScheduling || !caption || !mediaFile}
                 className="btn-primary disabled:opacity-50"
               >
                 {isScheduling ? <FiLoader className="animate-spin" /> : <FiCheck />}
