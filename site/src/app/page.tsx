@@ -60,9 +60,16 @@ export default function Home() {
       <section className="relative min-h-[100svh] px-4 pb-16 pt-28 sm:pt-32">
         <FlowCanvas />
         <div className="relative mx-auto flex min-h-[calc(100svh-8rem)] max-w-6xl flex-col justify-end sm:justify-center">
-          <p className="animate-rise font-display text-5xl font-extrabold tracking-tight text-ink-950 sm:text-7xl md:text-8xl">
-            SocialFlow
-          </p>
+          <div className="animate-rise flex items-center gap-4 sm:gap-6">
+            <img
+              src="/logo.png"
+              alt="SocialFlow"
+              className="h-16 w-16 shrink-0 rounded-2xl object-contain shadow-[0_12px_40px_-18px_rgba(16,17,20,0.45)] sm:h-24 sm:w-24 md:h-28 md:w-28"
+            />
+            <p className="font-display text-5xl font-extrabold tracking-tight text-ink-950 sm:text-7xl md:text-8xl">
+              SocialFlow
+            </p>
+          </div>
           <h1 className="animate-rise-delay mt-5 max-w-2xl font-display text-2xl font-semibold leading-tight tracking-tight text-ink-950 sm:text-4xl">
             Crie, publique e venda no mesmo ritmo.
           </h1>
