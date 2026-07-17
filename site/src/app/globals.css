@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Montserrat:wght@400;600;700&family=Bebas+Neue&family=Playfair+Display:wght@400;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,11 +8,11 @@
   }
 
   body {
-    @apply bg-ink-950 text-ink-100 antialiased;
+    @apply bg-stone-50 text-ink-950 antialiased;
   }
 
   ::selection {
-    @apply bg-accent-500/30 text-white;
+    @apply bg-signal-500/25 text-ink-950;
   }
 
   ::-webkit-scrollbar {
@@ -23,52 +21,96 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-ink-950;
+    @apply bg-stone-100;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-ink-700 rounded-full;
+    @apply rounded-full bg-stone-300;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-ink-600;
+    @apply bg-stone-400;
   }
 }
 
 @layer components {
   .glass {
-    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10;
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
   }
 
   .glass-hover {
-    @apply hover:bg-white/[0.07] hover:border-white/20 transition-colors;
+    @apply transition-colors hover:border-white/20 hover:bg-white/[0.07];
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-accent-300 via-accent-400 to-gold-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-signal-600 via-signal-500 to-flow-600 bg-clip-text text-transparent;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-500 to-accent-600 px-6 py-3 font-semibold text-white shadow-glow transition-all hover:from-accent-400 hover:to-accent-500 hover:shadow-[0_0_50px_-6px_rgba(34,200,247,0.6)] active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-signal-500 px-6 py-3 font-semibold text-white transition-all hover:bg-signal-600 active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-6 py-3 font-semibold text-white backdrop-blur-md transition-all hover:bg-white/[0.08] hover:border-white/30 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-ink-950/15 bg-white/70 px-6 py-3 font-semibold text-ink-950 backdrop-blur-sm transition-all hover:border-ink-950/30 hover:bg-white active:scale-[0.98];
   }
 
   .btn-gold {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-400 to-gold-500 px-6 py-3 font-semibold text-ink-950 shadow-glow-gold transition-all hover:from-gold-300 hover:to-gold-400 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-ink-950 px-6 py-3 font-semibold text-white transition-all hover:bg-ink-800 active:scale-[0.98];
   }
 
   .input-dark {
-    @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-white placeholder-ink-400 outline-none transition-colors focus:border-accent-400/60 focus:ring-2 focus:ring-accent-500/30;
+    @apply w-full rounded-md border border-ink-950/15 bg-white px-4 py-2.5 text-ink-950 placeholder-ink-400 outline-none transition-colors focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20;
   }
 
   .section-badge {
-    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent-300;
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-flow-700;
   }
 
   .card-surface {
-    @apply rounded-2xl border border-white/10 bg-ink-900/60 shadow-card backdrop-blur-sm;
+    @apply rounded-xl border border-ink-950/10 bg-white shadow-sm;
+  }
+
+  .sf-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+    opacity: 0.035;
+  }
+}
+
+@layer utilities {
+  .animate-flow-drift {
+    animation: flowDrift 18s ease-in-out infinite;
+  }
+
+  .animate-rise {
+    animation: riseIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-rise-delay {
+    animation: riseIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  }
+
+  .animate-rise-delay-2 {
+    animation: riseIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+  }
+}
+
+@keyframes flowDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-2%, 1.5%, 0) scale(1.04);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

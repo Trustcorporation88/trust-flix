@@ -10,6 +10,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        stone: {
+          50: '#f4f4f2',
+          100: '#eaeae6',
+          200: '#d6d6cf',
+          300: '#b8b8ae',
+          400: '#96968c',
+          500: '#7a7a70',
+        },
+        signal: {
+          50: '#fff4f0',
+          100: '#ffe4db',
+          200: '#ffc4b0',
+          300: '#ff9a78',
+          400: '#ff6840',
+          500: '#e23d12',
+          600: '#c4310d',
+          700: '#a22910',
+          800: '#852514',
+          900: '#6e2214',
+        },
+        flow: {
+          50: '#eef7f6',
+          100: '#d5ebe8',
+          200: '#aad7d1',
+          300: '#78bbb4',
+          400: '#4a958f',
+          500: '#2f766f',
+          600: '#245e59',
+          700: '#1f4c49',
+          800: '#1a3d3b',
+          900: '#163331',
+        },
         ink: {
           50: '#f4f6fb',
           100: '#e6eaf5',
@@ -21,20 +53,20 @@ const config: Config = {
           700: '#282f52',
           800: '#181d38',
           900: '#0f1226',
-          950: '#080a17',
+          950: '#101114',
         },
         accent: {
-          50: '#eafcff',
-          100: '#cef7ff',
-          200: '#a3edff',
-          300: '#66ddff',
-          400: '#22c8f7',
-          500: '#06aede',
-          600: '#0089bb',
-          700: '#046d97',
-          800: '#0a597b',
-          900: '#0d4a68',
-          950: '#062f45',
+          50: '#fff4f0',
+          100: '#ffe4db',
+          200: '#ffc4b0',
+          300: '#ff9a78',
+          400: '#ff6840',
+          500: '#e23d12',
+          600: '#c4310d',
+          700: '#a22910',
+          800: '#852514',
+          900: '#6e2214',
+          950: '#3b1008',
         },
         gold: {
           50: '#fffaeb',
@@ -49,13 +81,13 @@ const config: Config = {
           900: '#7a350d',
         },
         primary: {
-          50: '#eafcff',
-          100: '#cef7ff',
-          500: '#22c8f7',
-          600: '#06aede',
-          700: '#0089bb',
-          800: '#046d97',
-          900: '#0d4a68',
+          50: '#fff4f0',
+          100: '#ffe4db',
+          500: '#e23d12',
+          600: '#c4310d',
+          700: '#a22910',
+          800: '#852514',
+          900: '#6e2214',
         },
         success: {
           50: '#f0fdf4',
@@ -85,12 +117,12 @@ const config: Config = {
       },
       backgroundImage: {
         'grid-glow':
-          'radial-gradient(circle at 20% 20%, rgba(34,200,247,0.18), transparent 45%), radial-gradient(circle at 80% 0%, rgba(249,152,7,0.14), transparent 40%), radial-gradient(circle at 50% 100%, rgba(34,200,247,0.10), transparent 40%)',
+          'radial-gradient(circle at 18% 20%, rgba(226,61,18,0.12), transparent 42%), radial-gradient(circle at 82% 8%, rgba(47,118,111,0.14), transparent 38%), radial-gradient(circle at 50% 100%, rgba(226,61,18,0.08), transparent 40%)',
       },
       boxShadow: {
-        glow: '0 0 40px -8px rgba(34,200,247,0.45)',
-        'glow-gold': '0 0 40px -8px rgba(249,152,7,0.45)',
-        card: '0 8px 30px -12px rgba(0,0,0,0.5)',
+        glow: '0 12px 40px -16px rgba(226,61,18,0.35)',
+        'glow-gold': '0 12px 40px -16px rgba(249,152,7,0.35)',
+        card: '0 10px 30px -18px rgba(16,17,20,0.35)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
@@ -118,10 +150,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-  ],
+  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
 };
 
 export default config;

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 import { trendsService } from '@/services/trendsService';
 import templatesData from '@/data/templates.json';
 
 export async function GET(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const nicho = searchParams.get('nicho') || '';

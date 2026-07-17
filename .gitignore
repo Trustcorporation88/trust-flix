@@ -14,6 +14,7 @@ out/
 site/.next/
 site/out/
 site/node_modules/
+site/data/users.json
 next-env.d.ts
 
 # Env files

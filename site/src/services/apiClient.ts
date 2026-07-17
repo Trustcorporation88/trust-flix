@@ -4,9 +4,9 @@ import { ApiResponse, PaginatedResponse } from '@/types';
 class ApiClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') {
+  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || '') {
     this.client = axios.create({
-      baseURL,
+      baseURL: baseURL || undefined,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -25,9 +25,10 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
+        if (error.response?.status === 401 && typeof window !== 'undefined') {
+          const path = window.location.pathname;
+          localStorage.removeItem('token');
+          if (!path.startsWith('/login')) {
             window.location.href = '/login';
           }
         }

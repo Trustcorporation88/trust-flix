@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 
@@ -9,11 +10,14 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const pathname = usePathname();
+  const hideChrome = pathname.startsWith('/dashboard');
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
+    <div className="flex min-h-screen flex-col">
+      {!hideChrome && <Navbar />}
       <main className="flex-1">{children}</main>
-      <Footer />
+      {!hideChrome && <Footer />}
     </div>
   );
 }

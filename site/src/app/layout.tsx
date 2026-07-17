@@ -1,25 +1,26 @@
 import type { Metadata } from 'next';
-import { Manrope, Sora } from 'next/font/google';
+import { Figtree, Syne } from 'next/font/google';
 import { Providers } from './providers';
 import { Layout } from '@/components/common/Layout';
 import './globals.css';
 
-const manrope = Manrope({
+const figtree = Figtree({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
 });
 
-const sora = Sora({
+const syne = Syne({
   subsets: ['latin'],
   variable: '--font-display',
   display: 'swap',
+  weight: ['500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
-  title: 'Social Flow — Vendas Automatizadas com IA',
+  title: 'SocialFlow — Conteúdo, vendas e automação em um fluxo',
   description:
-    'Agentes de IA, criativos e automação de Instagram e WhatsApp em uma única plataforma. Venda mais, com menos esforço.',
+    'SocialFlow une Content Studio, agentes de IA, Instagram e WhatsApp para criar, publicar e vender sem trocar de ferramenta.',
   icons: {
     icon: '/logo.png',
   },
@@ -31,8 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${manrope.variable} ${sora.variable} dark`}>
-      <body className="bg-ink-950 font-sans">
+    <html lang="pt-BR" className={`${figtree.variable} ${syne.variable}`}>
+      <body className="bg-stone-50 font-sans text-ink-950 antialiased">
         <Providers>
           <Layout>{children}</Layout>
         </Providers>

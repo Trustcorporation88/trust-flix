@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -134,6 +135,9 @@ function parseError(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (isAuthError(auth)) return auth;
+
   let body: ExecuteBody;
   try {
     body = (await req.json()) as ExecuteBody;

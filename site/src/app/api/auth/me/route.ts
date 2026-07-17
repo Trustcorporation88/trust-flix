@@ -1,27 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { findUserById } from '@/lib/auth/users';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
 
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
-    }
+  const fresh = findUserById(auth.user.id) || auth.user;
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-
-    return NextResponse.json({
-      success: true,
-      data: decoded,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Token inválido ou expirado' },
-      { status: 401 }
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    data: fresh,
+  });
 }
-

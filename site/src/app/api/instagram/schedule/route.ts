@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 
 interface SchedulePostRequest {
   caption: string;
@@ -7,63 +8,48 @@ interface SchedulePostRequest {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
 
+  try {
     return NextResponse.json({
       success: true,
       data: {
         posts: [],
         stats: {
-          followers: 12500,
-          following: 523,
-          posts: 156,
-          engagement: 8.2,
+          followers: 0,
+          following: 0,
+          posts: 0,
+          engagement: 0,
         },
       },
     });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
 
+  try {
     const body: SchedulePostRequest = await request.json();
 
     if (!body.caption || !body.imageUrl || !body.scheduledFor) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         scheduledFor: body.scheduledFor,
         status: 'scheduled',
       },
       message: 'Post agendado com sucesso!',
     });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to schedule post' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ success: false, error: 'Failed to schedule post' }, { status: 500 });
   }
 }
-
-

@@ -31,6 +31,7 @@ const menuGroups: { title: string; items: { icon: typeof FiHome; label: string; 
     title: 'Ferramentas IA',
     items: [
       { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents' },
+      { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio' },
       { icon: FiEdit3, label: 'Creator Studio', href: '/dashboard/creator' },
       { icon: FiInstagram, label: 'Instagram', href: '/dashboard/instagram' },
     ],
@@ -76,21 +77,23 @@ export function DashboardShell({
   const { user, logout } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-stone-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col fixed h-screen overflow-y-auto">
-        <div className="p-6 border-b border-gray-800">
+      <aside className="fixed flex h-screen w-64 flex-col overflow-y-auto bg-ink-950 text-white">
+        <div className="border-b border-white/10 p-6">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Social Flow Logo" className="w-10 h-10 object-contain" />
-            <span className="text-xl font-bold">Social Flow Admin</span>
+            <img src="/logo.png" alt="SocialFlow" className="h-10 w-10 object-contain" />
+            <span className="font-display text-xl font-bold">
+              Social<span className="text-signal-500">Flow</span>
+            </span>
           </Link>
-          {user?.name && <p className="text-gray-400 text-xs mt-2">{user.name}</p>}
+          {user?.name && <p className="mt-2 text-xs text-white/50">{user.name}</p>}
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-6">
+        <nav className="flex-1 space-y-6 px-3 py-4">
           {menuGroups.map((group) => (
             <div key={group.title}>
-              <p className="px-3 text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-white/40">
                 {group.title}
               </p>
               <div className="space-y-1">
@@ -100,8 +103,8 @@ export function DashboardShell({
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-800'
+                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                        active ? 'bg-signal-500 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'
                       }`}
                     >
                       <item.icon size={18} />
@@ -114,10 +117,10 @@ export function DashboardShell({
           ))}
         </nav>
 
-        <div className="p-3 border-t border-gray-800 space-y-1">
+        <div className="space-y-1 border-t border-white/10 p-3">
           <Link
             href="/"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5"
           >
             <FiExternalLink size={18} />
             <span>Ver site</span>
@@ -127,7 +130,7 @@ export function DashboardShell({
               logout();
               if (typeof window !== 'undefined') localStorage.removeItem('token');
             }}
-            className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-red-400 hover:bg-gray-800"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-red-400 hover:bg-white/5"
           >
             <FiLogOut size={18} />
             <span>Sair</span>
@@ -136,11 +139,11 @@ export function DashboardShell({
       </aside>
 
       {/* Main */}
-      <div className="flex-1 ml-64">
-        <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between sticky top-0 z-10">
+      <div className="ml-64 flex-1">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-950/10 bg-white px-8 py-5">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-            {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+            <h1 className="font-display text-2xl font-bold text-ink-950">{title}</h1>
+            {subtitle && <p className="mt-1 text-sm text-ink-950/55">{subtitle}</p>}
           </div>
           {actions && <div className="flex items-center gap-3">{actions}</div>}
         </header>

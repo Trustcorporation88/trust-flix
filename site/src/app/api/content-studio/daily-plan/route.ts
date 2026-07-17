@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -161,6 +162,9 @@ function normalizeItem(raw: unknown, fallbackTitulo: string): DailyPlanItem {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
+
   try {
     if (!isConfigured()) {
       return NextResponse.json(

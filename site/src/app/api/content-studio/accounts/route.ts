@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
 import { postizService } from '@/services/postizService';
 
 // Sem isso, essa rota GET (sem params, sem cookies/headers) é tratada pelo Next.js
@@ -8,7 +9,10 @@ import { postizService } from '@/services/postizService';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
+
   try {
     if (!postizService.isConfigured()) {
       return NextResponse.json({
@@ -41,6 +45,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (isAuthError(auth)) return auth;
+
   try {
     if (!postizService.isConfigured()) {
       return NextResponse.json(

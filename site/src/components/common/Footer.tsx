@@ -1,114 +1,71 @@
 'use client';
 
 import Link from 'next/link';
-import { FiFacebook, FiTwitter, FiInstagram, FiLinkedin } from 'react-icons/fi';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
-  const socials = [
-    { icon: FiFacebook, href: '#', label: 'Facebook' },
-    { icon: FiTwitter, href: '#', label: 'Twitter' },
-    { icon: FiInstagram, href: '#', label: 'Instagram' },
-    { icon: FiLinkedin, href: '#', label: 'LinkedIn' },
-  ];
-
   return (
-    <footer className="relative mt-24 border-t border-white/10 bg-ink-950">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-500/50 to-transparent" />
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-4">
-          {/* Brand */}
+    <footer className="relative border-t border-ink-950/10 bg-stone-50">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="mb-10 grid grid-cols-1 gap-10 md:grid-cols-3">
           <div>
-            <div className="mb-4 flex items-center space-x-2">
-              <img src="/logo.png" alt="Social Flow Logo" className="h-11 w-11 rounded-lg object-contain" />
-              <span className="text-xl font-bold text-white font-display">
-                Social<span className="gradient-text">Flow</span>
+            <div className="mb-4 flex items-center gap-2">
+              <img src="/logo.png" alt="SocialFlow" className="h-10 w-10 rounded-md object-contain" />
+              <span className="font-display text-xl font-bold text-ink-950">
+                Social<span className="text-signal-500">Flow</span>
               </span>
             </div>
-            <p className="text-sm leading-relaxed text-ink-300">
-              Plataforma de vendas e atendimento automático com IA, integrada ao WhatsApp e Instagram.
+            <p className="max-w-sm text-sm leading-relaxed text-ink-950/60">
+              Conteúdo, IA e vendas no mesmo fluxo — para marcas que executam todos os dias.
             </p>
           </div>
 
-          {/* Plataforma */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Plataforma</h3>
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-ink-950">Produto</h3>
             <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/dashboard/agents" className="text-ink-300 transition-colors hover:text-accent-300">
+                <Link href="/dashboard/content-studio" className="text-ink-950/60 hover:text-signal-600">
+                  Content Studio
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard/agents" className="text-ink-950/60 hover:text-signal-600">
                   Agentes IA
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/creator" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Creator Studio
-                </Link>
-              </li>
-              <li>
-                <Link href="/dashboard/instagram" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Instagram
+                <Link href="/dashboard/whatsapp" className="text-ink-950/60 hover:text-signal-600">
+                  WhatsApp
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Loja */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Loja</h3>
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-ink-950">Conta</h3>
             <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/shop" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Produtos
+                <Link href="/login" className="text-ink-950/60 hover:text-signal-600">
+                  Entrar
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Carrinho
+                <Link href="/terms" className="text-ink-950/60 hover:text-signal-600">
+                  Termos
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Painel Admin
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Conta */}
-          <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Conta</h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <Link href="/login" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Login
-                </Link>
-              </li>
-              <li>
-                <Link href="/dashboard" className="text-ink-300 transition-colors hover:text-accent-300">
-                  Meu Painel
+                <Link href="/privacy-policy" className="text-ink-950/60 hover:text-signal-600">
+                  Privacidade
                 </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
-          <p className="text-sm text-ink-400">
-            &copy; {currentYear} Social Flow. Todos os direitos reservados.
-          </p>
-          <div className="flex space-x-3">
-            {socials.map(({ icon: Icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                aria-label={label}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-ink-300 transition-all hover:border-accent-400/50 hover:bg-accent-500/10 hover:text-accent-300"
-              >
-                <Icon size={16} />
-              </a>
-            ))}
-          </div>
+        <div className="border-t border-ink-950/10 pt-8">
+          <p className="text-sm text-ink-950/45">© {currentYear} SocialFlow · socialflow.site</p>
         </div>
       </div>
     </footer>

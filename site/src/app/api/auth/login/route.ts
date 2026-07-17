@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { signAuthToken } from '@/lib/auth/jwt';
+import { authenticateUser } from '@/lib/auth/users';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name, phone } = body;
+    const email = String(body.email || '');
+    const password = String(body.password || '');
 
     if (!email || !password) {
       return NextResponse.json(
@@ -15,24 +18,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Aqui você chamaria seu backend para criar usuário ou fazer login
-    // Por enquanto, vou criar um JWT mock
-    const user = {
-      id: '1',
-      email,
-      name: name || 'Usuário',
-      phone: phone || '',
-      role: 'customer',
-    };
+    const user = await authenticateUser(email, password);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Email ou senha inválidos' }, { status: 401 });
+    }
 
-    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
+    const token = signAuthToken(user);
 
     return NextResponse.json({
       success: true,
-      data: {
-        user,
-        token,
-      },
+      data: { user, token },
       message: 'Autenticação realizada com sucesso',
     });
   } catch (error) {
@@ -45,4 +40,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

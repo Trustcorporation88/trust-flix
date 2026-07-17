@@ -1,41 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import { signAuthToken } from '@/lib/auth/jwt';
+import { isRegisterAllowed, registerUser } from '@/lib/auth/users';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name, phone } = body;
+    const result = await registerUser({
+      email: body.email,
+      password: body.password,
+      name: body.name,
+      phone: body.phone,
+    });
 
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { success: false, error: 'Email, senha e nome são obrigatórios' },
-        { status: 400 }
-      );
+    if ('error' in result) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    // Aqui você chamaria seu backend para registrar o usuário
-    // Por enquanto, vou criar um registro mock
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name,
-      phone: phone || '',
-      role: 'customer',
-      password: hashedPassword,
-      createdAt: new Date(),
-    };
-
-    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
+    const token = signAuthToken(result.user);
 
     return NextResponse.json({
       success: true,
       data: {
-        user,
+        user: result.user,
         token,
       },
       message: 'Conta criada com sucesso',
@@ -49,4 +38,11 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    data: { allowRegister: isRegisterAllowed() },
+  });
 }
