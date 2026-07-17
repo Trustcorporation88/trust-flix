@@ -1,12 +1,21 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { ApiResponse, PaginatedResponse } from '@/types';
 
+function resolveBaseURL(): string | undefined {
+  const raw = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
+  // Em produção, localhost no cliente = Network Error. Use rotas relativas.
+  if (!raw || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(raw)) {
+    return undefined;
+  }
+  return raw.replace(/\/$/, '');
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || '') {
+  constructor(baseURL: string | undefined = resolveBaseURL()) {
     this.client = axios.create({
-      baseURL: baseURL || undefined,
+      baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
