@@ -25,9 +25,9 @@ import {
 import { FiCpu, FiEdit3, FiInstagram } from 'react-icons/fi';
 
 const shortcuts = [
-  { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents', color: 'from-purple-500 to-indigo-600' },
-  { icon: FiEdit3, label: 'Creator Studio', href: '/dashboard/creator', color: 'from-pink-500 to-rose-600' },
-  { icon: FiInstagram, label: 'Instagram', href: '/dashboard/instagram', color: 'from-blue-500 to-cyan-600' },
+  { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents', color: 'from-ink-800 to-ink-950' },
+  { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio', color: 'from-signal-500 to-signal-700' },
+  { icon: FiInstagram, label: 'Instagram', href: '/dashboard/instagram', color: 'from-flow-600 to-flow-800' },
 ];
 
 export default function DashboardPage() {

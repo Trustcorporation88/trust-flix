@@ -1,295 +1,464 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiCalendar, FiImage, FiBarChart2, FiEdit2, FiLoader } from 'react-icons/fi';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { FiInstagram, FiBarChart2, FiCalendar, FiLoader, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import clsx from 'clsx';
+import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { authFetch } from '@/lib/auth/clientFetch';
+import type { PostizPost } from '@/services/postizService';
+
+interface Integration {
+  id: string;
+  name: string;
+  identifier: string;
+  picture?: string;
+  disabled?: boolean;
+  profile?: string;
+}
+
+const IG_TYPES = new Set(['instagram', 'instagram-standalone']);
+
+function startOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function postDate(post: PostizPost): Date | null {
+  const raw = post.publishDate || post.date;
+  if (!raw || typeof raw !== 'string') return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function postLabel(post: PostizPost): string {
+  const content = typeof post.content === 'string' ? post.content : '';
+  if (content.trim()) return content.trim().slice(0, 100);
+  return post.integration?.name || 'Publicação';
+}
+
+function flattenMetrics(data: unknown): { key: string; value: string }[] {
+  if (data == null) return [];
+  if (typeof data !== 'object') return [{ key: 'valor', value: String(data) }];
+
+  const obj = data as Record<string, unknown>;
+  const rows: { key: string; value: string }[] = [];
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (value == null) continue;
+    if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+      rows.push({ key, value: String(value) });
+    } else if (Array.isArray(value)) {
+      rows.push({ key, value: `${value.length} itens` });
+    } else if (typeof value === 'object') {
+      const nested = value as Record<string, unknown>;
+      for (const [nk, nv] of Object.entries(nested)) {
+        if (typeof nv === 'number' || typeof nv === 'string') {
+          rows.push({ key: `${key}.${nk}`, value: String(nv) });
+        }
+      }
+    }
+  }
+
+  return rows.slice(0, 24);
+}
+
+type Tab = 'accounts' | 'agenda' | 'analytics';
 
 export default function InstagramPage() {
-  const [activeTab, setActiveTab] = useState<'scheduler' | 'analytics' | 'settings'>('scheduler');
-  const [isLoading, setIsLoading] = useState(false);
+  const [tab, setTab] = useState<Tab>('accounts');
+  const [configured, setConfigured] = useState(true);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [posts, setPosts] = useState<PostizPost[]>([]);
+  const [analytics, setAnalytics] = useState<unknown>(null);
+  const [analyticsError, setAnalyticsError] = useState('');
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-  const [formData, setFormData] = useState({
-    caption: '',
-    imageUrl: '',
-    scheduledFor: new Date().toISOString().split('T')[0],
-    scheduledTime: '09:00',
-  });
+  const igAccounts = useMemo(
+    () => integrations.filter((i) => IG_TYPES.has(i.identifier) && !i.disabled),
+    [integrations]
+  );
 
-  useEffect(() => {
-    loadData();
+  const selected = igAccounts.find((a) => a.id === selectedId) || igAccounts[0];
+
+  const loadAccounts = useCallback(async () => {
+    setLoadingAccounts(true);
+    try {
+      const res = await authFetch('/api/content-studio/accounts');
+      const json = await res.json();
+      setConfigured(json.configured !== false);
+      const list: Integration[] = json?.data?.integrations || [];
+      setIntegrations(list);
+      const firstIg = list.find((i) => IG_TYPES.has(i.identifier) && !i.disabled);
+      if (firstIg) setSelectedId((prev) => prev || firstIg.id);
+    } catch {
+      toast.error('Erro ao carregar contas');
+    } finally {
+      setLoadingAccounts(false);
+    }
   }, []);
 
-  const loadData = async () => {
+  const loadPosts = useCallback(async () => {
+    setLoadingPosts(true);
     try {
-      setIsLoading(true);
-      // Aqui vai carregar dados da API
-      // const response = await fetch('/api/instagram/posts');
-    } catch (error) {
-      toast.error('Erro ao carregar dados');
+      const start = startOfWeek(new Date());
+      const end = addDays(start, 6);
+      end.setHours(23, 59, 59, 999);
+      const params = new URLSearchParams({
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      });
+      const res = await authFetch(`/api/content-studio/posts?${params}`);
+      const json = await res.json();
+      if (json.success) {
+        const all: PostizPost[] = Array.isArray(json.data) ? json.data : [];
+        const filtered = selectedId
+          ? all.filter((p) => !p.integration?.id || p.integration.id === selectedId)
+          : all;
+        setPosts(filtered);
+      } else if (res.status !== 401) {
+        toast.error(json.error || 'Erro ao carregar agenda');
+      }
+    } catch {
+      toast.error('Erro ao carregar agenda');
     } finally {
-      setIsLoading(false);
+      setLoadingPosts(false);
     }
-  };
+  }, [selectedId]);
 
-  const handleSchedulePost = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.caption || !formData.imageUrl) {
-      toast.error('Preencha legenda e imagem');
+  const loadAnalytics = useCallback(async () => {
+    if (!selectedId) {
+      setAnalytics(null);
+      setAnalyticsError('Selecione uma conta Instagram.');
       return;
     }
-
+    setLoadingAnalytics(true);
+    setAnalyticsError('');
     try {
-      setIsLoading(true);
-      // TODO: Implement Instagram scheduling API call
-      // const scheduledDateTime = new Date(`${formData.scheduledFor}T${formData.scheduledTime}`);
-
-      // Aqui será a chamada à API
-      // const response = await fetch('/api/instagram/schedule', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ ...formData, scheduledFor: scheduledDateTime })
-      // });
-
-      toast.success('Post agendado com sucesso!');
-      setFormData({
-        caption: '',
-        imageUrl: '',
-        scheduledFor: new Date().toISOString().split('T')[0],
-        scheduledTime: '09:00',
-      });
-    } catch (error) {
-      toast.error('Erro ao agendar post');
+      const res = await authFetch(`/api/instagram/insights?integrationId=${encodeURIComponent(selectedId)}`);
+      const json = await res.json();
+      if (!json.success) {
+        setAnalytics(null);
+        setAnalyticsError(json.error || 'Analytics indisponível nesta instância Postiz.');
+        return;
+      }
+      if (json.configured === false) {
+        setAnalytics(null);
+        setAnalyticsError('Postiz ainda não configurado.');
+        return;
+      }
+      setAnalytics(json.data);
+    } catch {
+      setAnalytics(null);
+      setAnalyticsError('Falha ao buscar analytics.');
     } finally {
-      setIsLoading(false);
+      setLoadingAnalytics(false);
     }
-  };
+  }, [selectedId]);
+
+  useEffect(() => {
+    loadAccounts();
+  }, [loadAccounts]);
+
+  useEffect(() => {
+    if (tab === 'agenda') loadPosts();
+  }, [tab, loadPosts]);
+
+  useEffect(() => {
+    if (tab === 'analytics') loadAnalytics();
+  }, [tab, loadAnalytics]);
+
+  const metricRows = flattenMetrics(analytics);
+  const weekStart = startOfWeek(new Date());
+  const weekLabel = `${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">📷</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Instagram Automation</h1>
-                <p className="text-gray-600 text-sm">Gerencie sua presença no Instagram</p>
-              </div>
+    <DashboardShell
+      title="Instagram"
+      subtitle="Contas, agenda e métricas via Postiz"
+      actions={
+        <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
+          Criar no Content Studio
+        </Link>
+      }
+    >
+      {!configured && (
+        <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
+          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel
+          (ex.: <code>https://insta.trustcorp.com.br/api/public/v1</code>).
+        </div>
+      )}
+
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-ink-950/10 pb-3">
+        {(
+          [
+            { id: 'accounts', label: 'Contas', icon: FiUsers },
+            { id: 'agenda', label: 'Agenda', icon: FiCalendar },
+            { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={clsx(
+              'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors',
+              tab === t.id
+                ? 'bg-signal-500 text-white'
+                : 'bg-stone-100 text-ink-950/70 hover:bg-stone-200'
+            )}
+          >
+            <t.icon size={16} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'accounts' && (
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-ink-950/60">
+              Contas Instagram conectadas no Postiz ({igAccounts.length})
+            </p>
+            <button
+              type="button"
+              onClick={loadAccounts}
+              className="inline-flex items-center gap-2 rounded-md border border-ink-950/10 px-3 py-1.5 text-sm hover:bg-stone-100"
+            >
+              <FiRefreshCw size={14} /> Atualizar
+            </button>
+          </div>
+
+          {loadingAccounts ? (
+            <div className="flex items-center gap-2 text-ink-950/50">
+              <FiLoader className="animate-spin" /> Carregando contas...
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-8">
-            {[
-              { id: 'scheduler', label: 'Agendador', icon: FiCalendar },
-              { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
-              { id: 'settings', label: 'Configurações', icon: FiEdit2 },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-4 border-b-2 font-semibold flex items-center gap-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <tab.icon size={20} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Scheduler Tab */}
-        {activeTab === 'scheduler' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Form */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Agendar Novo Post</h2>
-
-                <form onSubmit={handleSchedulePost} className="space-y-6">
-                  {/* Legenda */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">
-                      Legenda do Post
-                    </label>
-                    <textarea
-                      value={formData.caption}
-                      onChange={(e) => setFormData({ ...formData, caption: e.target.value })}
-                      placeholder="Escreva uma legenda envolvente..."
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formData.caption.length} caracteres
-                    </p>
-                  </div>
-
-                  {/* URL da Imagem */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">
-                      URL da Imagem
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-
-                  {/* Data e Hora */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Data
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.scheduledFor}
-                        onChange={(e) => setFormData({ ...formData, scheduledFor: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">
-                        Hora
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.scheduledTime}
-                        onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Button */}
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg hover:shadow-lg disabled:opacity-50 font-semibold flex items-center justify-center gap-2 transition-all"
-                  >
-                    {isLoading ? (
-                      <>
-                        <FiLoader className="animate-spin" size={20} />
-                        Agendando...
-                      </>
+          ) : igAccounts.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
+              <FiInstagram className="mx-auto text-ink-950/30" size={32} />
+              <p className="mt-3 font-display text-lg font-semibold text-ink-950">
+                Nenhuma conta Instagram encontrada
+              </p>
+              <p className="mt-2 text-sm text-ink-950/55">
+                Conecte o Instagram em{' '}
+                <a
+                  href="https://insta.trustcorp.com.br"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-signal-600 hover:text-signal-700"
+                >
+                  insta.trustcorp.com.br
+                </a>{' '}
+                e atualize esta página.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {igAccounts.map((acc) => (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => setSelectedId(acc.id)}
+                  className={clsx(
+                    'rounded-xl border p-5 text-left transition-all',
+                    selectedId === acc.id
+                      ? 'border-signal-500 bg-signal-50 shadow-sm'
+                      : 'border-ink-950/10 bg-white hover:border-signal-500/40'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    {acc.picture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={acc.picture} alt="" className="h-12 w-12 rounded-full object-cover" />
                     ) : (
-                      <>
-                        <FiCalendar size={20} />
-                        Agendar Post
-                      </>
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-signal-500 text-white">
+                        <FiInstagram size={20} />
+                      </span>
                     )}
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div>
-              <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-                <h3 className="font-semibold text-gray-900 mb-4">Preview</h3>
-                {formData.imageUrl ? (
-                  <div className="space-y-4">
-                    <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                      <img
-                        src={formData.imageUrl}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
+                    <div>
+                      <p className="font-semibold text-ink-950">{acc.name}</p>
+                      <p className="text-xs text-ink-950/50">{acc.identifier}</p>
+                      {acc.profile && (
+                        <p className="mt-0.5 text-xs text-flow-700">@{acc.profile.replace(/^@/, '')}</p>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600">{formData.caption}</p>
-                    <p className="text-xs text-gray-500">
-                      Publicado em: {formData.scheduledFor} às {formData.scheduledTime}
-                    </p>
                   </div>
-                ) : (
-                  <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                    <FiImage size={40} className="text-gray-400" />
-                  </div>
-                )}
-              </div>
+                </button>
+              ))}
             </div>
+          )}
+
+          <div className="mt-8 rounded-xl border border-ink-950/10 bg-white p-6">
+            <h3 className="font-display text-lg font-bold text-ink-950">Publicar conteúdo</h3>
+            <p className="mt-2 text-sm text-ink-950/60">
+              Legenda, mídia, Stories/Reels e agendamento ficam no Content Studio — motor Postiz.
+            </p>
+            <Link href="/dashboard/content-studio" className="btn-primary mt-4 inline-flex">
+              Abrir Content Studio
+            </Link>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Analytics Tab */}
-        {activeTab === 'analytics' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[
-              { label: 'Seguidores', value: '12.5K', icon: '👥', change: '+2.3%' },
-              { label: 'Engajamento', value: '8.2%', icon: '❤️', change: '+1.1%' },
-              { label: 'Alcance', value: '45.8K', icon: '📊', change: '+5.4%' },
-              { label: 'Impressões', value: '156K', icon: '👀', change: '+12%' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-3xl">{stat.icon}</span>
-                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                    {stat.change}
-                  </span>
-                </div>
-                <p className="text-gray-600 text-sm mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Configurações</h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Access Token
-                </label>
-                <input
-                  type="password"
-                  placeholder="Cole seu Access Token do Meta"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  🔒 Nunca compartilhe seu token. Ele é salvo criptografado.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  ID da Conta Instagram
-                </label>
-                <input
-                  type="text"
-                  placeholder="123456789"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-
-              <button className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-semibold">
-                Salvar Configurações
+      {tab === 'agenda' && (
+        <div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-display text-lg font-semibold text-ink-950">Semana · {weekLabel}</p>
+              <p className="text-sm text-ink-950/55">
+                {selected ? `Filtrado: ${selected.name}` : 'Todas as contas'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {igAccounts.length > 0 && (
+                <select
+                  value={selectedId}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  className="input-dark max-w-xs !py-2"
+                >
+                  {igAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={loadPosts}
+                className="inline-flex items-center gap-2 rounded-md border border-ink-950/10 px-3 py-2 text-sm hover:bg-stone-100"
+              >
+                <FiRefreshCw size={14} /> Atualizar
               </button>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+
+          {loadingPosts ? (
+            <div className="flex items-center gap-2 text-ink-950/50">
+              <FiLoader className="animate-spin" /> Carregando posts...
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
+              <p className="font-semibold text-ink-950">Nenhum post nesta semana</p>
+              <p className="mt-2 text-sm text-ink-950/55">Agende o próximo no Content Studio.</p>
+              <Link href="/dashboard/content-studio" className="btn-primary mt-4 inline-flex">
+                Agendar agora
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {posts
+                .slice()
+                .sort((a, b) => {
+                  const da = postDate(a)?.getTime() || 0;
+                  const db = postDate(b)?.getTime() || 0;
+                  return da - db;
+                })
+                .map((post, idx) => {
+                  const when = postDate(post);
+                  return (
+                    <li
+                      key={String(post.id || idx)}
+                      className="rounded-xl border border-ink-950/10 bg-white px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-ink-950">{postLabel(post)}</p>
+                          <p className="mt-1 text-xs text-ink-950/50">
+                            {when
+                              ? when.toLocaleString('pt-BR', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : 'Sem data'}
+                            {post.integration?.name ? ` · ${post.integration.name}` : ''}
+                          </p>
+                        </div>
+                        <span className="rounded-md bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-950/60">
+                          {String(post.state || post.status || 'scheduled')}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-950/60">Métricas da conta selecionada (API Postiz)</p>
+            <div className="flex gap-2">
+              {igAccounts.length > 0 && (
+                <select
+                  value={selectedId}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  className="input-dark max-w-xs !py-2"
+                >
+                  {igAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={loadAnalytics}
+                className="inline-flex items-center gap-2 rounded-md border border-ink-950/10 px-3 py-2 text-sm hover:bg-stone-100"
+              >
+                <FiRefreshCw size={14} /> Atualizar
+              </button>
+            </div>
+          </div>
+
+          {loadingAnalytics ? (
+            <div className="flex items-center gap-2 text-ink-950/50">
+              <FiLoader className="animate-spin" /> Carregando analytics...
+            </div>
+          ) : analyticsError ? (
+            <div className="rounded-xl border border-ink-950/10 bg-white p-6">
+              <p className="font-semibold text-ink-950">Analytics indisponível</p>
+              <p className="mt-2 text-sm text-ink-950/60">{analyticsError}</p>
+              <p className="mt-3 text-xs text-ink-950/45">
+                Algumas instâncias self-hosted do Postiz não expõem <code>/analytics/:id</code>. Nesse
+                caso use o painel em insta.trustcorp.com.br.
+              </p>
+            </div>
+          ) : metricRows.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center text-sm text-ink-950/55">
+              Sem métricas retornadas para esta conta.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {metricRows.map((row) => (
+                <div key={row.key} className="rounded-xl border border-ink-950/10 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">{row.key}</p>
+                  <p className="mt-2 font-display text-2xl font-bold text-ink-950">{row.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </DashboardShell>
   );
 }
