@@ -9,6 +9,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 
 const navLinks = [
+  { href: '/cursos/do-zero-ao-lucro', label: 'Curso ML' },
   { href: '/shop', label: 'Loja' },
   { href: '/dashboard/content-studio', label: 'Content Studio' },
   { href: '/dashboard/agents', label: 'Agentes IA' },

@@ -25,6 +25,11 @@ export function Footer() {
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-ink-950">Produto</h3>
             <ul className="space-y-3 text-sm">
               <li>
+                <Link href="/cursos/do-zero-ao-lucro" className="text-ink-950/60 hover:text-signal-600">
+                  Curso Mercado Livre
+                </Link>
+              </li>
+              <li>
                 <Link href="/dashboard/content-studio" className="text-ink-950/60 hover:text-signal-600">
                   Content Studio
                 </Link>

@@ -111,6 +111,29 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="border-t border-ink-950/10 px-4 py-20">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <p className="section-badge">Curso em destaque</p>
+            <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">
+              Do Zero ao Lucro no Mercado Livre
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-ink-950/65">
+              Método de Gabriel Abrão — do zero ao faturamento, com anúncios, ads, logística e
+              fornecedores. Agora dentro do SocialFlow.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link href="/cursos/do-zero-ao-lucro" className="btn-primary">
+              Ver curso
+            </Link>
+            <Link href="/shop" className="btn-secondary">
+              Ir à loja
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="relative overflow-hidden px-4 py-24">
         <div className="absolute inset-0 bg-ink-950" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(226,61,18,0.25),transparent_45%),radial-gradient(circle_at_85%_70%,rgba(47,118,111,0.22),transparent_40%)]" />

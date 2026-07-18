@@ -1,73 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCatalogProduct, listCatalogProducts } from '@/data/catalog';
 
-export async function GET(_request: NextRequest) {
-  try {
-    // Aqui você conectará com seu backend JETBOT
-    const jetbotApi = process.env.NEXT_PUBLIC_JETBOT_API || 'http://localhost:3001';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-    const response = await fetch(`${jetbotApi}/api/products`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
+  const slug = searchParams.get('slug');
+  const category = searchParams.get('category') || undefined;
+  const page = Math.max(1, Number(searchParams.get('page') || 1));
+  const limit = Math.max(1, Math.min(50, Number(searchParams.get('limit') || 12)));
 
-    if (!response.ok) {
-      throw new Error('Erro ao buscar produtos');
+  // Catálogo local primeiro (curso + futuros produtos)
+  if (slug) {
+    const product = getCatalogProduct(slug);
+    if (!product) {
+      return NextResponse.json({ success: false, error: 'Produto não encontrado' }, { status: 404 });
     }
-
-    const data = await response.json();
-    return NextResponse.json({
-      success: true,
-      data: data.data || [],
-      total: data.total || 0,
-      page: data.page || 1,
-      limit: data.limit || 10,
-      pages: data.pages || 1,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro interno',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, data: product });
   }
+
+  const local = listCatalogProducts(category);
+
+  // Tenta enriquecer com backend JETBOT se estiver online; senão usa só o local
+  try {
+    const jetbotApi = process.env.NEXT_PUBLIC_JETBOT_API || process.env.JETBOT_API_URL;
+    if (jetbotApi && !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(jetbotApi)) {
+      const response = await fetch(`${jetbotApi.replace(/\/$/, '')}/api/products`, {
+        headers: { 'Content-Type': 'application/json' },
+        next: { revalidate: 60 },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const remote = Array.isArray(data.data) ? data.data : [];
+        const merged = [...local, ...remote];
+        const start = (page - 1) * limit;
+        const slice = merged.slice(start, start + limit);
+        return NextResponse.json({
+          success: true,
+          data: slice,
+          total: merged.length,
+          page,
+          limit,
+          pages: Math.max(1, Math.ceil(merged.length / limit)),
+        });
+      }
+    }
+  } catch {
+    // fallback local
+  }
+
+  const start = (page - 1) * limit;
+  const slice = local.slice(start, start + limit);
+
+  return NextResponse.json({
+    success: true,
+    data: slice,
+    total: local.length,
+    page,
+    limit,
+    pages: Math.max(1, Math.ceil(local.length / limit)),
+    source: 'catalog',
+  });
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const jetbotApi = process.env.NEXT_PUBLIC_JETBOT_API || 'http://localhost:3001';
-
-    const response = await fetch(`${jetbotApi}/api/admin/products`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error('Erro ao criar produto');
-    }
-
-    const data = await response.json();
-    return NextResponse.json({ success: true, data: data.data });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro interno',
-      },
-      { status: 500 }
-    );
-  }
+export async function POST() {
+  return NextResponse.json(
+    { success: false, error: 'Criação de produtos via API admin ainda não disponível neste ambiente.' },
+    { status: 501 }
+  );
 }
-

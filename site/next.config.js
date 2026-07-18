@@ -27,7 +27,9 @@ const nextConfig = {
   },
   images: {
     domains: ['localhost', 'vercel.app', 'socialflow.site', 'www.socialflow.site'],
-    formats: ['image/avif', 'image/webp']
+    formats: ['image/avif', 'image/webp'],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   // Não force localhost aqui: na Vercel isso faz o browser chamar http://localhost:3000
   // e o axios devolve "Network Error". Deixe vazio para usar rotas relativas /api.
