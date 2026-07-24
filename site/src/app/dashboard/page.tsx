@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
+import { POSTIZ_APP_URL } from '@/lib/postizConfig';
 import { aiExecutor } from '@/services/aiExecutor';
 import {
   FiCpu,
@@ -13,6 +14,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiArrowRight,
+  FiExternalLink,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
@@ -101,9 +103,51 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const needsAccounts = status.postizConfigured && status.accounts === 0;
+  const needsPostiz = !status.postizConfigured;
+
   return (
-    <DashboardShell title="Dashboard" subtitle="Hub operacional SocialFlow — sem dados inventados">
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <DashboardShell
+      title="Dashboard"
+      subtitle="Hub operacional — SocialFlow + Postiz"
+      actions={
+        <a
+          href={POSTIZ_APP_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-secondary !px-3 !py-2 !text-sm"
+        >
+          Abrir Postiz <FiExternalLink size={14} />
+        </a>
+      }
+    >
+      {(needsPostiz || needsAccounts) && !loading && (
+        <div className="mb-6 rounded-xl border border-signal-500/25 bg-signal-50 px-4 py-4 sm:px-5">
+          <p className="font-display text-base font-bold text-ink-950">
+            {needsPostiz ? 'Conecte o motor Postiz' : 'Conecte suas contas sociais'}
+          </p>
+          <p className="mt-1 text-sm text-ink-950/65">
+            {needsPostiz
+              ? 'O SocialFlow publica pelo Postiz (insta.trustcorp.com.br). Sem a API configurada na Vercel, agendamento e contas não aparecem.'
+              : 'Nenhuma conta Instagram/TikTok veio da API. Abra o Postiz, conecte a conta na organização certa e confira se a API Key é da mesma org.'}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={POSTIZ_APP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary !px-4 !py-2 !text-sm"
+            >
+              Abrir Postiz
+            </a>
+            <Link href="/dashboard/settings" className="btn-secondary !px-4 !py-2 !text-sm">
+              Ver configuração
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatusCard
           label="Postiz"
           value={loading ? '…' : status.postizConfigured ? 'Conectado' : 'Pendente'}
@@ -125,17 +169,16 @@ export default function DashboardPage() {
           ok={status.aiConfigured}
         />
         <StatusCard
-          label="Execuções salvas"
+          label="Execuções"
           value={loading ? '…' : String(status.agentRuns)}
           ok={status.agentRuns > 0}
         />
       </div>
 
-      <div className="mb-8 rounded-xl border border-ink-950/10 bg-white p-6">
-        <h2 className="font-display text-xl font-bold text-ink-950">Fluxo recomendado (sem post ainda)</h2>
+      <div className="mb-8 rounded-xl border border-ink-950/10 bg-white p-5 sm:p-6">
+        <h2 className="font-display text-xl font-bold text-ink-950">Fluxo em 3 passos</h2>
         <p className="mt-2 text-sm text-ink-950/60">
-          Use os agentes para estruturar oferta e copy, crie o visual no Creator e publique no Content
-          Studio quando tiver mídia.
+          Estruture com agentes → crie o visual → publique no Content Studio (Postiz).
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {steps.map((s) => (
@@ -158,7 +201,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
         <Link
           href="/dashboard/instagram"
           className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
@@ -194,18 +237,14 @@ export default function DashboardPage() {
           <FiArrowRight className="text-ink-950/40" />
         </Link>
         <Link
-          href="/dashboard/agents"
+          href="/dashboard/content-studio"
           className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
         >
           <div className="flex items-center gap-3">
-            <FiCpu size={22} className="text-signal-500" />
+            <FiEdit3 size={22} className="text-signal-500" />
             <div>
-              <p className="font-semibold text-ink-950">Continuar com Agentes</p>
-              <p className="text-sm text-ink-950/55">
-                {status.agentRuns > 0
-                  ? `${status.agentRuns} execução(ões) no histórico`
-                  : 'Comece pelo DOUG.EXE ou Money Models'}
-              </p>
+              <p className="font-semibold text-ink-950">Publicar agora</p>
+              <p className="text-sm text-ink-950/55">Content Studio → Postiz</p>
             </div>
           </div>
           <FiArrowRight className="text-ink-950/40" />
@@ -217,16 +256,18 @@ export default function DashboardPage() {
 
 function StatusCard({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
-    <div className="rounded-xl border border-ink-950/10 bg-white p-5">
+    <div className="rounded-xl border border-ink-950/10 bg-white p-4 sm:p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-950/45 sm:text-xs">
+          {label}
+        </p>
         {ok ? (
           <FiCheckCircle className="text-flow-600" size={16} />
         ) : (
           <FiAlertCircle className="text-signal-500" size={16} />
         )}
       </div>
-      <p className="mt-2 font-display text-2xl font-bold text-ink-950">{value}</p>
+      <p className="mt-2 font-display text-xl font-bold text-ink-950 sm:text-2xl">{value}</p>
     </div>
   );
 }

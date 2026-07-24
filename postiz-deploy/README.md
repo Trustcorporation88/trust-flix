@@ -3,6 +3,21 @@
 Este diretório não contém uma cópia do Postiz — ele é usado como serviço externo, via API,
 sem modificar o código-fonte (mantém a licença AGPL simples e facilita atualizações).
 
+## Usabilidade SocialFlow ↔ Postiz
+
+O SocialFlow (www.socialflow.site) é a interface de operação. O Postiz
+(insta.trustcorp.com.br) é o motor de publicação.
+
+Fluxo recomendado para o time:
+1. Conectar Instagram/TikTok **no Postiz** (Add Channel).
+2. Copiar a API Key da **mesma organização** (Settings → API).
+3. Colar na Vercel: `POSTIZ_API_URL` + `POSTIZ_API_KEY`.
+4. Operar no dia a dia pelo **Content Studio** do SocialFlow.
+5. Usar o painel Postiz para calendário nativo, analytics extras e canais novos.
+
+Variável opcional no site:
+- `NEXT_PUBLIC_POSTIZ_APP_URL=https://insta.trustcorp.com.br` — links "Abrir Postiz".
+
 ## Passo a passo
 
 1. Clone o compose oficial (já vem com Postgres + Redis + Temporal configurados):

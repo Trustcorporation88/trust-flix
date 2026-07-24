@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
+import { POSTIZ_APP_URL } from '@/lib/postizConfig';
 import type { PostizPost } from '@/services/postizService';
 
 interface Integration {
@@ -215,15 +216,29 @@ export default function InstagramPage() {
       title="Instagram"
       subtitle="Contas, agenda e métricas via Postiz"
       actions={
-        <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
-          Criar no Content Studio
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={POSTIZ_APP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary !py-2 !text-sm"
+          >
+            Abrir Postiz
+          </a>
+          <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
+            Criar no Content Studio
+          </Link>
+        </div>
       }
     >
       {!configured && (
         <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
-          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel
-          (ex.: <code>https://insta.trustcorp.com.br/api/public/v1</code>).
+          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na
+          Vercel, depois conecte contas em{' '}
+          <a href={POSTIZ_APP_URL} target="_blank" rel="noreferrer" className="font-semibold underline">
+            {POSTIZ_APP_URL.replace(/^https?:\/\//, '')}
+          </a>
+          .
         </div>
       )}
 
@@ -296,17 +311,21 @@ export default function InstagramPage() {
                   Canais retornados: {meta.names.join(', ')} ({meta.identifiers.join(', ')})
                 </p>
               )}
-              <p className="mt-3 text-sm text-ink-950/55">
-                Conecte/verifique em{' '}
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
                 <a
-                  href="https://insta.trustcorp.com.br"
+                  href={POSTIZ_APP_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-semibold text-signal-600 hover:text-signal-700"
+                  className="btn-primary !px-4 !py-2 !text-sm"
                 >
-                  insta.trustcorp.com.br
-                </a>{' '}
-                → Settings → API (mesma organização).
+                  Conectar no Postiz
+                </a>
+                <Link href="/dashboard/content-studio" className="btn-secondary !px-4 !py-2 !text-sm">
+                  Ir ao Content Studio
+                </Link>
+              </div>
+              <p className="mt-3 text-xs text-ink-950/45">
+                No Postiz: Settings → API — use a mesma organização da conta &quot;socialflow&quot;.
               </p>
             </div>
           ) : (
@@ -483,8 +502,16 @@ export default function InstagramPage() {
               <p className="mt-2 text-sm text-ink-950/60">{analyticsError}</p>
               <p className="mt-3 text-xs text-ink-950/45">
                 Algumas instâncias self-hosted do Postiz não expõem <code>/analytics/:id</code>. Nesse
-                caso use o painel em insta.trustcorp.com.br.
+                caso use o painel nativo.
               </p>
+              <a
+                href={POSTIZ_APP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary mt-4 inline-flex !px-4 !py-2 !text-sm"
+              >
+                Abrir analytics no Postiz
+              </a>
             </div>
           ) : metricRows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center text-sm text-ink-950/55">

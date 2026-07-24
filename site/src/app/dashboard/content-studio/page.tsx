@@ -34,6 +34,7 @@ import {
   saveCustomTemplate,
 } from '@/lib/customTemplates';
 import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
+import { POSTIZ_APP_URL } from '@/lib/postizConfig';
 import type { PostizPost } from '@/services/postizService';
 
 interface Template {
@@ -571,36 +572,44 @@ export default function ContentStudioPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-grid-glow opacity-60" />
 
       <header className="relative z-10 border-b border-white/10 bg-ink-950/90 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Link href="/" className="flex shrink-0 items-center gap-2">
               <img src="/logo.png" alt="SocialFlow" className="h-8 w-8 rounded-md object-contain" />
               <span className="hidden font-display text-sm font-bold text-white sm:inline">
                 Social<span className="text-signal-500">Flow</span>
               </span>
             </Link>
-            <span className="text-white/20">/</span>
-            <Link href="/dashboard" className="text-sm text-ink-300 transition-colors hover:text-white">
+            <span className="hidden text-white/20 sm:inline">/</span>
+            <Link
+              href="/dashboard"
+              className="hidden text-sm text-ink-300 transition-colors hover:text-white sm:inline"
+            >
               Painel
             </Link>
-            <span className="text-white/20">/</span>
-            <span className="text-sm text-white">Content Studio</span>
+            <span className="hidden text-white/20 sm:inline">/</span>
+            <span className="truncate text-sm text-white">Content Studio</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={POSTIZ_APP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden rounded-md border border-white/10 px-3 py-1.5 text-sm text-ink-300 transition-colors hover:bg-white/[0.05] hover:text-white sm:inline-flex"
+            >
+              Postiz ↗
+            </a>
             <Link
               href="/dashboard"
               className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-ink-300 transition-colors hover:bg-white/[0.05] hover:text-white"
             >
-              ← Voltar
-            </Link>
-            <Link href="/" className="btn-secondary !px-3 !py-1.5 !text-sm">
-              Home
+              ← Painel
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-12">
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:py-12">
         <span className="section-badge">Content Studio</span>
         <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-4xl">
           Crie, aprove e agenda no mesmo fluxo
@@ -608,6 +617,22 @@ export default function ContentStudioPage() {
         <p className="mt-3 max-w-2xl text-ink-300">
           Modelos, legenda com IA e publicação no Instagram e TikTok via Postiz.
         </p>
+
+        <ol className="mt-6 grid gap-2 sm:grid-cols-4">
+          {[
+            '1. Escolha o modelo',
+            '2. Gere a legenda',
+            '3. Anexe a mídia',
+            '4. Publique ou agende',
+          ].map((step) => (
+            <li
+              key={step}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs font-semibold text-ink-200 sm:text-sm"
+            >
+              {step}
+            </li>
+          ))}
+        </ol>
 
         {/* Calendar */}
         <div className="card-surface mt-10 p-6">
@@ -651,7 +676,11 @@ export default function ContentStudioPage() {
           {!postsConfigured && (
             <p className="mt-4 rounded-md border border-signal-500/30 bg-signal-500/10 px-4 py-3 text-sm text-signal-200">
               Postiz ainda não conectado. Configure <code>POSTIZ_API_URL</code> e{' '}
-              <code>POSTIZ_API_KEY</code> na Vercel para ver e agendar posts reais.
+              <code>POSTIZ_API_KEY</code> na Vercel, ou abra{' '}
+              <a href={POSTIZ_APP_URL} target="_blank" rel="noreferrer" className="underline">
+                o painel Postiz
+              </a>{' '}
+              para conectar contas.
             </p>
           )}
 
@@ -1145,7 +1174,7 @@ export default function ContentStudioPage() {
               <p className="mt-1 text-xs text-ink-400">
                 Limite ~4.4MB neste envio (Vercel). Arquivo maior: comprima ou publique no painel{' '}
                 <a
-                  href="https://insta.trustcorp.com.br"
+                  href={POSTIZ_APP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-flow-400 underline"

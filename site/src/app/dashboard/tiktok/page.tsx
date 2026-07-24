@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
+import { POSTIZ_APP_URL } from '@/lib/postizConfig';
 import { isTikTokIntegration } from '@/lib/postizPlatforms';
 import type { PostizPost } from '@/services/postizService';
 
@@ -208,14 +209,29 @@ export default function TikTokPage() {
       title="TikTok"
       subtitle="Contas, agenda e métricas via Postiz"
       actions={
-        <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
-          Criar no Content Studio
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={POSTIZ_APP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary !py-2 !text-sm"
+          >
+            Abrir Postiz
+          </a>
+          <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
+            Criar no Content Studio
+          </Link>
+        </div>
       }
     >
       {!configured && (
         <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
-          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel.
+          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na
+          Vercel, depois conecte o TikTok em{' '}
+          <a href={POSTIZ_APP_URL} target="_blank" rel="noreferrer" className="font-semibold underline">
+            {POSTIZ_APP_URL.replace(/^https?:\/\//, '')}
+          </a>
+          .
         </div>
       )}
 
@@ -275,23 +291,27 @@ export default function TikTokPage() {
                 Nenhuma conta TikTok encontrada
               </p>
               <p className="mt-2 text-sm text-ink-950/55">
-                Conecte o TikTok em{' '}
-                <a
-                  href="https://insta.trustcorp.com.br"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-signal-600 hover:text-signal-700"
-                >
-                  insta.trustcorp.com.br
-                </a>{' '}
-                → Add Channel → TikTok. Se o app TikTok ainda não passou no audit, posts podem sair
-                privados.
+                Conecte o TikTok no Postiz → Add Channel → TikTok. Se o app TikTok ainda não passou no
+                audit, posts podem sair privados.
               </p>
               {meta && meta.total > 0 && (
                 <p className="mt-3 text-xs text-ink-950/45">
                   Canais na org: {meta.names.join(', ')} ({meta.identifiers.join(', ')})
                 </p>
               )}
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <a
+                  href={POSTIZ_APP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-primary !px-4 !py-2 !text-sm"
+                >
+                  Conectar no Postiz
+                </a>
+                <Link href="/dashboard/content-studio" className="btn-secondary !px-4 !py-2 !text-sm">
+                  Ir ao Content Studio
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -466,8 +486,16 @@ export default function TikTokPage() {
               <p className="font-semibold text-ink-950">Analytics indisponível</p>
               <p className="mt-2 text-sm text-ink-950/60">{analyticsError}</p>
               <p className="mt-3 text-xs text-ink-950/45">
-                Use o painel em insta.trustcorp.com.br se a API self-hosted não expuser analytics.
+                Use o painel nativo do Postiz se a API self-hosted não expuser analytics.
               </p>
+              <a
+                href={POSTIZ_APP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary mt-4 inline-flex !px-4 !py-2 !text-sm"
+              >
+                Abrir Postiz
+              </a>
             </div>
           ) : metricRows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center text-sm text-ink-950/55">

@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/lib/store/authStore';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
-export default function LoginPage() {
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/dashboard';
+  return raw;
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get('next'));
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
@@ -45,7 +52,7 @@ export default function LoginPage() {
         localStorage.setItem('token', response.data.token);
         setUser(response.data.user);
         toast.success(isRegister ? 'Conta criada!' : 'Login realizado!');
-        router.push('/dashboard');
+        router.push(nextPath);
       } else {
         toast.error(response.error || 'Erro ao processar requisição');
       }
@@ -59,8 +66,6 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden bg-stone-50 px-4 py-16">
-      <div className="pointer-events-none absolute inset-0 bg-grid-glow" />
       <div className="card-surface relative w-full max-w-md p-8">
         <div className="mb-8 flex justify-center">
           <img src="/logo.png" alt="SocialFlow" className="h-16 w-16 rounded-lg object-contain" />
@@ -154,6 +159,22 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden bg-stone-50 px-4 py-16">
+      <div className="pointer-events-none absolute inset-0 bg-grid-glow" />
+      <Suspense
+        fallback={
+          <div className="card-surface relative w-full max-w-md p-8 text-center text-sm text-ink-950/50">
+            Carregando...
+          </div>
+        }
+      >
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }

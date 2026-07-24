@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { POSTIZ_APP_URL } from '@/lib/postizConfig';
 import {
   AIExecutorConfig,
   AIProvider,
@@ -18,6 +19,7 @@ const BRAND_KEY = 'sf_brand_settings';
 const tabs = [
   { id: 'ai', label: 'IA', icon: FiCpu },
   { id: 'brand', label: 'Marca', icon: FiBriefcase },
+  { id: 'postiz', label: 'Postiz', icon: FiExternalLink },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
@@ -123,22 +125,33 @@ export default function SettingsPage() {
   return (
     <DashboardShell
       title="Configurações"
-      subtitle="IA e marca — o que os Agentes usam de verdade"
+      subtitle="IA, marca e motor Postiz"
       actions={
         tab === 'ai' ? (
           <button
+            type="button"
             onClick={handleSaveAi}
             className="flex items-center gap-2 rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white hover:bg-signal-600"
           >
             <FiSave /> {isConfigured ? 'Atualizar IA' : 'Salvar IA'}
           </button>
-        ) : (
+        ) : tab === 'brand' ? (
           <button
+            type="button"
             onClick={handleSaveBrand}
             className="flex items-center gap-2 rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white hover:bg-signal-600"
           >
             <FiSave /> Salvar marca
           </button>
+        ) : (
+          <a
+            href={POSTIZ_APP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white hover:bg-signal-600"
+          >
+            Abrir Postiz <FiExternalLink size={14} />
+          </a>
         )
       }
     >
@@ -316,6 +329,52 @@ export default function SettingsPage() {
                   />
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab === 'postiz' && (
+            <div className="max-w-xl space-y-5">
+              <h3 className="text-lg font-semibold text-gray-900">Motor de publicação (Postiz)</h3>
+              <p className="text-sm text-gray-500">
+                O SocialFlow agenda e publica pelo Postiz self-hosted. Contas Instagram/TikTok são
+                conectadas no painel do Postiz; a API Key na Vercel precisa ser da mesma organização.
+              </p>
+              <div className="rounded-lg border border-ink-950/10 bg-stone-50 p-4 text-sm">
+                <p className="font-semibold text-ink-950">Painel</p>
+                <a
+                  href={POSTIZ_APP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 font-medium text-signal-600 hover:underline"
+                >
+                  {POSTIZ_APP_URL.replace(/^https?:\/\//, '')} <FiExternalLink size={14} />
+                </a>
+                <p className="mt-4 font-semibold text-ink-950">Variáveis (Vercel)</p>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-ink-950/70">
+                  <li>
+                    <code>POSTIZ_API_URL</code> = {POSTIZ_APP_URL}/api/public/v1
+                  </li>
+                  <li>
+                    <code>POSTIZ_API_KEY</code> = Settings → API no Postiz
+                  </li>
+                  <li>
+                    <code>NEXT_PUBLIC_POSTIZ_APP_URL</code> = {POSTIZ_APP_URL} (opcional)
+                  </li>
+                </ul>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={POSTIZ_APP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-primary !px-4 !py-2 !text-sm"
+                >
+                  Abrir Postiz
+                </a>
+                <Link href="/dashboard/content-studio" className="btn-secondary !px-4 !py-2 !text-sm">
+                  Ir ao Content Studio
+                </Link>
+              </div>
             </div>
           )}
         </div>

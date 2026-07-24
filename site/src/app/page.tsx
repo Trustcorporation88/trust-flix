@@ -4,17 +4,17 @@ const pillars = [
   {
     title: 'Content Studio',
     text: 'Planeje o dia, gere legendas e publique no Instagram e TikTok pelo Postiz — sem sair do fluxo.',
-    href: '/dashboard/content-studio',
+    href: '/login?next=/dashboard/content-studio',
   },
   {
     title: 'Agentes de IA',
     text: 'Estruture oferta, copy e estratégia com um arsenal de agentes em fases claras.',
-    href: '/dashboard/agents',
+    href: '/login?next=/dashboard/agents',
   },
   {
     title: 'Instagram & TikTok',
     text: 'Contas, agenda e analytics da operação real via Postiz — no mesmo painel.',
-    href: '/dashboard/instagram',
+    href: '/login?next=/dashboard/instagram',
   },
 ];
 
@@ -80,7 +80,7 @@ export default function Home() {
             <Link href="/login" className="btn-primary">
               Entrar na plataforma
             </Link>
-            <Link href="/dashboard/content-studio" className="btn-secondary">
+            <Link href="/login?next=/dashboard/content-studio" className="btn-secondary">
               Ver Content Studio
             </Link>
           </div>
