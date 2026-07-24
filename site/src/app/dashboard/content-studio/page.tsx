@@ -652,7 +652,11 @@ export default function ContentStudioPage() {
               >
                 <FiChevronRight />
               </button>
-              <button type="button" onClick={loadPosts} className="btn-secondary !py-2 !text-sm">
+              <button
+                type="button"
+                onClick={loadPosts}
+                className="rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-ink-200 hover:bg-white/[0.08] hover:text-white"
+              >
                 Atualizar
               </button>
             </div>
@@ -774,7 +778,10 @@ export default function ContentStudioPage() {
             onKeyDown={(e) => e.key === 'Enter' && loadTemplates()}
             className="input-dark flex-1 !border-white/10 !bg-white/[0.04] !text-white placeholder:!text-ink-400"
           />
-          <button onClick={loadTemplates} className="btn-secondary">
+          <button
+            onClick={loadTemplates}
+            className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-6 py-3 font-semibold text-ink-200 hover:bg-white/[0.08] hover:text-white"
+          >
             <FiTrendingUp /> Atualizar
           </button>
         </div>
