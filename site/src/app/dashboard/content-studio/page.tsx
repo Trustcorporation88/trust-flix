@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   FiInstagram,
@@ -168,6 +168,8 @@ export default function ContentStudioPage() {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [postsConfigured, setPostsConfigured] = useState(true);
 
+  const editorRef = useRef<HTMLDivElement>(null);
+
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekAnchor, i)),
     [weekAnchor]
@@ -289,6 +291,14 @@ export default function ContentStudioPage() {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  // Leva o usuário até o editor quando um modelo é escolhido (a área abre bem
+  // abaixo em uma página longa e passava despercebida).
+  useEffect(() => {
+    if (selectedTemplate && editorRef.current) {
+      editorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedTemplate]);
 
   const postsByDay = useMemo(() => {
     const map: Record<string, PostizPost[]> = {};
@@ -942,7 +952,7 @@ export default function ContentStudioPage() {
         )}
 
         {selectedTemplate && (
-          <div className="card-surface mt-10 border-white/10 bg-ink-900/80 p-6">
+          <div ref={editorRef} className="card-surface mt-10 scroll-mt-20 border-white/10 bg-ink-900/80 p-6">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold text-white">{selectedTemplate.title}</h2>
               {isGenerating && <FiLoader className="animate-spin text-signal-400" />}
