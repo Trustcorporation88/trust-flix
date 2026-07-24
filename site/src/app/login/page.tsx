@@ -13,7 +13,9 @@ export default function LoginPage() {
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
-  const [allowRegister, setAllowRegister] = useState(true);
+  // We do not know the production policy until the server responds. Starting
+  // with `true` briefly exposed an unavailable "Criar conta" option.
+  const [allowRegister, setAllowRegister] = useState<boolean | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -66,7 +68,7 @@ export default function LoginPage() {
           <img src="/logo.png" alt="SocialFlow" className="h-16 w-16 rounded-lg object-contain" />
         </div>
 
-        {allowRegister && (
+        {allowRegister === true && (
           <div className="mb-8 flex rounded-md border border-ink-950/10 bg-stone-100 p-1">
             <button
               type="button"
@@ -95,7 +97,11 @@ export default function LoginPage() {
           {isRegister ? 'Criar conta' : 'Entrar no SocialFlow'}
         </h1>
         <p className="mb-8 text-center text-sm text-ink-950/55">
-          {isRegister ? 'Comece a operar conteúdo e vendas no mesmo fluxo.' : 'Acesse seu painel com e-mail e senha.'}
+          {isRegister
+            ? 'Comece a operar conteúdo e vendas no mesmo fluxo.'
+            : allowRegister === null
+              ? 'Verificando as opções de acesso...'
+              : 'Acesse seu painel com e-mail e senha.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

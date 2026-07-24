@@ -222,8 +222,18 @@ export default function InstagramPage() {
     >
       {!configured && (
         <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
-          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel
-          (ex.: <code>https://insta.trustcorp.com.br/api/public/v1</code>).
+          <p className="font-semibold">A conexão com o Instagram ainda não está pronta.</p>
+          <p className="mt-1">
+            Abra o Postiz para conectar a conta e depois volte aqui para atualizar a lista.
+          </p>
+          <a
+            href="https://insta.trustcorp.com.br"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex font-semibold text-signal-700 underline hover:text-signal-800"
+          >
+            Abrir Postiz em uma nova aba
+          </a>
         </div>
       )}
 
@@ -273,12 +283,19 @@ export default function InstagramPage() {
             </div>
           ) : accountsError ? (
             <div className="rounded-xl border border-danger-500/30 bg-danger-50 p-6 text-sm text-danger-700">
-              <p className="font-semibold">Erro ao falar com o Postiz</p>
-              <p className="mt-2">{accountsError}</p>
-              <p className="mt-3 text-xs opacity-80">
-                Confira na Vercel: <code>POSTIZ_API_URL=https://insta.trustcorp.com.br/api/public/v1</code> e a{' '}
-                <code>POSTIZ_API_KEY</code> da mesma organização onde a conta &quot;socialflow&quot; está conectada.
+              <p className="font-semibold">Não foi possível carregar suas contas</p>
+              <p className="mt-2">
+                Verifique se a conta está conectada no Postiz e tente atualizar. Se o problema continuar, fale com
+                quem administra o SocialFlow.
               </p>
+              <a
+                href="https://insta.trustcorp.com.br"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex font-semibold underline hover:text-danger-800"
+              >
+                Abrir Postiz
+              </a>
             </div>
           ) : igAccounts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
@@ -288,8 +305,8 @@ export default function InstagramPage() {
               </p>
               <p className="mt-2 text-sm text-ink-950/55">
                 {configured
-                  ? `A API respondeu, mas veio vazia (total: ${meta?.total ?? 0}). A API Key na Vercel precisa ser da mesma org do Postiz onde a conta aparece.`
-                  : 'Postiz ainda não configurado nas variáveis de ambiente.'}
+                  ? 'Conecte uma conta do Instagram no Postiz e volte aqui para sincronizá-la.'
+                  : 'A conexão com o Postiz ainda não foi concluída.'}
               </p>
               {meta && meta.total > 0 && (
                 <p className="mt-2 text-xs text-ink-950/45">
@@ -305,8 +322,8 @@ export default function InstagramPage() {
                   className="font-semibold text-signal-600 hover:text-signal-700"
                 >
                   insta.trustcorp.com.br
-                </a>{' '}
-                → Settings → API (mesma organização).
+                </a>
+                {' '}para conectar ou conferir sua conta.
               </p>
             </div>
           ) : (
