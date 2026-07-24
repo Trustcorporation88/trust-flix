@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { PostizOnboarding } from '@/components/dashboard/PostizOnboarding';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { aiExecutor } from '@/services/aiExecutor';
 import {
@@ -130,6 +131,18 @@ export default function DashboardPage() {
           ok={status.agentRuns > 0}
         />
       </div>
+
+      {!loading && status.accounts === 0 && (
+        <div className="mb-8">
+          <PostizOnboarding
+            technicalDetail={
+              status.postizConfigured
+                ? 'A integração com a API está ativa, mas nenhuma conta foi retornada. Confirme se a API key pertence à mesma organização usada no Postiz.'
+                : 'Configure POSTIZ_API_URL e POSTIZ_API_KEY no ambiente da Vercel.'
+            }
+          />
+        </div>
+      )}
 
       <div className="mb-8 rounded-xl border border-ink-950/10 bg-white p-6">
         <h2 className="font-display text-xl font-bold text-ink-950">Fluxo recomendado (sem post ainda)</h2>

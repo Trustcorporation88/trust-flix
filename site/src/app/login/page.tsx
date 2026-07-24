@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [allowRegister, setAllowRegister] = useState(true);
+  const [nextPath, setNextPath] = useState('/dashboard');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,6 +23,11 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    const requestedPath = new URLSearchParams(window.location.search).get('next');
+    if (requestedPath?.startsWith('/dashboard') && !requestedPath.startsWith('//')) {
+      setNextPath(requestedPath);
+    }
+
     fetch('/api/auth/register')
       .then((r) => r.json())
       .then((data) => {
@@ -45,7 +51,7 @@ export default function LoginPage() {
         localStorage.setItem('token', response.data.token);
         setUser(response.data.user);
         toast.success(isRegister ? 'Conta criada!' : 'Login realizado!');
-        router.push('/dashboard');
+        router.push(nextPath);
       } else {
         toast.error(response.error || 'Erro ao processar requisição');
       }
@@ -95,7 +101,11 @@ export default function LoginPage() {
           {isRegister ? 'Criar conta' : 'Entrar no SocialFlow'}
         </h1>
         <p className="mb-8 text-center text-sm text-ink-950/55">
-          {isRegister ? 'Comece a operar conteúdo e vendas no mesmo fluxo.' : 'Acesse seu painel com e-mail e senha.'}
+          {isRegister
+            ? 'Comece a operar conteúdo e vendas no mesmo fluxo.'
+            : nextPath === '/dashboard'
+              ? 'Acesse seu painel com e-mail e senha.'
+              : 'Entre para continuar de onde você parou.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

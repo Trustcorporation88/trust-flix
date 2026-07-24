@@ -25,6 +25,10 @@ export function Navbar() {
   const cartCount = getItemCount();
   const pathname = usePathname();
   const isApp = pathname.startsWith('/dashboard');
+  const linkHref = (href: string) =>
+    href.startsWith('/dashboard') && !isAuthenticated
+      ? `/login?next=${encodeURIComponent(href)}`
+      : href;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -59,7 +63,7 @@ export function Navbar() {
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={linkHref(link.href)}
                 className={clsx(
                   'rounded-md px-3.5 py-2 text-sm font-medium transition-colors',
                   isApp
@@ -151,7 +155,7 @@ export function Navbar() {
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={linkHref(link.href)}
                 onClick={() => setIsOpen(false)}
                 className={clsx(
                   'block rounded-md px-3 py-2.5 text-sm font-medium',

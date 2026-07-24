@@ -6,6 +6,7 @@ import { FiInstagram, FiBarChart2, FiCalendar, FiLoader, FiRefreshCw, FiUsers } 
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { PostizOnboarding } from '@/components/dashboard/PostizOnboarding';
 import { authFetch } from '@/lib/auth/clientFetch';
 import type { PostizPost } from '@/services/postizService';
 
@@ -220,13 +221,6 @@ export default function InstagramPage() {
         </Link>
       }
     >
-      {!configured && (
-        <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
-          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel
-          (ex.: <code>https://insta.trustcorp.com.br/api/public/v1</code>).
-        </div>
-      )}
-
       <div className="mb-6 flex flex-wrap gap-2 border-b border-ink-950/10 pb-3">
         {(
           [
@@ -281,34 +275,17 @@ export default function InstagramPage() {
               </p>
             </div>
           ) : igAccounts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
-              <FiInstagram className="mx-auto text-ink-950/30" size={32} />
-              <p className="mt-3 font-display text-lg font-semibold text-ink-950">
-                Nenhuma conta Instagram encontrada
-              </p>
-              <p className="mt-2 text-sm text-ink-950/55">
-                {configured
-                  ? `A API respondeu, mas veio vazia (total: ${meta?.total ?? 0}). A API Key na Vercel precisa ser da mesma org do Postiz onde a conta aparece.`
-                  : 'Postiz ainda não configurado nas variáveis de ambiente.'}
-              </p>
-              {meta && meta.total > 0 && (
-                <p className="mt-2 text-xs text-ink-950/45">
-                  Canais retornados: {meta.names.join(', ')} ({meta.identifiers.join(', ')})
-                </p>
-              )}
-              <p className="mt-3 text-sm text-ink-950/55">
-                Conecte/verifique em{' '}
-                <a
-                  href="https://insta.trustcorp.com.br"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-signal-600 hover:text-signal-700"
-                >
-                  insta.trustcorp.com.br
-                </a>{' '}
-                → Settings → API (mesma organização).
-              </p>
-            </div>
+            <PostizOnboarding
+              platform="Instagram"
+              onRefresh={loadAccounts}
+              technicalDetail={
+                configured
+                  ? `A API respondeu com ${meta?.total ?? 0} canal(is). Confirme se a POSTIZ_API_KEY pertence à mesma organização da conta no Postiz.${
+                      meta?.total ? ` Canais recebidos: ${meta.names.join(', ')}.` : ''
+                    }`
+                  : 'Configure POSTIZ_API_URL e POSTIZ_API_KEY no ambiente da Vercel.'
+              }
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {igAccounts.map((acc) => (

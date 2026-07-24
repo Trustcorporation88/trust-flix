@@ -7,6 +7,7 @@ import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { PostizOnboarding } from '@/components/dashboard/PostizOnboarding';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { isTikTokIntegration } from '@/lib/postizPlatforms';
 import type { PostizPost } from '@/services/postizService';
@@ -213,12 +214,6 @@ export default function TikTokPage() {
         </Link>
       }
     >
-      {!configured && (
-        <div className="mb-6 rounded-lg border border-signal-500/30 bg-signal-50 px-4 py-3 text-sm text-signal-800">
-          Postiz não conectado. Defina <code>POSTIZ_API_URL</code> e <code>POSTIZ_API_KEY</code> na Vercel.
-        </div>
-      )}
-
       <div className="mb-6 flex flex-wrap gap-2 border-b border-ink-950/10 pb-3">
         {(
           [
@@ -269,30 +264,17 @@ export default function TikTokPage() {
               <p className="mt-2">{accountsError}</p>
             </div>
           ) : ttAccounts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
-              <SiTiktok className="mx-auto text-ink-950/30" size={32} />
-              <p className="mt-3 font-display text-lg font-semibold text-ink-950">
-                Nenhuma conta TikTok encontrada
-              </p>
-              <p className="mt-2 text-sm text-ink-950/55">
-                Conecte o TikTok em{' '}
-                <a
-                  href="https://insta.trustcorp.com.br"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-signal-600 hover:text-signal-700"
-                >
-                  insta.trustcorp.com.br
-                </a>{' '}
-                → Add Channel → TikTok. Se o app TikTok ainda não passou no audit, posts podem sair
-                privados.
-              </p>
-              {meta && meta.total > 0 && (
-                <p className="mt-3 text-xs text-ink-950/45">
-                  Canais na org: {meta.names.join(', ')} ({meta.identifiers.join(', ')})
-                </p>
-              )}
-            </div>
+            <PostizOnboarding
+              platform="TikTok"
+              onRefresh={loadAccounts}
+              technicalDetail={
+                configured
+                  ? `A API respondeu com ${meta?.total ?? 0} canal(is). Confirme se a POSTIZ_API_KEY pertence à mesma organização da conta no Postiz.${
+                      meta?.total ? ` Canais recebidos: ${meta.names.join(', ')}.` : ''
+                    } O app TikTok também pode exigir aprovação para publicar em modo público.`
+                  : 'Configure POSTIZ_API_URL e POSTIZ_API_KEY no ambiente da Vercel.'
+              }
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {ttAccounts.map((acc) => (

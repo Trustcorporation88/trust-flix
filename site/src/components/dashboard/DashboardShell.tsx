@@ -11,9 +11,11 @@ import {
   FiSettings,
   FiLogOut,
   FiExternalLink,
+  FiMenu,
+  FiX,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
-import { ComponentType, ReactNode } from 'react';
+import { ComponentType, ReactNode, useEffect, useState } from 'react';
 
 /** Só o que está conectado de verdade — vendas/WhatsApp/etc. ficam fora até existirem. */
 const menuGroups: {
@@ -53,18 +55,54 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
 
   return (
     <div className="flex min-h-screen bg-stone-100">
+      {menuOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-ink-950/55 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed flex h-screen w-64 flex-col overflow-y-auto bg-ink-950 text-white">
+      <aside
+        id="dashboard-navigation"
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-72 max-w-[86vw] flex-col overflow-y-auto bg-ink-950 text-white shadow-2xl transition-transform duration-200 lg:w-64 lg:translate-x-0 lg:shadow-none ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="border-b border-white/10 p-6">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="SocialFlow" className="h-10 w-10 object-contain" />
-            <span className="font-display text-xl font-bold">
-              Social<span className="text-signal-500">Flow</span>
-            </span>
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <img src="/logo.png" alt="SocialFlow" className="h-10 w-10 object-contain" />
+              <span className="font-display text-xl font-bold">
+                Social<span className="text-signal-500">Flow</span>
+              </span>
+            </Link>
+            <button
+              type="button"
+              aria-label="Fechar menu"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-md p-2 text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+            >
+              <FiX size={20} />
+            </button>
+          </div>
           {user?.name && <p className="mt-2 text-xs text-white/50">{user.name}</p>}
         </div>
 
@@ -76,7 +114,9 @@ export function DashboardShell({
               </p>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const active = pathname === item.href;
+                  const active =
+                    pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
                   return (
                     <Link
                       key={item.href}
@@ -96,6 +136,15 @@ export function DashboardShell({
         </nav>
 
         <div className="space-y-1 border-t border-white/10 p-3">
+          <a
+            href="https://insta.trustcorp.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white"
+          >
+            <FiExternalLink size={18} />
+            <span>Gerenciar contas no Postiz</span>
+          </a>
           <Link
             href="/"
             className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5"
@@ -117,15 +166,26 @@ export function DashboardShell({
       </aside>
 
       {/* Main */}
-      <div className="ml-64 flex-1">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-950/10 bg-white px-8 py-5">
-          <div>
+      <div className="min-w-0 flex-1 lg:ml-64">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-ink-950/10 bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 lg:py-5">
+          <button
+            type="button"
+            aria-label="Abrir menu"
+            aria-controls="dashboard-navigation"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+            className="shrink-0 rounded-md border border-ink-950/10 p-2 text-ink-950 hover:bg-stone-100 lg:hidden"
+          >
+            <FiMenu size={20} />
+          </button>
+          <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl font-bold text-ink-950">{title}</h1>
             {subtitle && <p className="mt-1 text-sm text-ink-950/55">{subtitle}</p>}
           </div>
-          {actions && <div className="flex items-center gap-3">{actions}</div>}
+          {actions && <div className="hidden items-center gap-3 sm:flex">{actions}</div>}
         </header>
-        <main className="p-8">{children}</main>
+        {actions && <div className="border-b border-ink-950/10 bg-white px-4 py-3 sm:hidden">{actions}</div>}
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
