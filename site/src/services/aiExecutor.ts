@@ -233,8 +233,8 @@ export const PROVIDERS: ProviderInfo[] = [
     id: 'openai',
     label: 'OpenAI (GPT)',
     emoji: '🔴',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-    defaultModel: 'gpt-4o-mini',
+    models: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    defaultModel: 'gpt-4.1',
     keyUrl: 'https://platform.openai.com/api-keys',
   },
   {
