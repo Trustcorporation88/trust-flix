@@ -7,12 +7,14 @@ import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/lib/store/authStore';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [allowRegister, setAllowRegister] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
@@ -128,15 +130,25 @@ export default function LoginPage() {
             required
           />
 
-          <input
-            type="password"
-            placeholder={isRegister ? 'Senha (mín. 8 caracteres)' : 'Senha'}
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="input-dark"
-            required
-            minLength={isRegister ? 8 : 1}
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder={isRegister ? 'Senha (mín. 8 caracteres)' : 'Senha'}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="input-dark !pr-11"
+              required
+              minLength={isRegister ? 8 : 1}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-950/40 hover:text-ink-950"
+            >
+              {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </div>
 
           <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-60">
             {isLoading ? 'Processando...' : isRegister ? 'Criar conta' : 'Entrar'}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   FiInstagram,
@@ -163,6 +163,8 @@ export default function ContentStudioPage() {
     sourceNote: '',
   });
 
+  const composerRef = useRef<HTMLDivElement | null>(null);
+
   const [weekAnchor, setWeekAnchor] = useState(() => startOfWeek(new Date()));
   const [posts, setPosts] = useState<PostizPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
@@ -289,6 +291,14 @@ export default function ContentStudioPage() {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  // O compositor fica no fim da página — leva o usuário até ele ao escolher um modelo.
+  useEffect(() => {
+    if (selectedTemplate) {
+      composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate?.id]);
 
   const postsByDay = useMemo(() => {
     const map: Record<string, PostizPost[]> = {};
@@ -942,7 +952,7 @@ export default function ContentStudioPage() {
         )}
 
         {selectedTemplate && (
-          <div className="card-surface mt-10 border-white/10 bg-ink-900/80 p-6">
+          <div ref={composerRef} className="card-surface mt-10 scroll-mt-20 border-white/10 bg-ink-900/80 p-6">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold text-white">{selectedTemplate.title}</h2>
               {isGenerating && <FiLoader className="animate-spin text-signal-400" />}
@@ -1173,6 +1183,14 @@ export default function ContentStudioPage() {
                 Cancelar
               </button>
             </div>
+            {!isScheduling && (!caption || !mediaFile || selectedAccountIds.length === 0) && (
+              <p className="mt-3 text-xs text-ink-400">
+                Para liberar a publicação:
+                {selectedAccountIds.length === 0 ? ' marque ao menos uma conta ·' : ''}
+                {!caption ? ' escreva a legenda ·' : ''}
+                {!mediaFile ? ' envie o vídeo/imagem' : ''}
+              </p>
+            )}
           </div>
         )}
       </div>
