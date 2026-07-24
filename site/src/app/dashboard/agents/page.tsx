@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS, CHEAT_SHEET_ITEMS, getAgentById, Agent } from '@/services/arsenalService';
 import { saveContentDraft } from '@/lib/contentDraft';
+import { DashboardQuickNav } from '@/components/dashboard/DashboardQuickNav';
 import toast from 'react-hot-toast';
 
 export default function AgentsPage() {
@@ -100,6 +101,7 @@ export default function AgentsPage() {
             >
               Content Studio
             </Link>
+            <DashboardQuickNav />
             <Link
               href="/"
               className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/15"

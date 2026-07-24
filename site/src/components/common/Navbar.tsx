@@ -8,14 +8,17 @@ import { FiShoppingCart, FiUser, FiMenu, FiX } from 'react-icons/fi';
 import { useState } from 'react';
 import clsx from 'clsx';
 
-const navLinks = [
+const publicLinks = [
   { href: '/cursos/do-zero-ao-lucro', label: 'Curso ML' },
   { href: '/shop', label: 'Loja' },
+];
+
+const appLinks = [
+  { href: '/dashboard', label: 'Painel' },
   { href: '/dashboard/content-studio', label: 'Content Studio' },
   { href: '/dashboard/agents', label: 'Agentes IA' },
   { href: '/dashboard/instagram', label: 'Instagram' },
   { href: '/dashboard/tiktok', label: 'TikTok' },
-  { href: '/dashboard', label: 'Painel' },
 ];
 
 export function Navbar() {
@@ -25,6 +28,9 @@ export function Navbar() {
   const cartCount = getItemCount();
   const pathname = usePathname();
   const isApp = pathname.startsWith('/dashboard');
+  // Visitantes não logados veem só o menu público — links do painel exigem
+  // login e sairiam redirecionando sem contexto, o que confunde a navegação.
+  const navLinks = isAuthenticated ? [...publicLinks, ...appLinks] : publicLinks;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -60,6 +66,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={active ? 'page' : undefined}
                 className={clsx(
                   'rounded-md px-3.5 py-2 text-sm font-medium transition-colors',
                   isApp
@@ -80,6 +87,7 @@ export function Navbar() {
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/cart"
+            aria-label={cartCount > 0 ? `Carrinho, ${cartCount} item(ns)` : 'Carrinho'}
             className={clsx(
               'relative rounded-md p-2 transition-colors',
               isApp
@@ -129,7 +137,11 @@ export function Navbar() {
           )}
 
           <button
+            type="button"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={isOpen}
+            aria-controls="mobile-nav-menu"
             className={clsx(
               'rounded-md p-2 md:hidden',
               isApp ? 'text-ink-300 hover:bg-white/[0.05]' : 'text-ink-950/70 hover:bg-ink-950/5'
@@ -142,25 +154,45 @@ export function Navbar() {
 
       {isOpen && (
         <div
+          id="mobile-nav-menu"
           className={clsx(
             'border-t backdrop-blur-xl md:hidden',
             isApp ? 'border-white/10 bg-ink-950/95' : 'border-ink-950/10 bg-stone-50/95'
           )}
         >
           <div className="space-y-1 px-4 py-4">
-            {navLinks.map((link) => (
+            {navLinks.map((link) => {
+              const active = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  aria-current={active ? 'page' : undefined}
+                  className={clsx(
+                    'block rounded-md px-3 py-2.5 text-sm font-medium',
+                    active
+                      ? isApp
+                        ? 'bg-white/[0.08] text-white'
+                        : 'bg-ink-950/5 text-ink-950'
+                      : isApp
+                        ? 'text-ink-200 hover:bg-white/[0.05]'
+                        : 'text-ink-950/80 hover:bg-ink-950/5'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            {!isAuthenticated && (
               <Link
-                key={link.href}
-                href={link.href}
+                href="/login"
                 onClick={() => setIsOpen(false)}
-                className={clsx(
-                  'block rounded-md px-3 py-2.5 text-sm font-medium',
-                  isApp ? 'text-ink-200 hover:bg-white/[0.05]' : 'text-ink-950/80 hover:bg-ink-950/5'
-                )}
+                className="mt-2 block rounded-md bg-signal-500 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-signal-600"
               >
-                {link.label}
+                Entrar
               </Link>
-            ))}
+            )}
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import { useCanvasEditor } from '@/hooks/useCanvasEditor';
 import { Design } from '@/services/designService';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { saveContentDraft } from '@/lib/contentDraft';
+import { DashboardQuickNav } from '@/components/dashboard/DashboardQuickNav';
 import toast from 'react-hot-toast';
 
 export default function CreatorStudioPage() {
@@ -220,6 +221,7 @@ Clipe 3: [CTA] "Clique no link e garanta sua licença hoje!"`;
               >
                 ← Painel
               </Link>
+              <DashboardQuickNav />
               <button
                 type="button"
                 onClick={() => {

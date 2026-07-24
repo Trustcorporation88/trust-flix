@@ -23,6 +23,7 @@ import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
+import { DashboardQuickNav } from '@/components/dashboard/DashboardQuickNav';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { loadContentDraft, clearContentDraft } from '@/lib/contentDraft';
 import {
@@ -593,6 +594,7 @@ export default function ContentStudioPage() {
             >
               ← Voltar
             </Link>
+            <DashboardQuickNav />
             <Link href="/" className="btn-secondary !px-3 !py-1.5 !text-sm">
               Home
             </Link>

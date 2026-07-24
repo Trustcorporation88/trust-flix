@@ -101,42 +101,70 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegister && (
             <>
-              <input
-                type="text"
-                placeholder="Nome completo"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="input-dark"
-                required
-              />
-              <input
-                type="tel"
-                placeholder="Telefone (opcional)"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="input-dark"
-              />
+              <div>
+                <label htmlFor="name" className="sr-only">
+                  Nome completo
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Nome completo"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-dark"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className="sr-only">
+                  Telefone (opcional)
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="Telefone (opcional)"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="input-dark"
+                />
+              </div>
             </>
           )}
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="input-dark"
-            required
-          />
+          <div>
+            <label htmlFor="email" className="sr-only">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="input-dark"
+              required
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder={isRegister ? 'Senha (mín. 8 caracteres)' : 'Senha'}
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="input-dark"
-            required
-            minLength={isRegister ? 8 : 1}
-          />
+          <div>
+            <label htmlFor="password" className="sr-only">
+              Senha
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              placeholder={isRegister ? 'Senha (mín. 8 caracteres)' : 'Senha'}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="input-dark"
+              required
+              minLength={isRegister ? 8 : 1}
+            />
+          </div>
 
           <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-60">
             {isLoading ? 'Processando...' : isRegister ? 'Criar conta' : 'Entrar'}
