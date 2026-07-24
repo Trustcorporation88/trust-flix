@@ -620,7 +620,7 @@ export default function ContentStudioPage() {
         </p>
 
         {/* Calendar */}
-        <div className="card-surface mt-10 p-6">
+        <div className="mt-10 rounded-xl border border-white/10 bg-ink-900/60 p-6 backdrop-blur-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <span className="section-badge">Agenda</span>
@@ -952,7 +952,7 @@ export default function ContentStudioPage() {
         )}
 
         {selectedTemplate && (
-          <div ref={composerRef} className="card-surface mt-10 scroll-mt-20 border-white/10 bg-ink-900/80 p-6">
+          <div ref={composerRef} className="mt-10 scroll-mt-20 rounded-xl border border-white/10 bg-ink-900/80 p-6 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold text-white">{selectedTemplate.title}</h2>
               {isGenerating && <FiLoader className="animate-spin text-signal-400" />}

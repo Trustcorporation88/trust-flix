@@ -28,7 +28,9 @@ const FORMATOS: { key: keyof DailyPlan; label: string; emoji: string }[] = [
 ];
 
 function buildCopyText(item: DailyPlanItem): string {
-  const hashtags = item.hashtags?.length ? `\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}` : '';
+  const hashtags = item.hashtags?.length
+    ? `\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`
+    : '';
   return `${item.titulo}\n\n${item.conteudo}${hashtags}`;
 }
 
@@ -74,7 +76,7 @@ export default function DailyContentGenerator() {
   };
 
   return (
-    <div className="card-surface p-6">
+    <div className="rounded-xl border border-white/10 bg-ink-900/60 p-6 backdrop-blur-sm">
       <span className="section-badge">Gerar do tema do dia</span>
       <h2 className="mt-3 font-display text-2xl font-bold text-white">
         Diga o que precisa postar hoje
@@ -90,7 +92,7 @@ export default function DailyContentGenerator() {
           onChange={(e) => setTema(e.target.value)}
           rows={3}
           placeholder="Ex: hoje quero divulgar o combo de verão com 20% de desconto para clientes novos"
-          className="input-dark w-full resize-none sm:flex-1"
+          className="input-dark w-full resize-none !border-white/10 !bg-white/[0.04] !text-white placeholder:!text-ink-400 sm:flex-1"
         />
       </div>
       <button
@@ -105,7 +107,7 @@ export default function DailyContentGenerator() {
       {isGenerating && (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {FORMATOS.map((f) => (
-            <div key={f.key} className="h-40 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
+            <div key={f.key} className="h-40 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]" />
           ))}
         </div>
       )}
@@ -118,10 +120,10 @@ export default function DailyContentGenerator() {
             return (
               <div
                 key={key}
-                className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                className="flex flex-col rounded-xl border border-white/10 bg-ink-950/50 p-5"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
+                  <span className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
                     {emoji} {label}
                   </span>
                 </div>
@@ -130,13 +132,13 @@ export default function DailyContentGenerator() {
                   {item.conteudo}
                 </p>
                 {item.hashtags?.length > 0 && (
-                  <p className="mt-3 text-xs text-accent-400">
+                  <p className="mt-3 text-xs text-flow-400">
                     {item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}
                   </p>
                 )}
                 <button
                   onClick={() => handleCopy(key, item)}
-                  className="btn-secondary mt-4 self-start text-sm"
+                  className="mt-4 inline-flex items-center gap-2 self-start rounded-md border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-ink-200 hover:bg-white/[0.08] hover:text-white"
                 >
                   {copiedKey === key ? <FiCheck /> : <FiCopy />}
                   {copiedKey === key ? 'Copiado' : 'Copiar modelo'}
