@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { FiInfo } from 'react-icons/fi';
 import { useAgentExecutor } from '@/hooks/useAgentExecutor';
 import { ARSENAL_AGENTS, WORKFLOWS, CHEAT_SHEET_ITEMS, getAgentById, Agent } from '@/services/arsenalService';
 import { saveContentDraft } from '@/lib/contentDraft';
@@ -19,6 +20,7 @@ export default function AgentsPage() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [agentNotice, setAgentNotice] = useState<string | null>(null);
+  const [infoAgentId, setInfoAgentId] = useState<string | null>(null);
 
   const selectAgent = (agent: Agent, options?: { tab?: typeof activeTab; notice?: string }) => {
     setSelectedAgent(agent);
@@ -191,13 +193,49 @@ export default function AgentsPage() {
                       selectAgent(agent);
                     }
                   }}
-                  className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                  className={`relative p-5 rounded-lg border-2 cursor-pointer transition-all ${
                     selectedAgent.id === agent.id
                       ? 'bg-purple-600/20 border-purple-500 shadow-lg'
                       : 'bg-slate-800/50 border-slate-700 hover:border-purple-500'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    aria-label={`O que ${agent.name} entrega`}
+                    title="O que este agente entrega"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInfoAgentId((id) => (id === agent.id ? null : agent.id));
+                    }}
+                    className="absolute right-3 top-3 rounded-full border border-white/15 bg-slate-900/80 p-1.5 text-purple-200 hover:bg-white/10 hover:text-white"
+                  >
+                    <FiInfo size={16} />
+                  </button>
+
+                  {infoAgentId === agent.id && (
+                    <div
+                      role="dialog"
+                      className="absolute inset-x-3 top-12 z-20 rounded-lg border border-purple-400/40 bg-slate-950 p-3 text-left shadow-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-wide text-purple-300">
+                        O que entrega
+                      </p>
+                      <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{agent.delivers}</p>
+                      <button
+                        type="button"
+                        className="mt-2 text-xs font-semibold text-purple-300 hover:text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInfoAgentId(null);
+                        }}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-3 pr-8">
                     <span className="text-3xl">{agent.emoji}</span>
                     <div className="flex-1">
                       <h4 className="font-bold text-white">{agent.name}</h4>
