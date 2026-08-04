@@ -20,6 +20,7 @@ import {
   FiGlobe,
   FiWifiOff,
   FiExternalLink,
+  FiPlayCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -55,6 +56,10 @@ interface Message {
   visionUsed?: boolean;
   /** Links citados quando a resposta veio de busca na web */
   sources?: { url: string; title: string }[];
+  /** Vídeos reais para abrir e copiar (Reels/TikTok/Shorts) */
+  videoSources?: { url: string; title: string }[];
+  /** Artigos de apoio, separados dos vídeos */
+  articleSources?: { url: string; title: string }[];
   /** true = resposta baseada em busca real na web */
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
@@ -354,6 +359,14 @@ export default function CopilotPage() {
             media: sentMedia,
             visionUsed: data.hadImage ? Boolean(data.visionUsed) : undefined,
             sources: Array.isArray(data.sources) && data.sources.length ? data.sources : undefined,
+            videoSources:
+              Array.isArray(data.videoSources) && data.videoSources.length
+                ? data.videoSources
+                : undefined,
+            articleSources:
+              Array.isArray(data.articleSources) && data.articleSources.length
+                ? data.articleSources
+                : undefined,
             webSearchUsed: data.webSearchUsed || undefined,
             webSearchUnavailable: data.webSearchUnavailable || undefined,
           },
@@ -610,14 +623,38 @@ export default function CopilotPage() {
                     <p className="whitespace-pre-wrap break-words">{m.content}</p>
                   </div>
 
-                  {/* Fontes citadas — permite conferir se a tendência é real */}
-                  {m.sources?.length ? (
-                    <div className="mt-2 rounded-lg border border-ink-950/10 bg-white p-3">
-                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-950/45">
-                        <FiGlobe size={12} /> Fontes ({m.sources.length})
+                  {/* Vídeos para copiar — o entregável da skill "Reels em alta" */}
+                  {m.videoSources?.length ? (
+                    <div className="mt-2 rounded-lg border border-signal-600/25 bg-signal-50/60 p-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-signal-700">
+                        <FiPlayCircle size={12} /> Reels para abrir e copiar ({m.videoSources.length})
                       </p>
                       <ul className="mt-2 space-y-1.5">
-                        {m.sources.map((s) => (
+                        {m.videoSources.map((s) => (
+                          <li key={s.url}>
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-start gap-1.5 text-xs font-medium text-signal-700 hover:underline"
+                            >
+                              <FiExternalLink size={11} className="mt-0.5 shrink-0" />
+                              <span className="break-words">{s.title}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {/* Fontes citadas — permite conferir se a tendência é real */}
+                  {(m.articleSources ?? m.sources)?.length ? (
+                    <div className="mt-2 rounded-lg border border-ink-950/10 bg-white p-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-950/45">
+                        <FiGlobe size={12} /> Fontes ({(m.articleSources ?? m.sources ?? []).length})
+                      </p>
+                      <ul className="mt-2 space-y-1.5">
+                        {(m.articleSources ?? m.sources ?? []).map((s) => (
                           <li key={s.url}>
                             <a
                               href={s.url}

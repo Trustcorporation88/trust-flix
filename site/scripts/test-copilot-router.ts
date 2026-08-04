@@ -6,6 +6,7 @@ import { routeByKeyword, buildRoutingCatalog, COPILOT_SKILLS } from '../src/lib/
 import { REELS_FORMATS, buildReelsContext } from '../src/lib/reelsPlaybook';
 import { ARSENAL_AGENTS } from '../src/services/arsenalService';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '../src/lib/textClean';
+import { isVideoUrl, splitSources } from '../src/lib/aiProviders';
 
 /** Helper de asserção booleana usado nas seções novas. */
 function checkTrue2(label: string, cond: boolean) {
@@ -270,6 +271,44 @@ checkTrue2(
   'prompt proibe inventar tendencia',
   Boolean(trendsSkill?.systemPrompt.includes('NUNCA invente'))
 );
+// O bug original: a skill respondia so com explicacao. Estes checks impedem
+// que alguem reintroduza um prompt que nao exija o link do video.
+checkTrue2(
+  'prompt exige link direto de video em cada item',
+  Boolean(trendsSkill?.systemPrompt.includes('instagram.com/reel/')) &&
+    Boolean(trendsSkill?.systemPrompt.includes('tiktok.com/@')) &&
+    Boolean(trendsSkill?.systemPrompt.includes('youtube.com/shorts/'))
+);
+checkTrue2(
+  'prompt rejeita link de perfil/hashtag como item',
+  Boolean(trendsSkill?.systemPrompt.includes('NÃO conta como item'))
+);
+checkTrue2(
+  'prompt nao proibe URL no corpo da resposta',
+  !trendsSkill?.systemPrompt.includes('Não repita URLs')
+);
+
+console.log('\n─── Separacao de fontes: video vs artigo ───');
+const videoCases = [
+  'https://www.instagram.com/reel/C9xYzAbCdEf/',
+  'https://www.tiktok.com/@padaria.sp/video/7401234567890123456',
+  'https://youtube.com/shorts/aB3dE5gH7iJ',
+  'https://vm.tiktok.com/ZMabc123/',
+];
+const articleCases = [
+  'https://blog.hootsuite.com/instagram-trends/',
+  'https://www.instagram.com/padaria.sp/',
+  'https://www.tiktok.com/tag/paocaseiro',
+];
+for (const url of videoCases) checkTrue2(`video: ${url}`, isVideoUrl(url));
+for (const url of articleCases) checkTrue2(`artigo/perfil: ${url}`, !isVideoUrl(url));
+
+const split = splitSources([
+  ...videoCases.map((url) => ({ url, title: url })),
+  ...articleCases.map((url) => ({ url, title: url })),
+]);
+checkTrue2('splitSources separa 4 videos', split.videos.length === 4);
+checkTrue2('splitSources separa 3 artigos', split.articles.length === 3);
 
 console.log('\n─── Integridade do catálogo ───');
 console.log(`Skills registradas: ${COPILOT_SKILLS.length}`);
