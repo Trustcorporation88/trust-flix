@@ -16,6 +16,7 @@ import { ARSENAL_AGENTS } from '@/services/arsenalService';
 import {
   DEFAULT_MODEL,
   OPENAI_COMPATIBLE_BASE,
+  buildSamplingParams,
   normalizeModel,
   parseProviderError,
   providerExtras,
@@ -200,8 +201,8 @@ async function callOpenAICompatible(
     body: JSON.stringify({
       model: cfg.model,
       messages: payloadMessages,
-      temperature,
-      max_tokens: maxTokens,
+      // GPT-5.x / série o* usam `max_completion_tokens` e rejeitam `temperature`.
+      ...buildSamplingParams(cfg.provider, cfg.model, { maxTokens, temperature }),
       // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
       // ser ignorado e consome o max_tokens antes de gerar a resposta.
       ...providerExtras(cfg.provider, { thinking }),

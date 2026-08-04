@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
-import { extrasForEndpoint, normalizeModel } from '@/lib/aiProviders';
+import { extrasForEndpoint, normalizeModel, buildSamplingParamsForEndpoint } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,9 +70,9 @@ async function callOpenAICompatible(
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
-      temperature: 0.8,
-      max_tokens: 1800,
       response_format: { type: 'json_object' },
+      // GPT-5.x / série o* usam `max_completion_tokens` e rejeitam `temperature`.
+      ...buildSamplingParamsForEndpoint(base, model, { maxTokens: 1800, temperature: 0.8 }),
       // DeepSeek V4 liga thinking mode por padrão, o que ignora temperature e
       // consome o max_tokens antes da resposta. Desliga quando o alvo é DeepSeek.
       ...extrasForEndpoint(base),

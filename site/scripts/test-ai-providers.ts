@@ -11,6 +11,9 @@ import {
   normalizeModel,
   resolveBaseUrl,
   supportsVision,
+  requestShape,
+  buildSamplingParams,
+  buildSamplingParamsForEndpoint,
 } from '../src/lib/aiProviders';
 
 let pass = 0;
@@ -169,6 +172,88 @@ check(
 checkTrue(
   'gpt-4o-mini NAO e migrado (ainda ativo)',
   normalizeModel('gpt-4o-mini').migrated === false
+);
+
+console.log('\n─── Formato da requisição (GPT-5.x é reasoning model) ───');
+check(
+  'gpt-5.6-sol usa max_completion_tokens',
+  requestShape('openai', 'gpt-5.6-sol').tokenParam,
+  'max_completion_tokens'
+);
+checkTrue(
+  'gpt-5.6-sol NAO aceita temperature',
+  requestShape('openai', 'gpt-5.6-sol').supportsTemperature === false
+);
+check(
+  'gpt-4o-mini segue com max_tokens',
+  requestShape('openai', 'gpt-4o-mini').tokenParam,
+  'max_tokens'
+);
+checkTrue(
+  'gpt-4o-mini aceita temperature',
+  requestShape('openai', 'gpt-4o-mini').supportsTemperature
+);
+check('o3-mini usa max_completion_tokens', requestShape('openai', 'o3-mini').tokenParam, 'max_completion_tokens');
+check(
+  'DeepSeek segue com max_tokens',
+  requestShape('deepseek', 'deepseek-v4-flash').tokenParam,
+  'max_tokens'
+);
+check(
+  'OpenRouter com prefixo de vendor e detectado',
+  requestShape('openrouter', 'openai/gpt-5.6-terra').tokenParam,
+  'max_completion_tokens'
+);
+
+console.log('\n─── Corpo da requisição montado ───');
+check(
+  'reasoning model: sem temperature, com max_completion_tokens',
+  buildSamplingParams('openai', 'gpt-5.6-sol', { maxTokens: 1600, temperature: 0.7 }),
+  { max_completion_tokens: 1600 }
+);
+check(
+  'reasoning model: orcamento baixo recebe piso (senao volta vazio)',
+  buildSamplingParams('openai', 'gpt-5.6-sol', { maxTokens: 150, temperature: 0 }),
+  { max_completion_tokens: 1200 }
+);
+check(
+  'modelo classico: temperature preservada',
+  buildSamplingParams('openai', 'gpt-4o-mini', { maxTokens: 1600, temperature: 0.7 }),
+  { max_tokens: 1600, temperature: 0.7 }
+);
+check(
+  'roteador com temperature 0 em modelo classico',
+  buildSamplingParams('deepseek', 'deepseek-v4-flash', { maxTokens: 150, temperature: 0 }),
+  { max_tokens: 150, temperature: 0 }
+);
+check(
+  'roteador em reasoning model omite temperature 0',
+  buildSamplingParams('openai', 'gpt-5.6-sol', { maxTokens: 150, temperature: 0 }),
+  { max_completion_tokens: 1200 }
+);
+check(
+  'deteccao por endpoint (rotas legadas)',
+  buildSamplingParamsForEndpoint('https://api.openai.com/v1', 'gpt-5.6-sol', {
+    maxTokens: 500,
+    temperature: 0.7,
+  }),
+  { max_completion_tokens: 1200 }
+);
+check(
+  'endpoint DeepSeek nao e tratado como reasoning',
+  buildSamplingParamsForEndpoint('https://api.deepseek.com', 'deepseek-v4-flash', {
+    maxTokens: 500,
+    temperature: 0.7,
+  }),
+  { max_tokens: 500, temperature: 0.7 }
+);
+checkTrue(
+  'nenhum modelo ofertado do OpenAI recebe max_tokens indevido',
+  PROVIDER_MODELS.openai.every((m) => {
+    const p = buildSamplingParams('openai', m, { maxTokens: 100, temperature: 0.5 });
+    const shape = requestShape('openai', m);
+    return shape.tokenParam in p && !('max_tokens' in p && shape.tokenParam !== 'max_tokens');
+  })
 );
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);

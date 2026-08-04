@@ -173,6 +173,86 @@ export function supportsVision(provider: string, model: string): boolean {
 /** Provedores que têm ao menos um modelo com visão — usado nas mensagens de UI. */
 export const VISION_CAPABLE_PROVIDERS = Object.keys(VISION_MODEL_PATTERNS);
 
+/**
+ * Modelos que exigem o formato de requisição "reasoning" da OpenAI.
+ *
+ * A familia GPT-5.x e a serie o* NAO aceitam:
+ *   - `max_tokens`  → o nome do campo passa a ser `max_completion_tokens`
+ *   - `temperature` / `top_p` → rejeitados com HTTP 400 (nao sao apenas ignorados)
+ *
+ * Enviar qualquer um deles resulta em
+ * "Unsupported parameter: 'max_tokens' is not supported with this model".
+ */
+const REASONING_MODEL_PATTERNS: RegExp[] = [/^gpt-5/, /^o[1-9]/];
+
+export interface RequestShape {
+  /** Nome do campo de limite de tokens aceito pelo modelo. */
+  tokenParam: 'max_tokens' | 'max_completion_tokens';
+  /** false → enviar `temperature` causa HTTP 400. */
+  supportsTemperature: boolean;
+}
+
+export function requestShape(provider: string, model: string): RequestShape {
+  const m = (model || '').trim().toLowerCase();
+  // OpenRouter usa prefixo de vendor (ex: "openai/gpt-5.6-sol").
+  const bare = m.includes('/') ? m.split('/').pop() || m : m;
+  const isReasoning =
+    (provider === 'openai' || provider === 'openrouter' || provider === 'custom') &&
+    REASONING_MODEL_PATTERNS.some((re) => re.test(bare));
+
+  return isReasoning
+    ? { tokenParam: 'max_completion_tokens', supportsTemperature: false }
+    : { tokenParam: 'max_tokens', supportsTemperature: true };
+}
+
+/**
+ * Orçamento mínimo de tokens para modelos de raciocínio.
+ *
+ * Em GPT-5.x, `max_completion_tokens` é um ORÇAMENTO TOTAL: os tokens gastos
+ * raciocinando saem dele antes de qualquer texto ser emitido. Com um limite
+ * baixo (o roteador do Copilot usa 150), o raciocínio consome tudo e a resposta
+ * volta VAZIA — sem erro, o que torna a falha difícil de diagnosticar.
+ *
+ * Elevar o piso é seguro em custo: o campo é um teto, cobra-se o que foi usado.
+ */
+const REASONING_MIN_TOKENS = 1200;
+
+/**
+ * Monta os campos de limite de tokens e amostragem no formato aceito pelo modelo.
+ * Centralizado aqui para que nenhuma rota volte a enviar `max_tokens` para um
+ * modelo de raciocinio.
+ */
+export function buildSamplingParams(
+  provider: string,
+  model: string,
+  opts: { maxTokens: number; temperature?: number }
+): Record<string, unknown> {
+  const shape = requestShape(provider, model);
+
+  if (shape.tokenParam === 'max_completion_tokens') {
+    // Reserva espaço para o raciocínio, senão a resposta pode voltar vazia.
+    return { max_completion_tokens: Math.max(opts.maxTokens, REASONING_MIN_TOKENS) };
+  }
+
+  const params: Record<string, unknown> = { max_tokens: opts.maxTokens };
+  if (opts.temperature !== undefined) params.temperature = opts.temperature;
+  return params;
+}
+
+/** Variante para call sites que só conhecem o base URL (não o id do provedor). */
+export function buildSamplingParamsForEndpoint(
+  baseUrl: string,
+  model: string,
+  opts: { maxTokens: number; temperature?: number }
+): Record<string, unknown> {
+  const provider = baseUrl.includes('api.openai.com')
+    ? 'openai'
+    : baseUrl.includes('openrouter.ai')
+      ? 'openrouter'
+      : 'custom';
+  return buildSamplingParams(provider, model, opts);
+}
+
 /** Resolve o base URL de um provedor OpenAI-compatible. */
 export function resolveBaseUrl(provider: string, customBaseUrl?: string): string | undefined {
   if (provider === 'custom') return customBaseUrl;
