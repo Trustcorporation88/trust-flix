@@ -133,13 +133,43 @@ checkTrue('e sinaliza que houve migração', resolved.migrated);
 console.log('\n─── Suporte a visão (imagem) ───');
 checkTrue('DeepSeek v4-flash NAO le imagem', !supportsVision('deepseek', 'deepseek-v4-flash'));
 checkTrue('DeepSeek v4-pro NAO le imagem', !supportsVision('deepseek', 'deepseek-v4-pro'));
+checkTrue('OpenAI gpt-5.6-terra le imagem', supportsVision('openai', 'gpt-5.6-terra'));
+checkTrue('OpenAI gpt-5.6-sol le imagem', supportsVision('openai', 'gpt-5.6-sol'));
+checkTrue('OpenAI gpt-5.6-luna le imagem', supportsVision('openai', 'gpt-5.6-luna'));
 checkTrue('OpenAI gpt-4o-mini le imagem', supportsVision('openai', 'gpt-4o-mini'));
 checkTrue('OpenAI gpt-4o le imagem', supportsVision('openai', 'gpt-4o'));
 checkTrue('Anthropic claude-3-5-sonnet le imagem', supportsVision('anthropic', 'claude-3-5-sonnet-20241022'));
 checkTrue('Google gemini-1.5-flash le imagem', supportsVision('google', 'gemini-1.5-flash'));
 checkTrue('Mistral large NAO le imagem', !supportsVision('mistral', 'mistral-large-latest'));
 checkTrue('provider desconhecido NAO le imagem', !supportsVision('qualquer', 'modelo-x'));
-checkTrue('deteccao é case-insensitive', supportsVision('openai', 'GPT-4O-MINI'));
+checkTrue('deteccao é case-insensitive', supportsVision('openai', 'GPT-5.6-TERRA'));
+
+console.log('\n─── Catálogo OpenAI atualizado (2026) ───');
+check('modelo padrão do OpenAI é gpt-5.6-terra', DEFAULT_MODEL.openai, 'gpt-5.6-terra');
+checkTrue(
+  'familia GPT-5.6 disponivel no seletor',
+  ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-luna'].every((m) =>
+    PROVIDER_MODELS.openai.includes(m)
+  )
+);
+checkTrue(
+  'modelos com desligamento em 2026-10-23 fora do seletor',
+  !PROVIDER_MODELS.openai.includes('gpt-3.5-turbo') &&
+    !PROVIDER_MODELS.openai.includes('gpt-4-turbo')
+);
+checkTrue(
+  'todo modelo ofertado do OpenAI le imagem',
+  PROVIDER_MODELS.openai.every((m) => supportsVision('openai', m))
+);
+check(
+  'gpt-5-chat-latest (desligado 2026-07-23) migra para sol',
+  normalizeModel('gpt-5-chat-latest').model,
+  'gpt-5.6-sol'
+);
+checkTrue(
+  'gpt-4o-mini NAO e migrado (ainda ativo)',
+  normalizeModel('gpt-4o-mini').migrated === false
+);
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

@@ -11,6 +11,7 @@ import {
   aiExecutor,
 } from '@/services/aiExecutor';
 import { FiBriefcase, FiCpu, FiSave, FiTrash2, FiExternalLink, FiEye, FiEyeOff } from 'react-icons/fi';
+import { OPENAI_COMPATIBLE_BASE, supportsVision } from '@/lib/aiProviders';
 import toast from 'react-hot-toast';
 
 const BRAND_KEY = 'sf_brand_settings';
@@ -38,13 +39,9 @@ const defaultBrand: BrandSettings = {
   tone: 'Consultivo e direto',
 };
 
+/** Base URL padrão por provedor — vem de lib/aiProviders (fonte única). */
 function defaultBaseUrl(id: AIProvider): string {
-  if (id === 'openai') return 'https://api.openai.com/v1';
-  if (id === 'deepseek') return 'https://api.deepseek.com';
-  if (id === 'groq') return 'https://api.groq.com/openai/v1';
-  if (id === 'mistral') return 'https://api.mistral.ai/v1';
-  if (id === 'openrouter') return 'https://openrouter.ai/api/v1';
-  return '';
+  return OPENAI_COMPATIBLE_BASE[id] || '';
 }
 
 export default function SettingsPage() {
@@ -193,7 +190,24 @@ export default function SettingsPage() {
 
               {isConfigured && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  Ativo: <strong>{aiProvider}</strong> · {model}
+                  <p>
+                    Ativo: <strong>{aiProvider}</strong> · {model}
+                  </p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs">
+                    {supportsVision(aiProvider, model) ? (
+                      <>
+                        <FiEye size={12} />
+                        Lê fotos — o Copilot monta o post olhando a imagem.
+                      </>
+                    ) : (
+                      <>
+                        <FiEyeOff size={12} className="text-amber-600" />
+                        <span className="text-amber-700">
+                          Este modelo não lê fotos — descreva a imagem ao pedir o post.
+                        </span>
+                      </>
+                    )}
+                  </p>
                 </div>
               )}
 

@@ -10,7 +10,7 @@
  * Provedores com formato próprio: anthropic (Claude) e google (Gemini).
  */
 
-import { normalizeModel } from '@/lib/aiProviders';
+import { normalizeModel, PROVIDER_MODELS, DEFAULT_MODEL } from '@/lib/aiProviders';
 
 export type AIProvider =
   | 'openai'
@@ -243,60 +243,56 @@ export const PROVIDERS: ProviderInfo[] = [
     id: 'openai',
     label: 'OpenAI (GPT)',
     emoji: '🔴',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-    defaultModel: 'gpt-4o-mini',
+    models: PROVIDER_MODELS.openai,
+    defaultModel: DEFAULT_MODEL.openai,
     keyUrl: 'https://platform.openai.com/api-keys',
   },
   {
     id: 'deepseek',
     label: 'DeepSeek',
     emoji: '🐳',
-    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-    defaultModel: 'deepseek-v4-flash',
+    models: PROVIDER_MODELS.deepseek,
+    defaultModel: DEFAULT_MODEL.deepseek,
     keyUrl: 'https://platform.deepseek.com/api_keys',
   },
   {
     id: 'anthropic',
     label: 'Claude (Anthropic)',
     emoji: '🟡',
-    models: [
-      'claude-3-5-sonnet-20241022',
-      'claude-3-5-haiku-20241022',
-      'claude-3-opus-20240229',
-    ],
-    defaultModel: 'claude-3-5-sonnet-20241022',
+    models: PROVIDER_MODELS.anthropic,
+    defaultModel: DEFAULT_MODEL.anthropic,
     keyUrl: 'https://console.anthropic.com/settings/keys',
   },
   {
     id: 'google',
     label: 'Google (Gemini)',
     emoji: '🔵',
-    models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'],
-    defaultModel: 'gemini-1.5-flash',
+    models: PROVIDER_MODELS.google,
+    defaultModel: DEFAULT_MODEL.google,
     keyUrl: 'https://aistudio.google.com/app/apikey',
   },
   {
     id: 'groq',
     label: 'Groq',
     emoji: '⚡',
-    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
-    defaultModel: 'llama-3.3-70b-versatile',
+    models: PROVIDER_MODELS.groq,
+    defaultModel: DEFAULT_MODEL.groq,
     keyUrl: 'https://console.groq.com/keys',
   },
   {
     id: 'mistral',
     label: 'Mistral',
     emoji: '🌬️',
-    models: ['mistral-large-latest', 'mistral-small-latest'],
-    defaultModel: 'mistral-large-latest',
+    models: PROVIDER_MODELS.mistral,
+    defaultModel: DEFAULT_MODEL.mistral,
     keyUrl: 'https://console.mistral.ai/api-keys',
   },
   {
     id: 'openrouter',
     label: 'OpenRouter',
     emoji: '🛣️',
-    models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.1-70b-instruct'],
-    defaultModel: 'openai/gpt-4o-mini',
+    models: PROVIDER_MODELS.openrouter,
+    defaultModel: DEFAULT_MODEL.openrouter,
     keyUrl: 'https://openrouter.ai/keys',
   },
   {

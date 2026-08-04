@@ -35,7 +35,9 @@ export const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
  * (barato e rápido) e `deepseek-v4-pro` (mais caro e mais capaz).
  */
 export const DEFAULT_MODEL: Record<string, string> = {
-  openai: 'gpt-4o-mini',
+  // Familia GPT-5.6 (atual). gpt-4o/4o-mini ainda funcionam, mas gpt-4-turbo e
+  // gpt-3.5-turbo serao desligados em 2026-10-23.
+  openai: 'gpt-5.6-terra',
   deepseek: 'deepseek-v4-flash',
   anthropic: 'claude-3-5-sonnet-20241022',
   google: 'gemini-1.5-flash',
@@ -46,7 +48,9 @@ export const DEFAULT_MODEL: Record<string, string> = {
 
 /** Modelos oferecidos na interface de Configurações (BYOK). */
 export const PROVIDER_MODELS: Record<string, string[]> = {
-  openai: ['gpt-4o-mini', 'gpt-4o'],
+  // sol = melhor raciocinio ($5/$30 por 1M) · terra = equilibrado ($2/$12)
+  // luna = otimizado para volume ($0.20/$1.20). Todos leem imagem.
+  openai: ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-4o', 'gpt-4o-mini'],
   deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
   anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
   google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
@@ -107,6 +111,13 @@ export const LEGACY_MODEL_MAP: Record<string, { model: string; thinking: boolean
   // Descontinuados pela DeepSeek em 2026-07-24.
   'deepseek-chat': { model: 'deepseek-v4-flash', thinking: false },
   'deepseek-reasoner': { model: 'deepseek-v4-flash', thinking: true },
+  // Desligados pela OpenAI em 2026-07-23 (substituto oficial: gpt-5.6-sol).
+  'gpt-5-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
+  'gpt-5.1-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
+  'gpt-5-codex': { model: 'gpt-5.6-sol', thinking: false },
+  // Desligamento anunciado para 2026-08-10 — migrando desde já.
+  'gpt-5.2-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
+  'gpt-5.3-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
 };
 
 export interface NormalizedModel {
@@ -142,11 +153,12 @@ export function normalizeModel(model: string): NormalizedModel {
  * texto do usuário) em vez de estourar um erro cru.
  */
 export const VISION_MODEL_PATTERNS: Record<string, RegExp[]> = {
-  openai: [/^gpt-4o/, /^gpt-4\.1/, /^gpt-4-turbo/, /^o[1-9]/],
+  // Toda a familia GPT-5.x aceita texto + imagem. GPT-4o e 4.1 tambem.
+  openai: [/^gpt-5/, /^gpt-4o/, /^gpt-4\.1/, /^gpt-4-turbo/, /^o[1-9]/],
   anthropic: [/^claude-3/, /^claude-4/, /^claude-sonnet/, /^claude-opus/, /^claude-haiku/],
   google: [/^gemini-/],
   // OpenRouter roteia para modelos de terceiros — depende do modelo escolhido.
-  openrouter: [/gpt-4o/, /claude-3/, /claude-4/, /gemini/, /vision/],
+  openrouter: [/gpt-5/, /gpt-4o/, /claude-3/, /claude-4/, /gemini/, /vision/],
   groq: [/vision/],
 };
 
