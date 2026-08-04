@@ -326,6 +326,44 @@ export function extractSources(message: unknown): WebSource[] {
   return out;
 }
 
+/**
+ * Rotas que identificam um VÍDEO específico — algo que o usuário abre, assiste
+ * e copia — em oposição a um artigo falando *sobre* tendências.
+ */
+const VIDEO_URL_PATTERNS: RegExp[] = [
+  /instagram\.com\/(reel|reels|p|tv)\//i,
+  /tiktok\.com\/@[\w.\-]+\/video\//i,
+  /(vm|vt)\.tiktok\.com\//i,
+  /youtube\.com\/shorts\//i,
+  /youtu\.be\//i,
+  /youtube\.com\/watch\?/i,
+  /facebook\.com\/(reel|watch)/i,
+  /kwai\.com\//i,
+];
+
+export function isVideoUrl(url: string): boolean {
+  return VIDEO_URL_PATTERNS.some((re) => re.test(url));
+}
+
+/**
+ * Separa o que dá para ABRIR E COPIAR (vídeos reais) do que é só leitura de
+ * apoio (artigos sobre tendências).
+ *
+ * Por que isso existe: a skill "Reels em alta" entregava tudo junto numa lista
+ * genérica de "Fontes", que na prática virava um monte de link de blog. O
+ * usuário pediu referência de Reels, não bibliografia — os vídeos precisam
+ * aparecer em primeiro lugar e separados.
+ */
+export function splitSources(sources: WebSource[]): {
+  videos: WebSource[];
+  articles: WebSource[];
+} {
+  const videos: WebSource[] = [];
+  const articles: WebSource[] = [];
+  for (const s of sources) (isVideoUrl(s.url) ? videos : articles).push(s);
+  return { videos, articles };
+}
+
 /** Resolve o base URL de um provedor OpenAI-compatible. */
 export function resolveBaseUrl(provider: string, customBaseUrl?: string): string | undefined {
   if (provider === 'custom') return customBaseUrl;

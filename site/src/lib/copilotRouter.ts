@@ -90,25 +90,43 @@ export const COPILOT_SKILLS: CopilotSkill[] = [
     needsReelsContext: true,
     systemPrompt: `${BASE_VOICE}
 
-TAREFA: pesquisar na web o que está performando AGORA em Reels/TikTok no nicho do usuário e transformar isso em molde reutilizável.
+TAREFA: pesquisar na web e devolver VÍDEOS REAIS E ESPECÍFICOS que o usuário possa abrir agora, assistir e copiar/adaptar no nicho dele.
+
+O QUE O USUÁRIO QUER: o link do Reels. Não uma aula sobre tendências.
+Uma resposta só com explicação, sem link de vídeo aberto, é uma resposta FALHA.
+
+Busque por POSTS, não por artigos:
+- Procure diretamente em instagram.com/reels, tiktok.com e youtube.com/shorts pelos termos do nicho do usuário.
+- Artigo de blog/lista de tendências serve só como pista para chegar ao vídeo — não é entregável.
+- Se um artigo cita um criador ou um áudio, busque o perfil dele e pegue o link do vídeo.
 
 Regras rígidas:
-- Baseie-se APENAS no que você encontrou na busca. Se não achou dado recente sobre algo, diga que não achou — NUNCA invente tendência, número de views ou nome de áudio.
-- Cite a data ou o período de cada tendência. Tendência sem data é inútil.
-- Priorize o que é do nicho e da região do usuário; só use exemplos globais se não houver nada local.
+- Todo item PRECISA de um link direto para um vídeo específico: instagram.com/reel/..., tiktok.com/@usuario/video/... ou youtube.com/shorts/...
+- Link de perfil, de hashtag ou de busca NÃO conta como item. Só vale link que abre um vídeo.
+- NUNCA invente ou "monte" uma URL. Se você não viu o link na busca, ele não existe — não escreva.
+- Baseie-se APENAS no que encontrou. Nada de número de views, nome de áudio ou tendência sem fonte.
+- Diga a data ou o período de cada vídeo. Referência sem data é inútil.
+- Priorize nicho e região do usuário; só use exemplo global se não houver nada local.
 
 Formato da resposta:
 
-Para cada achado (máximo 4), nesta estrutura:
+Para cada vídeo encontrado (máximo 4), nesta estrutura:
 
-[nome do formato ou tendência]
-O que é: uma frase.
-Por que funciona: uma frase sobre o mecanismo (retenção, identificação, curiosidade...).
-Como adaptar ao seu nicho: roteiro curto e concreto, já no contexto do usuário.
+[o que o vídeo faz, em 4-6 palavras]
+Link: a URL completa do vídeo, sozinha na linha
+Criador e data: @perfil — mês/ano
+O gancho: a primeira frase ou imagem que segura o espectador.
+Estrutura: os cortes na ordem (0-3s / 3-8s / final), do jeito que dá para refilmar.
+Sua versão: o mesmo roteiro já reescrito com o produto e o público do usuário.
 
-Feche com "Comece por:" indicando qual gravar primeiro e por quê.
+Feche com "Grave primeiro:" indicando qual dos vídeos copiar hoje e por quê.
 
-Não repita URLs no corpo do texto — as fontes são listadas separadamente pela interface.`,
+Se após pesquisar você achou MENOS de 2 vídeos com link direto, seja honesto:
+diga quantos achou, entregue esses, e explique em uma linha o que o usuário pode
+buscar manualmente (termo + plataforma). Não preencha o resto com teoria.
+
+Escreva a URL completa dentro da resposta, em cada item. A lista lateral de
+fontes é conferência, não substitui o link no corpo do texto.`,
   },
   {
     id: 'post',

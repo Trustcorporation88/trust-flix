@@ -21,6 +21,7 @@ import {
   buildSamplingParams,
   buildWebSearchOptions,
   extractSources,
+  splitSources,
   normalizeModel,
   parseProviderError,
   providerExtras,
@@ -542,11 +543,21 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    /**
+     * A skill "Reels em alta" precisa entregar vídeo para copiar, então os
+     * links de vídeo saem separados dos artigos e a UI mostra eles primeiro.
+     */
+    const { videos: videoSources, articles: articleSources } = splitSources(sources);
+
     return NextResponse.json({
       success: true,
       reply,
       /** Links citados pelo modelo de busca — o usuário pode conferir a fonte. */
       sources,
+      /** Vídeos reais (Reels/TikTok/Shorts) para abrir, copiar e adaptar. */
+      videoSources,
+      /** Artigos de apoio — leitura, não entregável. */
+      articleSources,
       /** true = a resposta veio de busca real na web */
       webSearchUsed: canWebSearch,
       /** true = a skill pedia busca mas o provedor não oferece */
