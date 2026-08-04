@@ -10,7 +10,7 @@ import {
   getProvider,
   aiExecutor,
 } from '@/services/aiExecutor';
-import { FiBriefcase, FiCpu, FiSave, FiTrash2, FiExternalLink } from 'react-icons/fi';
+import { FiBriefcase, FiCpu, FiSave, FiTrash2, FiExternalLink, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const BRAND_KEY = 'sf_brand_settings';
@@ -56,6 +56,7 @@ export default function SettingsPage() {
   const [model, setModel] = useState(getProvider('openai')?.defaultModel || '');
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl('openai'));
   const [isConfigured, setIsConfigured] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   const providerInfo = getProvider(aiProvider);
 
@@ -105,7 +106,7 @@ export default function SettingsPage() {
     };
     aiExecutor.configure(config);
     setIsConfigured(true);
-    toast.success('IA salva — Agentes e Content Studio usam esta config');
+    toast.success('IA salva — Agentes, Creator e Copilot usam esta chave neste navegador');
   };
 
   const handleClearAi = () => {
@@ -169,12 +170,24 @@ export default function SettingsPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Provedor de IA</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  A chave fica só neste navegador e é enviada ao servidor na hora de executar um
-                  agente. Mesma config usada em{' '}
+                  A chave fica salva <strong>só neste navegador</strong> e é enviada ao servidor
+                  apenas na hora de executar. Usada por{' '}
                   <Link href="/dashboard/agents" className="text-signal-600 underline">
                     Agentes IA
                   </Link>
+                  ,{' '}
+                  <Link href="/dashboard/creator" className="text-signal-600 underline">
+                    Creator
+                  </Link>{' '}
+                  e{' '}
+                  <Link href="/dashboard/copilot" className="text-signal-600 underline">
+                    Copilot
+                  </Link>
                   .
+                </p>
+                <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-500">
+                  O <strong>Content Studio</strong> não usa esta chave — ele gera legendas com a
+                  chave do servidor (<code>CONTENT_STUDIO_AI_API_KEY</code>), paga pela plataforma.
                 </p>
               </div>
 
@@ -204,16 +217,34 @@ export default function SettingsPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">API Key</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    setIsConfigured(false);
-                  }}
-                  placeholder="sk-..."
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2.5 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
-                />
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      setIsConfigured(false);
+                    }}
+                    placeholder="sk-..."
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 pr-11 outline-none focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                  />
+                  {apiKey && (
+                    <button
+                      type="button"
+                      onClick={() => setShowKey((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                      aria-label={showKey ? 'Ocultar chave' : 'Mostrar chave'}
+                      title={showKey ? 'Ocultar chave' : 'Mostrar chave'}
+                    >
+                      {showKey ? <FiEyeOff size={15} /> : <FiEye size={15} />}
+                    </button>
+                  )}
+                </div>
+                {apiKey && !showKey && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    {apiKey.length} caracteres salvos — clique no olho para conferir.
+                  </p>
+                )}
                 {providerInfo?.keyUrl && (
                   <a
                     href={providerInfo.keyUrl}

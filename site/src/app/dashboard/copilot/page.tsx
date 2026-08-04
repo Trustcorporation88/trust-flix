@@ -15,6 +15,8 @@ import {
   FiX,
   FiEye,
   FiEyeOff,
+  FiKey,
+  FiServer,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -22,6 +24,8 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, aspectLabel, PreparedImage } from '@/lib/imagePrep';
+import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
+import { supportsVision } from '@/lib/aiProviders';
 
 interface RouteInfo {
   kind: 'skill' | 'agent';
@@ -120,6 +124,8 @@ export default function CopilotPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<CopilotStatus | null>(null);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
+  /** Chave própria do usuário, salva em Configurações. Tem prioridade sobre a do servidor. */
+  const [byok, setByok] = useState<AIExecutorConfig | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -135,6 +141,8 @@ export default function CopilotPage() {
     } catch {
       /* conversa corrompida — começa limpa */
     }
+    // Chave própria configurada em Configurações (mesma do Arsenal de Agentes).
+    setByok(aiExecutor.getCurrentProvider());
   }, []);
 
   // Persiste conversa (sem as miniaturas, que estourariam a cota)
@@ -277,6 +285,16 @@ export default function CopilotPage() {
             forceRoute,
             image: sentImage,
             nicho: nicho.trim() || undefined,
+            // Se o usuário configurou a própria chave em Configurações, ela tem
+            // prioridade — inclusive habilita visão sem mexer na Vercel.
+            ...(byok
+              ? {
+                  apiKey: byok.apiKey,
+                  provider: byok.provider,
+                  model: byok.model,
+                  baseUrl: byok.baseUrl,
+                }
+              : {}),
           }),
         });
         const data = await res.json();
@@ -324,7 +342,7 @@ export default function CopilotPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [loading, messages, nicho, attachment]
+    [loading, messages, nicho, attachment, byok]
   );
 
   const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
@@ -368,6 +386,31 @@ export default function CopilotPage() {
     }
   };
 
+  /**
+   * Config que o Copilot vai realmente usar. A chave do usuário (Configurações)
+   * vence a do servidor, então o painel precisa refletir isso — e a checagem de
+   * visão é feita aqui no cliente, já que o servidor não conhece a chave BYOK.
+   */
+  const effective = byok
+    ? {
+        configured: true,
+        provider: byok.provider as string,
+        model: byok.model,
+        vision: supportsVision(byok.provider, byok.model),
+        modelMigratedFrom: null as string | null,
+        source: 'byok' as const,
+      }
+    : status
+      ? {
+          configured: status.configured,
+          provider: status.provider ?? '',
+          model: status.model ?? '',
+          vision: status.vision,
+          modelMigratedFrom: status.modelMigratedFrom,
+          source: 'server' as const,
+        }
+      : null;
+
   return (
     <DashboardShell
       title="Copilot"
@@ -384,15 +427,19 @@ export default function CopilotPage() {
       }
     >
       {/* Aviso de configuração */}
-      {status && !status.configured && (
+      {effective && !effective.configured && (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
           <FiAlertCircle className="mt-0.5 shrink-0 text-amber-600" />
           <div className="text-sm text-amber-900">
             <p className="font-semibold">Copilot sem chave de IA.</p>
             <p className="mt-1">
-              Defina <code className="rounded bg-amber-100 px-1">COPILOT_AI_API_KEY</code> (ou
-              reaproveite <code className="rounded bg-amber-100 px-1">CONTENT_STUDIO_AI_API_KEY</code>)
-              nas variáveis de ambiente da Vercel.
+              Você tem duas opções: salvar sua própria chave em{' '}
+              <Link href="/dashboard/settings" className="font-semibold underline">
+                Configurações
+              </Link>{' '}
+              (vale só neste navegador, efeito imediato), ou definir{' '}
+              <code className="rounded bg-amber-100 px-1">COPILOT_AI_API_KEY</code> nas variáveis de
+              ambiente da Vercel (vale para todos).
             </p>
           </div>
         </div>
@@ -573,9 +620,9 @@ export default function CopilotPage() {
                     <span className="text-flow-700">pronta para agendar</span>
                   )}
                 </p>
-                {status && !status.vision && (
+                {effective && !effective.vision && (
                   <p className="mt-0.5 text-[11px] leading-snug text-amber-700">
-                    {status.provider} não lê imagens — descreva a foto em 1 linha para uma legenda
+                    {effective.provider} não lê imagens — descreva a foto em 1 linha para uma legenda
                     melhor.
                   </p>
                 )}
@@ -675,20 +722,31 @@ export default function CopilotPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">
               Motor de IA
             </p>
-            {status ? (
+            {effective ? (
               <div className="mt-2 flex items-start gap-2">
-                {status.configured ? (
+                {effective.configured ? (
                   <FiCheckCircle className="mt-0.5 shrink-0 text-flow-600" size={15} />
                 ) : (
                   <FiAlertCircle className="mt-0.5 shrink-0 text-amber-500" size={15} />
                 )}
                 <div className="min-w-0 text-sm">
-                  {status.configured ? (
+                  {effective.configured ? (
                     <>
-                      <p className="font-semibold text-ink-950">{status.provider}</p>
-                      <p className="text-xs text-ink-950/50">{status.model}</p>
+                      <p className="font-semibold text-ink-950">{effective.provider}</p>
+                      <p className="text-xs text-ink-950/50">{effective.model}</p>
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-ink-950/[0.05] px-2 py-0.5 text-[11px] font-medium text-ink-950/60">
+                        {effective.source === 'byok' ? (
+                          <>
+                            <FiKey size={10} /> sua chave
+                          </>
+                        ) : (
+                          <>
+                            <FiServer size={10} /> chave do servidor
+                          </>
+                        )}
+                      </p>
                       <p className="mt-1.5 inline-flex items-center gap-1 text-xs">
-                        {status.vision ? (
+                        {effective.vision ? (
                           <>
                             <FiEye size={12} className="text-flow-600" />
                             <span className="text-flow-700">analisa fotos</span>
@@ -700,12 +758,20 @@ export default function CopilotPage() {
                           </>
                         )}
                       </p>
-                      {status.modelMigratedFrom && (
+                      {effective.modelMigratedFrom && (
                         <p className="mt-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-800">
-                          <span className="font-semibold">{status.modelMigratedFrom}</span> foi
+                          <span className="font-semibold">{effective.modelMigratedFrom}</span> foi
                           descontinuado — migrado automaticamente. Atualize a variável na Vercel para{' '}
-                          <span className="font-semibold">{status.model}</span>.
+                          <span className="font-semibold">{effective.model}</span>.
                         </p>
+                      )}
+                      {effective.source === 'server' && (
+                        <Link
+                          href="/dashboard/settings"
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-signal-600 hover:text-signal-700"
+                        >
+                          Usar minha própria chave <FiArrowRight size={11} />
+                        </Link>
                       )}
                     </>
                   ) : (
@@ -719,7 +785,7 @@ export default function CopilotPage() {
           </div>
 
           {/* Visão: como habilitar */}
-          {status?.configured && !status.vision && (
+          {effective?.configured && !effective.vision && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-center gap-2">
                 <FiEyeOff className="text-amber-600" size={15} />
@@ -728,24 +794,30 @@ export default function CopilotPage() {
                 </p>
               </div>
               <p className="mt-2 text-xs leading-relaxed text-amber-900">
-                O <span className="font-semibold">{status.provider}</span> é text-only: a foto é
+                O <span className="font-semibold">{effective.provider}</span> é text-only: a foto é
                 anexada ao post, mas ele não vê o conteúdo dela.
               </p>
               <p className="mt-2 text-xs leading-relaxed text-amber-900">
-                Para o Copilot descrever a foto sozinho, use um provedor com visão em{' '}
-                <code className="rounded bg-amber-100 px-1">COPILOT_AI_PROVIDER</code>:
+                Para o Copilot descrever a foto sozinho, salve em{' '}
+                <Link href="/dashboard/settings" className="font-semibold underline">
+                  Configurações
+                </Link>{' '}
+                uma chave de provedor com visão:
               </p>
               <ul className="mt-1.5 space-y-0.5 text-xs text-amber-900">
+                <li>
+                  • <span className="font-semibold">google</span> · gemini-1.5-flash
+                </li>
                 <li>
                   • <span className="font-semibold">openai</span> · gpt-4o-mini
                 </li>
                 <li>
                   • <span className="font-semibold">anthropic</span> · claude-3-5-sonnet
                 </li>
-                <li>
-                  • <span className="font-semibold">google</span> · gemini-1.5-flash
-                </li>
               </ul>
+              <p className="mt-2 text-[11px] leading-snug text-amber-800">
+                Vale só neste navegador e tem efeito imediato — não precisa mexer na Vercel.
+              </p>
             </div>
           )}
 
