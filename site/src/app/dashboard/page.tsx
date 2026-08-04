@@ -13,6 +13,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiArrowRight,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import { isInstagramIntegration, isTikTokIntegration } from '@/lib/postizPlatforms';
@@ -188,6 +189,21 @@ export default function DashboardPage() {
                 {status.ttAccounts > 0
                   ? `${status.ttAccounts} conta(s) · agenda e analytics`
                   : 'Conecte no Postiz'}
+              </p>
+            </div>
+          </div>
+          <FiArrowRight className="text-ink-950/40" />
+        </Link>
+        <Link
+          href="/dashboard/copilot"
+          className="flex items-center justify-between rounded-xl border border-ink-950/10 bg-white p-5 hover:border-signal-500/40"
+        >
+          <div className="flex items-center gap-3">
+            <FiMessageSquare size={22} className="text-signal-500" />
+            <div>
+              <p className="font-semibold text-ink-950">Copilot</p>
+              <p className="text-sm text-ink-950/55">
+                Legendas, Reels e plano — roteia pro agente certo
               </p>
             </div>
           </div>

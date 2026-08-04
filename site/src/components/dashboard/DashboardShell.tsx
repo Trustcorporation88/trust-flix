@@ -11,6 +11,7 @@ import {
   FiSettings,
   FiLogOut,
   FiExternalLink,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import { ComponentType, ReactNode } from 'react';
@@ -27,6 +28,7 @@ const menuGroups: {
   {
     title: 'Conteúdo & IA',
     items: [
+      { icon: FiMessageSquare, label: 'Copilot', href: '/dashboard/copilot' },
       { icon: FiCpu, label: 'Agentes IA', href: '/dashboard/agents' },
       { icon: FiEdit3, label: 'Content Studio', href: '/dashboard/content-studio' },
       { icon: FiEdit3, label: 'Creator Studio', href: '/dashboard/creator' },
