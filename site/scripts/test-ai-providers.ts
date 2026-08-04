@@ -14,6 +14,10 @@ import {
   requestShape,
   buildSamplingParams,
   buildSamplingParamsForEndpoint,
+  supportsWebSearch,
+  WEB_SEARCH_MODEL,
+  buildWebSearchOptions,
+  extractSources,
 } from '../src/lib/aiProviders';
 
 let pass = 0;
@@ -255,6 +259,56 @@ checkTrue(
     return shape.tokenParam in p && !('max_tokens' in p && shape.tokenParam !== 'max_tokens');
   })
 );
+
+console.log('\n─── Busca na web (modelo dedicado) ───');
+checkTrue('OpenAI suporta busca na web', supportsWebSearch('openai'));
+checkTrue('DeepSeek NAO suporta', !supportsWebSearch('deepseek'));
+checkTrue('Anthropic NAO suporta', !supportsWebSearch('anthropic'));
+checkTrue('Google NAO suporta (nesta via)', !supportsWebSearch('google'));
+check('modelo de busca do OpenAI', WEB_SEARCH_MODEL.openai, 'gpt-5-search-api');
+checkTrue(
+  'modelo de busca usa max_completion_tokens (e familia gpt-5)',
+  requestShape('openai', WEB_SEARCH_MODEL.openai).tokenParam === 'max_completion_tokens'
+);
+
+console.log('\n─── Opções de busca ───');
+check(
+  'sem cidade: só o tamanho de contexto',
+  buildWebSearchOptions(),
+  { search_context_size: 'high' }
+);
+check(
+  'com cidade: inclui user_location aproximada',
+  buildWebSearchOptions({ country: 'BR', city: 'Bauru' }),
+  {
+    search_context_size: 'high',
+    user_location: { type: 'approximate', approximate: { country: 'BR', city: 'Bauru' } },
+  }
+);
+check(
+  'contexto ajustavel',
+  buildWebSearchOptions(undefined, 'low'),
+  { search_context_size: 'low' }
+);
+
+console.log('\n─── Citações (fontes verificáveis) ───');
+const fakeMessage = {
+  content: 'texto',
+  annotations: [
+    { type: 'url_citation', url_citation: { url: 'https://a.com/1', title: 'Tendência A' } },
+    { type: 'url_citation', url_citation: { url: 'https://b.com/2', title: 'Tendência B' } },
+    // duplicata: nao deve repetir
+    { type: 'url_citation', url_citation: { url: 'https://a.com/1', title: 'Tendência A' } },
+    // tipo diferente: ignorado
+    { type: 'file_citation', file_citation: { file_id: 'x' } },
+  ],
+};
+const srcs = extractSources(fakeMessage);
+check('duas fontes unicas extraidas', srcs.length, 2);
+check('url preservada', srcs[0].url, 'https://a.com/1');
+check('titulo preservado', srcs[1].title, 'Tendência B');
+check('mensagem sem annotations retorna vazio', extractSources({ content: 'x' }), []);
+check('mensagem nula nao quebra', extractSources(null), []);
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

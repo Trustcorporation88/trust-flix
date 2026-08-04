@@ -253,6 +253,79 @@ export function buildSamplingParamsForEndpoint(
   return buildSamplingParams(provider, model, opts);
 }
 
+/**
+ * 🔎 Busca na web dentro do Chat Completions.
+ *
+ * A API de Chat Completions NÃO aceita o tool `web_search` (isso é exclusivo da
+ * Responses API). O caminho suportado é usar um MODELO de busca dedicado, que
+ * sempre pesquisa antes de responder.
+ *
+ * Só a OpenAI oferece isso no formato que já usamos, então em qualquer outro
+ * provedor a funcionalidade degrada de forma controlada (avisamos o usuário em
+ * vez de inventar tendências).
+ */
+export const WEB_SEARCH_MODEL: Record<string, string> = {
+  openai: 'gpt-5-search-api',
+};
+
+export function supportsWebSearch(provider: string): boolean {
+  return Boolean(WEB_SEARCH_MODEL[provider]);
+}
+
+export interface WebSearchLocation {
+  /** ISO 3166-1 alpha-2, ex: 'BR' */
+  country?: string;
+  city?: string;
+  region?: string;
+}
+
+/**
+ * Monta `web_search_options`. `user_location` faz diferença real para negócio
+ * local: sem ela a busca traz tendências globais, com ela traz o que acontece
+ * na cidade do usuário.
+ */
+export function buildWebSearchOptions(
+  location?: WebSearchLocation,
+  contextSize: 'low' | 'medium' | 'high' = 'high'
+): Record<string, unknown> {
+  const options: Record<string, unknown> = { search_context_size: contextSize };
+  if (location?.city || location?.region || location?.country) {
+    options.user_location = {
+      type: 'approximate',
+      approximate: {
+        country: location.country || 'BR',
+        ...(location.city ? { city: location.city } : {}),
+        ...(location.region ? { region: location.region } : {}),
+      },
+    };
+  }
+  return options;
+}
+
+/** Fonte citada pelo modelo de busca (annotations do tipo url_citation). */
+export interface WebSource {
+  url: string;
+  title: string;
+}
+
+/** Extrai as citações da resposta do Chat Completions, sem duplicar URLs. */
+export function extractSources(message: unknown): WebSource[] {
+  const annotations = (message as { annotations?: unknown[] })?.annotations;
+  if (!Array.isArray(annotations)) return [];
+
+  const seen = new Set<string>();
+  const out: WebSource[] = [];
+  for (const a of annotations) {
+    const item = a as { type?: string; url_citation?: { url?: string; title?: string } };
+    if (item?.type !== 'url_citation') continue;
+    const url = item.url_citation?.url;
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push({ url, title: item.url_citation?.title || url });
+  }
+  return out;
+}
+
 /** Resolve o base URL de um provedor OpenAI-compatible. */
 export function resolveBaseUrl(provider: string, customBaseUrl?: string): string | undefined {
   if (provider === 'custom') return customBaseUrl;

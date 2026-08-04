@@ -17,6 +17,9 @@ import {
   FiEyeOff,
   FiKey,
   FiServer,
+  FiGlobe,
+  FiWifiOff,
+  FiExternalLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -26,7 +29,7 @@ import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, aspectLabel, PreparedImage } from '@/lib/imagePrep';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '@/lib/textClean';
 import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
-import { supportsVision } from '@/lib/aiProviders';
+import { supportsVision, supportsWebSearch } from '@/lib/aiProviders';
 
 interface RouteInfo {
   kind: 'skill' | 'agent';
@@ -50,6 +53,12 @@ interface Message {
   media?: DraftMedia[];
   /** false quando havia foto mas o provedor não sabe ler imagem */
   visionUsed?: boolean;
+  /** Links citados quando a resposta veio de busca na web */
+  sources?: { url: string; title: string }[];
+  /** true = resposta baseada em busca real na web */
+  webSearchUsed?: boolean;
+  /** true = a skill pedia busca mas o provedor não oferece */
+  webSearchUnavailable?: boolean;
 }
 
 interface CopilotStatus {
@@ -58,6 +67,7 @@ interface CopilotStatus {
   model: string | null;
   modelMigratedFrom: string | null;
   vision: boolean;
+  webSearch: boolean;
   agentCount: number;
 }
 
@@ -73,9 +83,16 @@ interface Attachment {
 
 const STORAGE_KEY = 'sf_copilot_thread';
 const NICHO_KEY = 'sf_copilot_nicho';
+const CIDADE_KEY = 'sf_copilot_cidade';
 const MAX_FILE_MB = 8;
 
 const QUICK_ACTIONS: { label: string; emoji: string; route: string; prompt: string }[] = [
+  {
+    label: 'Reels em alta',
+    emoji: '🔥',
+    route: 'skill:trends',
+    prompt: 'Pesquisa o que está em alta em Reels no meu nicho agora e me dá o molde pra copiar.',
+  },
   {
     label: 'Montar post',
     emoji: '🖼️',
@@ -122,6 +139,7 @@ export default function CopilotPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [nicho, setNicho] = useState('');
+  const [cidade, setCidade] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<CopilotStatus | null>(null);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
@@ -139,6 +157,8 @@ export default function CopilotPage() {
       if (raw) setMessages(JSON.parse(raw) as Message[]);
       const savedNicho = localStorage.getItem(NICHO_KEY);
       if (savedNicho) setNicho(savedNicho);
+      const savedCidade = localStorage.getItem(CIDADE_KEY);
+      if (savedCidade) setCidade(savedCidade);
     } catch {
       /* conversa corrompida — começa limpa */
     }
@@ -174,6 +194,7 @@ export default function CopilotPage() {
             model: data.model,
             modelMigratedFrom: data.modelMigratedFrom ?? null,
             vision: Boolean(data.vision),
+            webSearch: Boolean(data.webSearch),
             agentCount: data.agentCount ?? 0,
           });
         }
@@ -293,6 +314,7 @@ export default function CopilotPage() {
             lastRoute: lastRouteId,
             image: sentImage,
             nicho: nicho.trim() || undefined,
+            cidade: cidade.trim() || undefined,
             // Se o usuário configurou a própria chave em Configurações, ela tem
             // prioridade — inclusive habilita visão sem mexer na Vercel.
             ...(byok
@@ -331,6 +353,9 @@ export default function CopilotPage() {
             duration: data.duration,
             media: sentMedia,
             visionUsed: data.hadImage ? Boolean(data.visionUsed) : undefined,
+            sources: Array.isArray(data.sources) && data.sources.length ? data.sources : undefined,
+            webSearchUsed: data.webSearchUsed || undefined,
+            webSearchUnavailable: data.webSearchUnavailable || undefined,
           },
         ]);
       } catch (err) {
@@ -350,7 +375,7 @@ export default function CopilotPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [loading, messages, nicho, attachment, byok]
+    [loading, messages, nicho, cidade, attachment, byok]
   );
 
   const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
@@ -402,6 +427,15 @@ export default function CopilotPage() {
     }
   };
 
+  const saveCidade = (value: string) => {
+    setCidade(value);
+    try {
+      localStorage.setItem(CIDADE_KEY, value);
+    } catch {
+      /* ignora */
+    }
+  };
+
   /**
    * Config que o Copilot vai realmente usar. A chave do usuário (Configurações)
    * vence a do servidor, então o painel precisa refletir isso — e a checagem de
@@ -413,6 +447,7 @@ export default function CopilotPage() {
         provider: byok.provider as string,
         model: byok.model,
         vision: supportsVision(byok.provider, byok.model),
+        webSearch: supportsWebSearch(byok.provider),
         modelMigratedFrom: null as string | null,
         source: 'byok' as const,
       }
@@ -422,6 +457,7 @@ export default function CopilotPage() {
           provider: status.provider ?? '',
           model: status.model ?? '',
           vision: status.vision,
+          webSearch: status.webSearch,
           modelMigratedFrom: status.modelMigratedFrom,
           source: 'server' as const,
         }
@@ -532,6 +568,16 @@ export default function CopilotPage() {
                           <FiEyeOff size={11} /> foto não lida
                         </span>
                       )}
+                      {m.webSearchUsed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-flow-600/10 px-2 py-0.5 text-xs font-semibold text-flow-700">
+                          <FiGlobe size={11} /> pesquisado na web
+                        </span>
+                      )}
+                      {m.webSearchUnavailable && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                          <FiWifiOff size={11} /> sem acesso à web
+                        </span>
+                      )}
                       <span className="text-[11px] text-ink-950/40">
                         {m.route.kind === 'agent' ? 'agente' : 'skill'}
                         {m.route.via === 'llm' && ' · roteado por IA'}
@@ -563,6 +609,30 @@ export default function CopilotPage() {
                   >
                     <p className="whitespace-pre-wrap break-words">{m.content}</p>
                   </div>
+
+                  {/* Fontes citadas — permite conferir se a tendência é real */}
+                  {m.sources?.length ? (
+                    <div className="mt-2 rounded-lg border border-ink-950/10 bg-white p-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-950/45">
+                        <FiGlobe size={12} /> Fontes ({m.sources.length})
+                      </p>
+                      <ul className="mt-2 space-y-1.5">
+                        {m.sources.map((s) => (
+                          <li key={s.url}>
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-start gap-1.5 text-xs text-signal-600 hover:underline"
+                            >
+                              <FiExternalLink size={11} className="mt-0.5 shrink-0" />
+                              <span className="break-words">{s.title}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   {/* Ações da resposta */}
                   {m.role === 'assistant' && !m.error && (
@@ -731,6 +801,20 @@ export default function CopilotPage() {
             <p className="mt-2 text-xs text-ink-950/50">
               Preenchendo aqui, todas as respostas vêm adaptadas ao seu nicho.
             </p>
+
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-ink-950/45">
+              Sua cidade
+            </label>
+            <input
+              value={cidade}
+              onChange={(e) => saveCidade(e.target.value)}
+              placeholder="ex: Bauru"
+              className="mt-2 w-full rounded-lg border border-ink-950/15 px-3 py-2 text-sm outline-none focus:border-signal-500"
+            />
+            <p className="mt-2 text-xs text-ink-950/50">
+              Usada na pesquisa de tendências: traz o que acontece na sua região em vez de
+              tendência global.
+            </p>
           </div>
 
           {/* Status */}
@@ -771,6 +855,19 @@ export default function CopilotPage() {
                           <>
                             <FiEyeOff size={12} className="text-amber-600" />
                             <span className="text-amber-700">não analisa fotos</span>
+                          </>
+                        )}
+                      </p>
+                      <p className="inline-flex items-center gap-1 text-xs">
+                        {effective.webSearch ? (
+                          <>
+                            <FiGlobe size={12} className="text-flow-600" />
+                            <span className="text-flow-700">pesquisa na web</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiWifiOff size={12} className="text-amber-600" />
+                            <span className="text-amber-700">sem pesquisa na web</span>
                           </>
                         )}
                       </p>
@@ -846,6 +943,10 @@ export default function CopilotPage() {
               </p>
             </div>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-950/60">
+              <li>
+                <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na
+                web o que está performando agora, com links das fontes.
+              </li>
               <li>
                 <span className="font-semibold text-ink-950">Com foto anexada</span> — monta o post
                 completo: legenda, título TikTok, hashtags e formato.

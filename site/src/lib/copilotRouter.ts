@@ -26,6 +26,8 @@ export interface CopilotSkill {
   systemPrompt: string;
   /** Injeta o playbook de Reels no contexto */
   needsReelsContext?: boolean;
+  /** Exige busca na web (usa modelo de busca dedicado do provedor) */
+  needsWebSearch?: boolean;
 }
 
 export interface RouteDecision {
@@ -48,6 +50,66 @@ const BASE_VOICE =
   'apareceriam literalmente no post. Para dar ênfase, use MAIÚSCULAS ou emoji.';
 
 export const COPILOT_SKILLS: CopilotSkill[] = [
+  {
+    id: 'trends',
+    name: 'Reels em alta',
+    emoji: '🔥',
+    description:
+      'Pesquisa na web Reels e formatos que estão performando agora no seu nicho, com links',
+    keywords: [
+      'em alta',
+      'tendencia',
+      'tendência',
+      'tendencias',
+      'tendências',
+      'trending',
+      'esta viralizando',
+      'está viralizando',
+      'estao viralizando',
+      'estão viralizando',
+      'viralizou',
+      'audio em alta',
+      'áudio em alta',
+      'audios em alta',
+      'trend do momento',
+      'o que funciona agora',
+      'o que esta funcionando',
+      'o que está funcionando',
+      'referencia de reels',
+      'referência de reels',
+      'referencias de reels',
+      'exemplos de reels',
+      'modelo de reels',
+      'modelos de reels',
+      'reels que deram certo',
+      'pesquisa na web',
+      'pesquise',
+      'busca na internet',
+    ],
+    needsWebSearch: true,
+    needsReelsContext: true,
+    systemPrompt: `${BASE_VOICE}
+
+TAREFA: pesquisar na web o que está performando AGORA em Reels/TikTok no nicho do usuário e transformar isso em molde reutilizável.
+
+Regras rígidas:
+- Baseie-se APENAS no que você encontrou na busca. Se não achou dado recente sobre algo, diga que não achou — NUNCA invente tendência, número de views ou nome de áudio.
+- Cite a data ou o período de cada tendência. Tendência sem data é inútil.
+- Priorize o que é do nicho e da região do usuário; só use exemplos globais se não houver nada local.
+
+Formato da resposta:
+
+Para cada achado (máximo 4), nesta estrutura:
+
+[nome do formato ou tendência]
+O que é: uma frase.
+Por que funciona: uma frase sobre o mecanismo (retenção, identificação, curiosidade...).
+Como adaptar ao seu nicho: roteiro curto e concreto, já no contexto do usuário.
+
+Feche com "Comece por:" indicando qual gravar primeiro e por quê.
+
+Não repita URLs no corpo do texto — as fontes são listadas separadamente pela interface.`,
+  },
   {
     id: 'post',
     name: 'Montar post completo',

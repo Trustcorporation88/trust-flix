@@ -6,6 +6,7 @@ import {
   buildFinalSystemPrompt,
   buildRoutingCatalog,
   fallbackRoute,
+  getSkillById,
   parseRouteDecision,
   resolveRoute,
   routeByKeyword,
@@ -15,11 +16,16 @@ import { ARSENAL_AGENTS } from '@/services/arsenalService';
 import {
   DEFAULT_MODEL,
   OPENAI_COMPATIBLE_BASE,
+  WEB_SEARCH_MODEL,
+  WebSource,
   buildSamplingParams,
+  buildWebSearchOptions,
+  extractSources,
   normalizeModel,
   parseProviderError,
   providerExtras,
   supportsVision,
+  supportsWebSearch,
 } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
@@ -84,6 +90,8 @@ interface RequestBody {
   baseUrl?: string;
   /** Contexto opcional do usuário para personalizar as respostas */
   nicho?: string;
+  /** Cidade do usuário — usada para buscar tendências locais na web. */
+  cidade?: string;
 }
 
 interface AIConfig {
@@ -161,6 +169,12 @@ interface LLMMessage {
   content: string;
 }
 
+/** Resultado de uma chamada ao modelo. `sources` só vem em buscas na web. */
+interface LLMResult {
+  content: string;
+  sources: WebSource[];
+}
+
 /** Separa uma data URL em tipo MIME e payload base64. */
 function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
   const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
@@ -175,8 +189,9 @@ async function callOpenAICompatible(
   maxTokens: number,
   temperature: number,
   thinking: boolean,
-  image?: ImageInput
-): Promise<string> {
+  image?: ImageInput,
+  webSearch?: { model: string; options: Record<string, unknown> }
+): Promise<LLMResult> {
   // Formato OpenAI: a última mensagem do usuário passa a ser um array de partes.
   let payloadMessages: unknown[] = messages;
   if (image) {
@@ -196,6 +211,10 @@ async function callOpenAICompatible(
     }
   }
 
+  // Busca na web usa um MODELO dedicado (o tool `web_search` é exclusivo da
+  // Responses API). Esse modelo sempre pesquisa antes de responder.
+  const model = webSearch?.model || cfg.model;
+
   const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -203,18 +222,23 @@ async function callOpenAICompatible(
       Authorization: `Bearer ${cfg.apiKey}`,
     },
     body: JSON.stringify({
-      model: cfg.model,
+      model,
       messages: payloadMessages,
       // GPT-5.x / série o* usam `max_completion_tokens` e rejeitam `temperature`.
-      ...buildSamplingParams(cfg.provider, cfg.model, { maxTokens, temperature }),
+      ...buildSamplingParams(cfg.provider, model, { maxTokens, temperature }),
       // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
       // ser ignorado e consome o max_tokens antes de gerar a resposta.
       ...providerExtras(cfg.provider, { thinking }),
+      ...(webSearch ? { web_search_options: webSearch.options } : {}),
     }),
   });
   if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  const message = data.choices?.[0]?.message;
+  return {
+    content: message?.content ?? '',
+    sources: webSearch ? extractSources(message) : [],
+  };
 }
 
 async function callAnthropic(
@@ -223,7 +247,7 @@ async function callAnthropic(
   maxTokens: number,
   temperature: number,
   image?: ImageInput
-): Promise<string> {
+): Promise<LLMResult> {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
@@ -269,7 +293,7 @@ async function callAnthropic(
   });
   if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  return { content: data.content?.[0]?.text ?? '', sources: [] };
 }
 
 async function callGoogle(
@@ -278,7 +302,7 @@ async function callGoogle(
   maxTokens: number,
   temperature: number,
   image?: ImageInput
-): Promise<string> {
+): Promise<LLMResult> {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
@@ -315,14 +339,23 @@ async function callGoogle(
   );
   if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  return {
+    content: data.candidates?.[0]?.content?.parts?.[0]?.text ?? '',
+    sources: [],
+  };
 }
 
 async function callLLM(
   cfg: AIConfig,
   messages: LLMMessage[],
-  opts: { maxTokens?: number; temperature?: number; thinking?: boolean; image?: ImageInput } = {}
-): Promise<string> {
+  opts: {
+    maxTokens?: number;
+    temperature?: number;
+    thinking?: boolean;
+    image?: ImageInput;
+    webSearch?: { model: string; options: Record<string, unknown> };
+  } = {}
+): Promise<LLMResult> {
   const maxTokens = opts.maxTokens ?? 1600;
   const temperature = opts.temperature ?? 0.7;
   // Só liga thinking se quem chamou permitir E a config pedir (nome legado
@@ -341,7 +374,16 @@ async function callLLM(
       `Provider "${cfg.provider}" não suportado ou baseUrl ausente para provider custom.`
     );
   }
-  return callOpenAICompatible(base, cfg, messages, maxTokens, temperature, thinking, image);
+  return callOpenAICompatible(
+    base,
+    cfg,
+    messages,
+    maxTokens,
+    temperature,
+    thinking,
+    image,
+    opts.webSearch
+  );
 }
 
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
@@ -352,7 +394,7 @@ function resolveForcedRoute(forceRoute: string): RouteDecision | null {
 /** Camada 2 — classificador LLM. Silencioso: qualquer falha cai no fallback. */
 async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision | null> {
   try {
-    const raw = await callLLM(
+    const { content } = await callLLM(
       cfg,
       [
         { role: 'system', content: `${ROUTER_SYSTEM_PROMPT}\n\n${buildRoutingCatalog()}` },
@@ -360,7 +402,7 @@ async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision
       ],
       { maxTokens: 150, temperature: 0, thinking: false }
     );
-    return parseRouteDecision(raw);
+    return parseRouteDecision(content);
   } catch {
     return null;
   }
@@ -459,18 +501,56 @@ export async function POST(request: NextRequest) {
         content: m.content,
       }));
 
-    const userText =
-      message || (image ? 'Monta um post completo com esta foto.' : '');
+    const userText = message || (image ? 'Monta um post completo com esta foto.' : '');
 
-    const reply = await callLLM(
+    // ── Busca na web ──────────────────────────────────────────────
+    // A skill "trends" precisa de dados reais e recentes. Se o provedor não
+    // oferece busca no formato Chat Completions, avisamos em vez de deixar o
+    // modelo inventar tendências plausíveis (o pior resultado possível aqui).
+    const skill = decision.kind === 'skill' ? getSkillById(decision.id) : undefined;
+    const wantsWebSearch = Boolean(skill?.needsWebSearch);
+    const canWebSearch = wantsWebSearch && supportsWebSearch(cfg.provider);
+
+    if (wantsWebSearch && !canWebSearch) {
+      systemPrompt +=
+        `\n\nATENÇÃO: você NÃO tem acesso à internet nesta configuração (provedor ${cfg.provider}). ` +
+        'Diga isso ao usuário na primeira linha, de forma curta, e explique que para pesquisar ' +
+        'tendências reais ele precisa usar uma chave OpenAI em Configurações. ' +
+        'Depois disso, entregue o melhor conteúdo possível usando os FORMATOS COMPROVADOS do ' +
+        'contexto de referência, deixando claro que são formatos atemporais e não tendências ' +
+        'do momento. NUNCA invente tendência, áudio em alta ou número de views.';
+    }
+
+    const webSearch = canWebSearch
+      ? {
+          model: WEB_SEARCH_MODEL[cfg.provider],
+          options: buildWebSearchOptions({
+            country: 'BR',
+            city: body.cidade?.trim() || undefined,
+          }),
+        }
+      : undefined;
+
+    const { content: reply, sources } = await callLLM(
       cfg,
       [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userText }],
-      { image: canSeeImage ? image : undefined }
+      {
+        image: canSeeImage ? image : undefined,
+        webSearch,
+        // Busca traz muito contexto; dá espaço para a síntese não ser truncada.
+        ...(canWebSearch ? { maxTokens: 2600 } : {}),
+      }
     );
 
     return NextResponse.json({
       success: true,
       reply,
+      /** Links citados pelo modelo de busca — o usuário pode conferir a fonte. */
+      sources,
+      /** true = a resposta veio de busca real na web */
+      webSearchUsed: canWebSearch,
+      /** true = a skill pedia busca mas o provedor não oferece */
+      webSearchUnavailable: wantsWebSearch && !canWebSearch,
       route: {
         kind: decision.kind,
         id: decision.id,
@@ -479,7 +559,7 @@ export async function POST(request: NextRequest) {
         via: decision.via,
       },
       provider: cfg.provider,
-      model: cfg.model,
+      model: canWebSearch ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model,
       modelMigratedFrom: cfg.migratedFrom,
       byok: cfg.byok,
       /** true = a foto foi realmente analisada; false com imagem = provedor sem visão */
@@ -507,6 +587,8 @@ export async function GET(request: NextRequest) {
     modelMigratedFrom: cfg?.migratedFrom ?? null,
     /** false → o provedor atual não lê imagens (ex: DeepSeek V4) */
     vision: cfg ? supportsVision(cfg.provider, cfg.model) : false,
+    /** false → o provedor atual não pesquisa na web pelo Chat Completions */
+    webSearch: cfg ? supportsWebSearch(cfg.provider) : false,
     skills: COPILOT_SKILLS.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji })),
     agentCount: ARSENAL_AGENTS.length,
   });

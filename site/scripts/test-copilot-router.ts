@@ -232,6 +232,45 @@ checkTrue2('titulo de TikTok extraido', tt === 'A caixa de brigadeiros que todo 
 checkTrue2('titulo respeita 90 caracteres', (tt?.length ?? 0) <= 90);
 checkTrue2('sem asteriscos residuais na legenda', !cap.includes('**'));
 
+console.log('\n─── Roteamento para pesquisa de tendências ───');
+const casosTrends: { input: string; expectId: string; note: string }[] = [
+  { input: 'o que está em alta em reels agora', expectId: 'trends', note: 'em alta' },
+  { input: 'quais as tendências de reels', expectId: 'trends', note: 'tendências' },
+  { input: 'o que está viralizando no meu nicho', expectId: 'trends', note: 'viralizando' },
+  { input: 'me dá referências de reels que deram certo', expectId: 'trends', note: 'referências' },
+  { input: 'qual áudio em alta pra usar', expectId: 'trends', note: 'áudio em alta' },
+  { input: 'pesquisa na web o que funciona agora', expectId: 'trends', note: 'pesquisa explícita' },
+  // "reels viral" (gerar ideia) NAO deve ir para pesquisa
+  { input: 'me dá ideias de reels viral', expectId: 'reels', note: 'gerar ideia, nao pesquisar' },
+  { input: 'quero um roteiro de reels', expectId: 'reels', note: 'roteiro' },
+];
+for (const c of casosTrends) {
+  const r = routeByKeyword(c.input);
+  const ok = r?.kind === 'skill' && r.id === c.expectId;
+  if (ok) {
+    pass++;
+    console.log(`  ✅ "${c.input}" → skill:${r?.id} (${c.note})`);
+  } else {
+    fail++;
+    const msg = `  ❌ "${c.input}" → esperado skill:${c.expectId}, obtido ${r?.kind}:${r?.id}`;
+    failures.push(msg);
+    console.log(msg);
+  }
+}
+
+// A skill de tendências precisa declarar que exige busca na web.
+const trendsSkill = COPILOT_SKILLS.find((s) => s.id === 'trends');
+checkTrue2('skill trends existe', Boolean(trendsSkill));
+checkTrue2('skill trends exige busca na web', trendsSkill?.needsWebSearch === true);
+checkTrue2(
+  'skill trends tem playbook como fallback (quando nao ha busca)',
+  trendsSkill?.needsReelsContext === true
+);
+checkTrue2(
+  'prompt proibe inventar tendencia',
+  Boolean(trendsSkill?.systemPrompt.includes('NUNCA invente'))
+);
+
 console.log('\n─── Integridade do catálogo ───');
 console.log(`Skills registradas: ${COPILOT_SKILLS.length}`);
 console.log(`Agentes no Arsenal: ${ARSENAL_AGENTS.length}`);
