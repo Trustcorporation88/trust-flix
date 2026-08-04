@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
+import { extrasForEndpoint } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * quem paga a chamada é a TrustFlix. Configure no ambiente (Vercel):
  *   CONTENT_STUDIO_AI_PROVIDER  (padrão: 'deepseek')
  *   CONTENT_STUDIO_AI_API_KEY   (obrigatório)
- *   CONTENT_STUDIO_AI_MODEL     (padrão: 'deepseek-chat')
+ *   CONTENT_STUDIO_AI_MODEL     (padrão: 'deepseek-v4-flash')
  *   CONTENT_STUDIO_AI_BASE_URL  (opcional, só para provider 'custom')
  */
 
@@ -21,7 +22,7 @@ type Provider = 'openai' | 'deepseek' | 'anthropic' | 'google' | 'groq' | 'mistr
 
 const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
-  deepseek: 'https://api.deepseek.com/v1',
+  deepseek: 'https://api.deepseek.com',
   groq: 'https://api.groq.com/openai/v1',
   mistral: 'https://api.mistral.ai/v1',
   openrouter: 'https://openrouter.ai/api/v1',
@@ -55,6 +56,9 @@ async function callOpenAICompatible(base: string, apiKey: string, model: string,
       ],
       temperature: 0.7,
       max_tokens: 500,
+      // DeepSeek V4 liga thinking mode por padrão, o que ignora temperature e
+      // consome o max_tokens antes da resposta. Desliga quando o alvo é DeepSeek.
+      ...extrasForEndpoint(base),
     }),
   });
   if (!res.ok) {
@@ -126,7 +130,7 @@ export async function POST(request: NextRequest) {
     const body: RequestBody = await request.json();
     const provider = (process.env.CONTENT_STUDIO_AI_PROVIDER || 'deepseek') as Provider;
     const apiKey = process.env.CONTENT_STUDIO_AI_API_KEY as string;
-    const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-chat';
+    const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-v4-flash';
     const baseUrl = process.env.CONTENT_STUDIO_AI_BASE_URL;
 
     const platforms = (body.platforms || ['instagram', 'tiktok']).map((p) => p.toLowerCase());

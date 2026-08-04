@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
+import { extrasForEndpoint } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ interface ExecuteBody {
 
 const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
-  deepseek: 'https://api.deepseek.com/v1',
+  deepseek: 'https://api.deepseek.com',
   groq: 'https://api.groq.com/openai/v1',
   mistral: 'https://api.mistral.ai/v1',
   openrouter: 'https://openrouter.ai/api/v1',
@@ -54,6 +55,9 @@ async function callOpenAICompatible(
       messages,
       temperature: body.temperature ?? 0.7,
       max_tokens: body.maxTokens ?? 2000,
+      // DeepSeek V4 liga thinking mode por padrão, o que ignora temperature e
+      // consome o max_tokens antes da resposta. Desliga quando o alvo é DeepSeek.
+      ...extrasForEndpoint(base),
     }),
   });
 

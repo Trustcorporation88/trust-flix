@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
+import { extrasForEndpoint } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * usuario final nunca ve nem precisa informar API key. Configure no ambiente:
  *   CONTENT_STUDIO_AI_PROVIDER  (padrao: 'deepseek')
  *   CONTENT_STUDIO_AI_API_KEY   (obrigatorio)
- *   CONTENT_STUDIO_AI_MODEL     (padrao: 'deepseek-chat')
+ *   CONTENT_STUDIO_AI_MODEL     (padrao: 'deepseek-v4-flash')
  *   CONTENT_STUDIO_AI_BASE_URL  (opcional, so para provider 'custom')
  */
 
@@ -21,7 +22,7 @@ type Provider = 'openai' | 'deepseek' | 'anthropic' | 'google' | 'groq' | 'mistr
 
 const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
-  deepseek: 'https://api.deepseek.com/v1',
+  deepseek: 'https://api.deepseek.com',
   groq: 'https://api.groq.com/openai/v1',
   mistral: 'https://api.mistral.ai/v1',
   openrouter: 'https://openrouter.ai/api/v1',
@@ -72,6 +73,9 @@ async function callOpenAICompatible(
       temperature: 0.8,
       max_tokens: 1800,
       response_format: { type: 'json_object' },
+      // DeepSeek V4 liga thinking mode por padrão, o que ignora temperature e
+      // consome o max_tokens antes da resposta. Desliga quando o alvo é DeepSeek.
+      ...extrasForEndpoint(base),
     }),
   });
   if (!res.ok) {
@@ -185,7 +189,7 @@ export async function POST(request: NextRequest) {
 
     const provider = (process.env.CONTENT_STUDIO_AI_PROVIDER || 'deepseek') as Provider;
     const apiKey = process.env.CONTENT_STUDIO_AI_API_KEY as string;
-    const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-chat';
+    const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-v4-flash';
     const baseUrl = process.env.CONTENT_STUDIO_AI_BASE_URL;
 
     const systemPrompt =

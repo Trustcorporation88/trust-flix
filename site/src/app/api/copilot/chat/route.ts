@@ -13,6 +13,12 @@ import {
   RouteDecision,
 } from '@/lib/copilotRouter';
 import { ARSENAL_AGENTS } from '@/services/arsenalService';
+import {
+  DEFAULT_MODEL,
+  OPENAI_COMPATIBLE_BASE,
+  parseProviderError,
+  providerExtras,
+} from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,24 +64,6 @@ interface RequestBody {
   nicho?: string;
 }
 
-const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
-  openai: 'https://api.openai.com/v1',
-  deepseek: 'https://api.deepseek.com/v1',
-  groq: 'https://api.groq.com/openai/v1',
-  mistral: 'https://api.mistral.ai/v1',
-  openrouter: 'https://openrouter.ai/api/v1',
-};
-
-const DEFAULT_MODEL: Record<string, string> = {
-  openai: 'gpt-4o-mini',
-  deepseek: 'deepseek-chat',
-  anthropic: 'claude-3-5-sonnet-20241022',
-  google: 'gemini-1.5-flash',
-  groq: 'llama-3.1-70b-versatile',
-  mistral: 'mistral-large-latest',
-  openrouter: 'openai/gpt-4o-mini',
-};
-
 interface AIConfig {
   provider: Provider;
   apiKey: string;
@@ -104,7 +92,7 @@ function resolveConfig(body: RequestBody): AIConfig | null {
     return {
       provider,
       apiKey: process.env.COPILOT_AI_API_KEY,
-      model: process.env.COPILOT_AI_MODEL || DEFAULT_MODEL[provider] || 'deepseek-chat',
+      model: process.env.COPILOT_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
       baseUrl: process.env.COPILOT_AI_BASE_URL,
       byok: false,
     };
@@ -116,22 +104,13 @@ function resolveConfig(body: RequestBody): AIConfig | null {
     return {
       provider,
       apiKey: process.env.CONTENT_STUDIO_AI_API_KEY,
-      model: process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || 'deepseek-chat',
+      model: process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
       baseUrl: process.env.CONTENT_STUDIO_AI_BASE_URL,
       byok: false,
     };
   }
 
   return null;
-}
-
-function parseError(text: string): string {
-  try {
-    const obj = JSON.parse(text);
-    return obj.error?.message || obj.message || text;
-  } catch {
-    return text.slice(0, 300);
-  }
 }
 
 interface LLMMessage {
@@ -152,9 +131,17 @@ async function callOpenAICompatible(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${cfg.apiKey}`,
     },
-    body: JSON.stringify({ model: cfg.model, messages, temperature, max_tokens: maxTokens }),
+    body: JSON.stringify({
+      model: cfg.model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      // DeepSeek V4: desliga thinking mode (senão temperature é ignorado e a
+      // cadeia de raciocínio consome o max_tokens antes da resposta).
+      ...providerExtras(cfg.provider),
+    }),
   });
-  if (!res.ok) throw new Error(`(${res.status}) ${parseError(await res.text())}`);
+  if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? '';
 }
@@ -186,7 +173,7 @@ async function callAnthropic(
       temperature,
     }),
   });
-  if (!res.ok) throw new Error(`(${res.status}) ${parseError(await res.text())}`);
+  if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
   return data.content?.[0]?.text ?? '';
 }
@@ -218,7 +205,7 @@ async function callGoogle(
       }),
     }
   );
-  if (!res.ok) throw new Error(`(${res.status}) ${parseError(await res.text())}`);
+  if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }

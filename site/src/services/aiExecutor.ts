@@ -241,8 +241,8 @@ export const PROVIDERS: ProviderInfo[] = [
     id: 'deepseek',
     label: 'DeepSeek',
     emoji: '🐳',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
-    defaultModel: 'deepseek-chat',
+    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+    defaultModel: 'deepseek-v4-flash',
     keyUrl: 'https://platform.deepseek.com/api_keys',
   },
   {

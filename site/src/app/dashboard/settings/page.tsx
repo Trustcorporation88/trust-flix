@@ -40,7 +40,7 @@ const defaultBrand: BrandSettings = {
 
 function defaultBaseUrl(id: AIProvider): string {
   if (id === 'openai') return 'https://api.openai.com/v1';
-  if (id === 'deepseek') return 'https://api.deepseek.com/v1';
+  if (id === 'deepseek') return 'https://api.deepseek.com';
   if (id === 'groq') return 'https://api.groq.com/openai/v1';
   if (id === 'mistral') return 'https://api.mistral.ai/v1';
   if (id === 'openrouter') return 'https://openrouter.ai/api/v1';
