@@ -6,9 +6,8 @@ import {
   buildFinalSystemPrompt,
   buildRoutingCatalog,
   fallbackRoute,
-  getSkillById,
-  getAgentSystemPrompt,
   parseRouteDecision,
+  resolveRoute,
   routeByKeyword,
   RouteDecision,
 } from '@/lib/copilotRouter';
@@ -71,6 +70,11 @@ interface RequestBody {
   history?: ChatMessage[];
   /** Força uma rota específica (ex: 'skill:reels' quando o usuário clica num atalho). */
   forceRoute?: string;
+  /**
+   * Rota usada na resposta anterior (ex: 'skill:post'). Serve para manter o
+   * mesmo especialista quando a mensagem é só um ajuste do resultado.
+   */
+  lastRoute?: string;
   /** Foto anexada — usada para montar o post. */
   image?: ImageInput;
   /** BYOK opcional */
@@ -342,32 +346,7 @@ async function callLLM(
 
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
 function resolveForcedRoute(forceRoute: string): RouteDecision | null {
-  const [kind, id] = forceRoute.split(':');
-  if (kind === 'skill') {
-    const skill = getSkillById(id);
-    if (!skill) return null;
-    return {
-      kind: 'skill',
-      id: skill.id,
-      name: skill.name,
-      emoji: skill.emoji,
-      via: 'keyword',
-      systemPrompt: skill.systemPrompt,
-    };
-  }
-  if (kind === 'agent') {
-    const agent = ARSENAL_AGENTS.find((a) => a.id === id);
-    if (!agent) return null;
-    return {
-      kind: 'agent',
-      id: agent.id,
-      name: agent.name,
-      emoji: agent.emoji || '🤖',
-      via: 'keyword',
-      systemPrompt: getAgentSystemPrompt(agent),
-    };
-  }
-  return null;
+  return resolveRoute(forceRoute, 'keyword');
 }
 
 /** Camada 2 — classificador LLM. Silencioso: qualquer falha cai no fallback. */
@@ -444,7 +423,7 @@ export async function POST(request: NextRequest) {
     let decision: RouteDecision | null = null;
 
     if (body.forceRoute) decision = resolveForcedRoute(body.forceRoute);
-    if (!decision) decision = routeByKeyword(message, Boolean(image));
+    if (!decision) decision = routeByKeyword(message, Boolean(image), body.lastRoute);
     if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
 

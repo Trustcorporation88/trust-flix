@@ -5,6 +5,20 @@
 import { routeByKeyword, buildRoutingCatalog, COPILOT_SKILLS } from '../src/lib/copilotRouter';
 import { REELS_FORMATS, buildReelsContext } from '../src/lib/reelsPlaybook';
 import { ARSENAL_AGENTS } from '../src/services/arsenalService';
+import { stripMarkdown, extractCaption, extractTikTokTitle } from '../src/lib/textClean';
+
+/** Helper de asserção booleana usado nas seções novas. */
+function checkTrue2(label: string, cond: boolean) {
+  if (cond) {
+    pass++;
+    console.log(`  ✅ ${label}`);
+  } else {
+    fail++;
+    const msg = `  ❌ ${label}`;
+    failures.push(msg);
+    console.log(msg);
+  }
+}
 
 interface Case {
   input: string;
@@ -107,6 +121,116 @@ if (reelsWithImage?.id === 'reels') {
   failures.push(msg);
   console.log(msg);
 }
+
+console.log('\n─── Continuidade em pedidos de ajuste ───');
+// Caso real reportado: o usuario pediu "refaz com CTA só de direct e inclui
+// hashtag da minha cidade" enquanto montava um post. A palavra "direct" batia na
+// regra do agente UGLY COPY e sequestrava o roteamento, perdendo titulo de
+// TikTok e formato sugerido.
+const refinamentos: { input: string; note: string }[] = [
+  { input: 'refaz com CTA só de direct e inclui hashtag da minha cidade', note: 'caso reportado' },
+  { input: 'ajusta pra ficar mais curto', note: 'ajuste simples' },
+  { input: 'troca o CTA por whatsapp', note: 'palavra whatsapp nao sequestra' },
+  { input: 'tira os emojis, só que mantém o gancho', note: 'remocao' },
+  { input: 'faz outra versão dessa legenda', note: 'nova versao' },
+];
+for (const c of refinamentos) {
+  const r = routeByKeyword(c.input, false, 'skill:post');
+  const ok = r?.kind === 'skill' && r.id === 'post';
+  if (ok) {
+    pass++;
+    console.log(`  ✅ "${c.input}" → mantém skill:post (${c.note})`);
+  } else {
+    fail++;
+    const msg = `  ❌ "${c.input}" deveria manter skill:post, foi para ${r?.kind}:${r?.id}`;
+    failures.push(msg);
+    console.log(msg);
+  }
+}
+
+// Sem contexto anterior, "direct" DEVE ir para o agente de mensagem direta.
+const semContexto = routeByKeyword('preciso de copy pra mandar no direct', false);
+if (semContexto?.kind === 'agent' && semContexto.id === 'ugly-copy') {
+  pass++;
+  console.log('  ✅ "copy pra mandar no direct" SEM contexto → agent:ugly-copy (correto)');
+} else {
+  fail++;
+  const msg = `  ❌ sem contexto, "direct" deveria ir a agent:ugly-copy, foi para ${semContexto?.kind}:${semContexto?.id}`;
+  failures.push(msg);
+  console.log(msg);
+}
+
+// Pedido NOVO (nao ajuste) deve poder trocar de especialista mesmo com lastRoute.
+const trocaDeAssunto = routeByKeyword('como estruturar meu preço e oferta', false, 'skill:post');
+if (trocaDeAssunto?.kind === 'agent' && trocaDeAssunto.id === '100m-models') {
+  pass++;
+  console.log('  ✅ assunto novo troca de especialista mesmo com lastRoute');
+} else {
+  fail++;
+  const msg = `  ❌ assunto novo deveria ir a agent:100m-models, foi para ${trocaDeAssunto?.kind}:${trocaDeAssunto?.id}`;
+  failures.push(msg);
+  console.log(msg);
+}
+
+console.log('\n─── Limpeza de markdown (Instagram nao renderiza) ───');
+const casosMd: { input: string; esperado: string; note: string }[] = [
+  {
+    input: 'Quer garantir a sua? **Chama no direct e faça sua encomenda.**',
+    esperado: 'Quer garantir a sua? Chama no direct e faça sua encomenda.',
+    note: 'caso reportado',
+  },
+  { input: 'Texto com *itálico* aqui', esperado: 'Texto com itálico aqui', note: 'itálico' },
+  { input: '## Título', esperado: 'Título', note: 'heading' },
+  { input: '- item um\n- item dois', esperado: '• item um\n• item dois', note: 'bullets' },
+  { input: 'use `codigo` assim', esperado: 'use codigo assim', note: 'código' },
+  {
+    input: 'veja [aqui](https://x.com)',
+    esperado: 'veja aqui (https://x.com)',
+    note: 'link',
+  },
+  { input: 'preço 10 * 2 reais', esperado: 'preço 10 * 2 reais', note: 'asterisco solto preservado' },
+];
+for (const c of casosMd) {
+  const got = stripMarkdown(c.input);
+  if (got === c.esperado) {
+    pass++;
+    console.log(`  ✅ ${c.note}`);
+  } else {
+    fail++;
+    const msg = `  ❌ ${c.note}: esperado ${JSON.stringify(c.esperado)}, obtido ${JSON.stringify(got)}`;
+    failures.push(msg);
+    console.log(msg);
+  }
+}
+
+console.log('\n─── Extração das seções do post ───');
+const respostaPost = `**Legenda:**
+
+Uma caixa dessas não se divide. Se disputa. 🤎
+
+Brigadeiros gourmet para presentear.
+
+**Título TikTok:**
+
+A caixa de brigadeiros que todo mundo queria ganhar
+
+**Hashtags:**
+
+#BrigadeiroGourmet #Brigaderia #DocesBauru
+
+**Formato sugerido:**
+
+Post único — a caixa aberta cria impacto imediato.`;
+
+const cap = extractCaption(respostaPost);
+checkTrue2('legenda extraida sem os rotulos', !cap.includes('Legenda:') && !cap.includes('Formato'));
+checkTrue2('legenda mantem o gancho', cap.includes('não se divide'));
+checkTrue2('hashtags anexadas a legenda', cap.includes('#BrigadeiroGourmet'));
+checkTrue2('titulo de TikTok fora da legenda', !cap.includes('todo mundo queria ganhar'));
+const tt = extractTikTokTitle(respostaPost);
+checkTrue2('titulo de TikTok extraido', tt === 'A caixa de brigadeiros que todo mundo queria ganhar');
+checkTrue2('titulo respeita 90 caracteres', (tt?.length ?? 0) <= 90);
+checkTrue2('sem asteriscos residuais na legenda', !cap.includes('**'));
 
 console.log('\n─── Integridade do catálogo ───');
 console.log(`Skills registradas: ${COPILOT_SKILLS.length}`);

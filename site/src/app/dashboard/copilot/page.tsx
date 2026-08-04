@@ -24,6 +24,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, aspectLabel, PreparedImage } from '@/lib/imagePrep';
+import { stripMarkdown, extractCaption, extractTikTokTitle } from '@/lib/textClean';
 import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
 import { supportsVision } from '@/lib/aiProviders';
 
@@ -262,6 +263,12 @@ export default function CopilotPage() {
         .map((m) => ({ role: m.role, content: m.content }));
 
       const sentMedia = attachment?.media ? [attachment.media] : undefined;
+      // Rota da última resposta: mantém o mesmo especialista quando a mensagem
+      // é um ajuste (senão uma palavra como "direct" muda de agente no meio).
+      const lastRoute = [...messages]
+        .reverse()
+        .find((m) => m.role === 'assistant' && m.route)?.route;
+      const lastRouteId = lastRoute ? `${lastRoute.kind}:${lastRoute.id}` : undefined;
       const sentImage = attachment
         ? {
             dataUrl: attachment.prepared.dataUrl,
@@ -283,6 +290,7 @@ export default function CopilotPage() {
             message: content,
             history,
             forceRoute,
+            lastRoute: lastRouteId,
             image: sentImage,
             nicho: nicho.trim() || undefined,
             // Se o usuário configurou a própria chave em Configurações, ela tem
@@ -360,14 +368,22 @@ export default function CopilotPage() {
   };
 
   const copy = (text: string) => {
-    navigator.clipboard.writeText(text);
+    // Remove markdown: o destino é Instagram/TikTok, que não renderizam.
+    navigator.clipboard.writeText(stripMarkdown(text));
     toast.success('Copiado');
   };
 
   const sendToStudio = (m: Message) => {
-    saveContentDraft({ caption: m.content, media: m.media, source: 'copilot' });
+    saveContentDraft({
+      caption: extractCaption(m.content),
+      tiktokTitle: extractTikTokTitle(m.content),
+      media: m.media,
+      source: 'copilot',
+    });
     toast.success(
-      m.media?.length ? 'Legenda + foto enviadas ao Content Studio' : 'Legenda enviada ao Content Studio'
+      m.media?.length
+        ? 'Legenda + foto enviadas ao Content Studio'
+        : 'Legenda enviada ao Content Studio'
     );
   };
 

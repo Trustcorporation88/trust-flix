@@ -42,7 +42,10 @@ const BASE_VOICE =
   'Você é o Copilot do SocialFlow, especialista em conteúdo para Instagram e TikTok. ' +
   'Responda em português do Brasil, direto ao ponto, sem enrolação e sem repetir a pergunta. ' +
   'Prefira listas curtas e exemplos concretos a explicações longas. ' +
-  'Quando entregar texto pronto para postar, deixe-o isolado para facilitar a cópia.';
+  'Quando entregar texto pronto para postar, deixe-o isolado para facilitar a cópia. ' +
+  'NUNCA use markdown dentro do texto que vai ser publicado (nada de **negrito**, *itálico*, ' +
+  '# títulos ou `código`): Instagram e TikTok não renderizam markdown, então os asteriscos ' +
+  'apareceriam literalmente no post. Para dar ênfase, use MAIÚSCULAS ou emoji.';
 
 export const COPILOT_SKILLS: CopilotSkill[] = [
   {
@@ -241,6 +244,93 @@ function normalize(text: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+/**
+ * Palavras que indicam AJUSTE de uma resposta anterior, não um pedido novo.
+ *
+ * Existe porque um refinamento costuma citar termos que batem em regras de
+ * agente e sequestram o roteamento. Caso real: "refaz com CTA só de direct"
+ * caía no agente UGLY COPY (palavra-chave "direct"), abandonando a montagem do
+ * post — o usuário perdia título de TikTok e formato sugerido.
+ */
+const REFINEMENT_HINTS = [
+  'refaz',
+  'refaça',
+  'refazer',
+  'ajusta',
+  'ajuste',
+  'ajustar',
+  'muda',
+  'mude',
+  'mudar',
+  'troca',
+  'troque',
+  'trocar',
+  'inclui',
+  'incluir',
+  'inclua',
+  'adiciona',
+  'adicione',
+  'adicionar',
+  'tira',
+  'tire',
+  'tirar',
+  'remove',
+  'remova',
+  'sem o',
+  'sem a',
+  'mais curto',
+  'mais curta',
+  'mais longo',
+  'menos',
+  'de novo',
+  'outra versao',
+  'outra versão',
+  'igual mas',
+  'mesma coisa',
+  'melhora isso',
+  'so que',
+  'só que',
+];
+
+/**
+ * Resolve um identificador 'skill:x' ou 'agent:y' em RouteDecision.
+ * Compartilhado entre rota forçada (atalhos da UI) e continuidade de contexto.
+ */
+export function resolveRoute(route: string, via: RouteDecision['via']): RouteDecision | null {
+  const [kind, id] = (route || '').split(':');
+  if (kind === 'skill') {
+    const skill = getSkillById(id);
+    if (!skill) return null;
+    return {
+      kind: 'skill',
+      id: skill.id,
+      name: skill.name,
+      emoji: skill.emoji,
+      via,
+      systemPrompt: skill.systemPrompt,
+    };
+  }
+  if (kind === 'agent') {
+    const agent = ARSENAL_AGENTS.find((a) => a.id === id);
+    if (!agent) return null;
+    return {
+      kind: 'agent',
+      id: agent.id,
+      name: agent.name,
+      emoji: agent.emoji || '🤖',
+      via,
+      systemPrompt: getAgentSystemPrompt(agent),
+    };
+  }
+  return null;
+}
+
+/** A mensagem é um ajuste do que já foi respondido? */
+export function isRefinement(message: string): boolean {
+  const text = normalize(message);
+  return REFINEMENT_HINTS.some((h) => text.includes(normalize(h)));
+}
+
 export function getSkillById(id: string): CopilotSkill | undefined {
   return COPILOT_SKILLS.find((s) => s.id === id);
 }
@@ -258,9 +348,23 @@ export function getAgentSystemPrompt(agent: Agent): string {
  *
  * `hasImage` desempata: com foto anexada, um pedido vago como "monta aí" ou
  * "escreve algo" quase sempre significa montar o post daquela imagem.
+ *
+ * `lastRoute` mantém a continuidade: se a mensagem é um ajuste do que acabou de
+ * ser respondido, permanece no mesmo especialista em vez de pular para outro por
+ * causa de uma palavra solta.
  */
-export function routeByKeyword(message: string, hasImage = false): RouteDecision | null {
+export function routeByKeyword(
+  message: string,
+  hasImage = false,
+  lastRoute?: string
+): RouteDecision | null {
   const text = normalize(message);
+
+  // Ajuste de resposta anterior: preserva o especialista que já estava atuando.
+  if (lastRoute && isRefinement(message)) {
+    const kept = resolveRoute(lastRoute, 'keyword');
+    if (kept) return kept;
+  }
 
   // Agentes têm prioridade quando o assunto é claramente estratégia/oferta,
   // porque são mais especializados que as skills genéricas.
