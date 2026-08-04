@@ -40,6 +40,7 @@ interface CopilotStatus {
   configured: boolean;
   provider: string | null;
   model: string | null;
+  modelMigratedFrom: string | null;
   agentCount: number;
 }
 
@@ -126,6 +127,7 @@ export default function CopilotPage() {
             configured: Boolean(data.configured),
             provider: data.provider,
             model: data.model,
+            modelMigratedFrom: data.modelMigratedFrom ?? null,
             agentCount: data.agentCount ?? 0,
           });
         }
@@ -453,6 +455,13 @@ export default function CopilotPage() {
                     <>
                       <p className="font-semibold text-ink-950">{status.provider}</p>
                       <p className="text-xs text-ink-950/50">{status.model}</p>
+                      {status.modelMigratedFrom && (
+                        <p className="mt-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-800">
+                          <span className="font-semibold">{status.modelMigratedFrom}</span> foi
+                          descontinuado — migrado automaticamente. Atualize a variável na Vercel para{' '}
+                          <span className="font-semibold">{status.model}</span>.
+                        </p>
+                      )}
                     </>
                   ) : (
                     <p className="text-ink-950/60">Chave não configurada</p>

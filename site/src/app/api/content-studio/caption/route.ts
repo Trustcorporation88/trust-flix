@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
-import { extrasForEndpoint } from '@/lib/aiProviders';
+import { extrasForEndpoint, normalizeModel } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
     const body: RequestBody = await request.json();
     const provider = (process.env.CONTENT_STUDIO_AI_PROVIDER || 'deepseek') as Provider;
     const apiKey = process.env.CONTENT_STUDIO_AI_API_KEY as string;
-    const model = process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-v4-flash';
+    // Migra nomes de modelo descontinuados que possam estar fixados na env var.
+    const model = normalizeModel(process.env.CONTENT_STUDIO_AI_MODEL || 'deepseek-v4-flash').model;
     const baseUrl = process.env.CONTENT_STUDIO_AI_BASE_URL;
 
     const platforms = (body.platforms || ['instagram', 'tiktok']).map((p) => p.toLowerCase());

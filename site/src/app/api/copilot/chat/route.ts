@@ -16,6 +16,7 @@ import { ARSENAL_AGENTS } from '@/services/arsenalService';
 import {
   DEFAULT_MODEL,
   OPENAI_COMPATIBLE_BASE,
+  normalizeModel,
   parseProviderError,
   providerExtras,
 } from '@/lib/aiProviders';
@@ -71,43 +72,63 @@ interface AIConfig {
   baseUrl?: string;
   /** true quando a chave é do próprio cliente (BYOK) */
   byok: boolean;
+  /** Nome legado que foi migrado, quando aplicável (ex: 'deepseek-chat'). */
+  migratedFrom?: string;
+  /** Thinking mode herdado do nome legado (ex: 'deepseek-reasoner'). */
+  thinking?: boolean;
+}
+
+/**
+ * Aplica a migração de modelos descontinuados antes de a config ser usada.
+ * Protege contra nome legado vindo de env var antiga na Vercel ou de config
+ * BYOK salva no navegador do usuário — lugares que um deploy não alcança.
+ */
+function finalize(cfg: AIConfig): AIConfig {
+  const n = normalizeModel(cfg.model);
+  if (!n.migrated) return cfg;
+  return {
+    ...cfg,
+    model: n.model,
+    migratedFrom: n.original,
+    thinking: n.thinking,
+  };
 }
 
 function resolveConfig(body: RequestBody): AIConfig | null {
   // 1. BYOK
   if (body.apiKey) {
     const provider = (body.provider || 'openai') as Provider;
-    return {
+    return finalize({
       provider,
       apiKey: body.apiKey,
       model: body.model || DEFAULT_MODEL[provider] || 'gpt-4o-mini',
       baseUrl: body.baseUrl,
       byok: true,
-    };
+    });
   }
 
   // 2. Chave dedicada do Copilot
   if (process.env.COPILOT_AI_API_KEY) {
     const provider = (process.env.COPILOT_AI_PROVIDER || 'deepseek') as Provider;
-    return {
+    return finalize({
       provider,
       apiKey: process.env.COPILOT_AI_API_KEY,
       model: process.env.COPILOT_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
       baseUrl: process.env.COPILOT_AI_BASE_URL,
       byok: false,
-    };
+    });
   }
 
   // 3. Reaproveita a chave do Content Studio
   if (process.env.CONTENT_STUDIO_AI_API_KEY) {
     const provider = (process.env.CONTENT_STUDIO_AI_PROVIDER || 'deepseek') as Provider;
-    return {
+    return finalize({
       provider,
       apiKey: process.env.CONTENT_STUDIO_AI_API_KEY,
       model: process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
       baseUrl: process.env.CONTENT_STUDIO_AI_BASE_URL,
       byok: false,
-    };
+    });
   }
 
   return null;
@@ -123,7 +144,8 @@ async function callOpenAICompatible(
   cfg: AIConfig,
   messages: LLMMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  thinking: boolean
 ): Promise<string> {
   const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -136,9 +158,9 @@ async function callOpenAICompatible(
       messages,
       temperature,
       max_tokens: maxTokens,
-      // DeepSeek V4: desliga thinking mode (senão temperature é ignorado e a
-      // cadeia de raciocínio consome o max_tokens antes da resposta).
-      ...providerExtras(cfg.provider),
+      // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
+      // ser ignorado e consome o max_tokens antes de gerar a resposta.
+      ...providerExtras(cfg.provider, { thinking }),
     }),
   });
   if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
@@ -213,10 +235,14 @@ async function callGoogle(
 async function callLLM(
   cfg: AIConfig,
   messages: LLMMessage[],
-  opts: { maxTokens?: number; temperature?: number } = {}
+  opts: { maxTokens?: number; temperature?: number; thinking?: boolean } = {}
 ): Promise<string> {
   const maxTokens = opts.maxTokens ?? 1600;
   const temperature = opts.temperature ?? 0.7;
+  // Só liga thinking se quem chamou permitir E a config pedir (nome legado
+  // 'deepseek-reasoner'). O roteador passa thinking:false para garantir
+  // classificação determinística dentro de um orçamento pequeno de tokens.
+  const thinking = (opts.thinking ?? true) && Boolean(cfg.thinking);
 
   if (cfg.provider === 'anthropic') return callAnthropic(cfg, messages, maxTokens, temperature);
   if (cfg.provider === 'google') return callGoogle(cfg, messages, maxTokens, temperature);
@@ -227,7 +253,7 @@ async function callLLM(
       `Provider "${cfg.provider}" não suportado ou baseUrl ausente para provider custom.`
     );
   }
-  return callOpenAICompatible(base, cfg, messages, maxTokens, temperature);
+  return callOpenAICompatible(base, cfg, messages, maxTokens, temperature, thinking);
 }
 
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
@@ -269,7 +295,7 @@ async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision
         { role: 'system', content: `${ROUTER_SYSTEM_PROMPT}\n\n${buildRoutingCatalog()}` },
         { role: 'user', content: message },
       ],
-      { maxTokens: 150, temperature: 0 }
+      { maxTokens: 150, temperature: 0, thinking: false }
     );
     return parseRouteDecision(raw);
   } catch {
@@ -350,6 +376,7 @@ export async function POST(request: NextRequest) {
       },
       provider: cfg.provider,
       model: cfg.model,
+      modelMigratedFrom: cfg.migratedFrom,
       byok: cfg.byok,
       duration: Date.now() - startedAt,
     });
@@ -370,6 +397,7 @@ export async function GET(request: NextRequest) {
     configured: Boolean(cfg),
     provider: cfg?.provider ?? null,
     model: cfg?.model ?? null,
+    modelMigratedFrom: cfg?.migratedFrom ?? null,
     skills: COPILOT_SKILLS.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji })),
     agentCount: ARSENAL_AGENTS.length,
   });

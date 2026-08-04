@@ -92,6 +92,46 @@ export function extrasForEndpoint(
   return {};
 }
 
+/**
+ * Modelos descontinuados → substituto vigente.
+ *
+ * Existe porque um nome de modelo pode estar fixado em lugares que o deploy não
+ * alcança: variável de ambiente antiga na Vercel, config BYOK salva no
+ * localStorage do usuário, ou payload de integração externa. Sem esta migração,
+ * o retorno seria um erro cru da API ("Model Not Exist") sem pista da causa.
+ *
+ * `thinking` preserva a intenção do nome antigo: `deepseek-reasoner` existia
+ * justamente para raciocinar, então ele mantém o thinking mode ligado.
+ */
+export const LEGACY_MODEL_MAP: Record<string, { model: string; thinking: boolean }> = {
+  // Descontinuados pela DeepSeek em 2026-07-24.
+  'deepseek-chat': { model: 'deepseek-v4-flash', thinking: false },
+  'deepseek-reasoner': { model: 'deepseek-v4-flash', thinking: true },
+};
+
+export interface NormalizedModel {
+  model: string;
+  /** true quando o nome legado implicava raciocínio longo. */
+  thinking: boolean;
+  /** true quando houve substituição — útil para log/diagnóstico. */
+  migrated: boolean;
+  /** Nome original, quando migrado. */
+  original?: string;
+}
+
+/**
+ * Traduz um nome de modelo descontinuado para o vigente.
+ * Nomes desconhecidos passam intactos (pode ser um modelo novo que ainda não mapeamos).
+ */
+export function normalizeModel(model: string): NormalizedModel {
+  const key = (model || '').trim().toLowerCase();
+  const hit = LEGACY_MODEL_MAP[key];
+  if (hit) {
+    return { model: hit.model, thinking: hit.thinking, migrated: true, original: model };
+  }
+  return { model, thinking: false, migrated: false };
+}
+
 /** Resolve o base URL de um provedor OpenAI-compatible. */
 export function resolveBaseUrl(provider: string, customBaseUrl?: string): string | undefined {
   if (provider === 'custom') return customBaseUrl;

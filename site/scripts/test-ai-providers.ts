@@ -8,6 +8,7 @@ import {
   PROVIDER_MODELS,
   providerExtras,
   extrasForEndpoint,
+  normalizeModel,
   resolveBaseUrl,
 } from '../src/lib/aiProviders';
 
@@ -91,6 +92,42 @@ checkTrue(
   'com thinking desligado, os 150 tokens ficam para a resposta',
   JSON.stringify(routerBody).includes('"type":"disabled"')
 );
+
+console.log('\n─── Migração de modelos descontinuados ───');
+check(
+  'deepseek-chat migra para v4-flash sem thinking',
+  normalizeModel('deepseek-chat'),
+  { model: 'deepseek-v4-flash', thinking: false, migrated: true, original: 'deepseek-chat' }
+);
+check(
+  'deepseek-reasoner migra para v4-flash COM thinking (preserva a intenção)',
+  normalizeModel('deepseek-reasoner'),
+  { model: 'deepseek-v4-flash', thinking: true, migrated: true, original: 'deepseek-reasoner' }
+);
+check(
+  'modelo vigente passa intacto',
+  normalizeModel('deepseek-v4-pro'),
+  { model: 'deepseek-v4-pro', thinking: false, migrated: false }
+);
+check(
+  'modelo de outro provedor passa intacto',
+  normalizeModel('gpt-4o-mini'),
+  { model: 'gpt-4o-mini', thinking: false, migrated: false }
+);
+check(
+  'migração é case-insensitive e tolera espaços',
+  normalizeModel('  DeepSeek-Chat  ').model,
+  'deepseek-v4-flash'
+);
+checkTrue('modelo vazio não quebra', normalizeModel('').migrated === false);
+
+console.log('\n─── Cenário real: env var antiga na Vercel ───');
+// Reproduz exatamente o que o screenshot do usuário mostrou:
+// CONTENT_STUDIO_AI_MODEL=deepseek-chat fixado no ambiente.
+const envModel = 'deepseek-chat';
+const resolved = normalizeModel(envModel || DEFAULT_MODEL.deepseek);
+check('env var antiga é curada em runtime', resolved.model, 'deepseek-v4-flash');
+checkTrue('e sinaliza que houve migração', resolved.migrated);
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

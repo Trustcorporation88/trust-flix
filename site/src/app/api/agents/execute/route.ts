@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
-import { extrasForEndpoint } from '@/lib/aiProviders';
+import { extrasForEndpoint, normalizeModel } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,8 @@ interface ExecuteBody {
   temperature?: number;
   maxTokens?: number;
   baseUrl?: string;
+  /** Definido internamente ao migrar um nome de modelo legado (ex: deepseek-reasoner). */
+  thinking?: boolean;
 }
 
 const OPENAI_COMPATIBLE_BASE: Record<string, string> = {
@@ -57,7 +59,7 @@ async function callOpenAICompatible(
       max_tokens: body.maxTokens ?? 2000,
       // DeepSeek V4 liga thinking mode por padrão, o que ignora temperature e
       // consome o max_tokens antes da resposta. Desliga quando o alvo é DeepSeek.
-      ...extrasForEndpoint(base),
+      ...extrasForEndpoint(base, { thinking: body.thinking }),
     }),
   });
 
@@ -155,6 +157,13 @@ export async function POST(req: NextRequest) {
   if (!body.model) {
     return NextResponse.json({ error: 'Modelo não informado.' }, { status: 400 });
   }
+
+  // O modelo aqui vem da config BYOK salva no navegador do usuário, que pode
+  // conter um nome descontinuado (ex: 'deepseek-chat'). Migra antes de chamar
+  // a API — caso contrário o usuário receberia um "Model Not Exist" cru.
+  const normalized = normalizeModel(body.model);
+  body.model = normalized.model;
+  body.thinking = normalized.thinking;
 
   const messages: AgentMessage[] = [
     { role: 'system', content: body.systemPrompt || '' },

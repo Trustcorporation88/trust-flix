@@ -10,6 +10,8 @@
  * Provedores com formato próprio: anthropic (Claude) e google (Gemini).
  */
 
+import { normalizeModel } from '@/lib/aiProviders';
+
 export type AIProvider =
   | 'openai'
   | 'deepseek'
@@ -64,6 +66,14 @@ class AIExecutor {
       if (raw) {
         const parsed = JSON.parse(raw) as AIExecutorConfig;
         if (parsed && parsed.provider && parsed.apiKey && parsed.model) {
+          // Config salva antes de 2026-07-24 pode apontar para um modelo
+          // descontinuado. Migra e reescreve o storage para que a tela de
+          // Configurações pare de exibir um modelo que não existe mais.
+          const migrated = normalizeModel(parsed.model);
+          if (migrated.migrated) {
+            parsed.model = migrated.model;
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          }
           this.config = parsed;
         }
       }
