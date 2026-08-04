@@ -24,7 +24,10 @@ interface HubStatus {
   igAccounts: number;
   ttAccounts: number;
   agentRuns: number;
+  /** Chave própria do usuário, salva em Configurações (localStorage). */
   aiConfigured: boolean;
+  /** Chave de IA do servidor (variáveis da Vercel) — atende Copilot e Content Studio. */
+  serverAiConfigured: boolean;
 }
 
 const steps = [
@@ -59,6 +62,7 @@ export default function DashboardPage() {
     ttAccounts: 0,
     agentRuns: 0,
     aiConfigured: false,
+    serverAiConfigured: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -73,6 +77,17 @@ export default function DashboardPage() {
       let accounts = 0;
       let igAccounts = 0;
       let ttAccounts = 0;
+      let serverAiConfigured = false;
+
+      // A chave do servidor atende Copilot e Content Studio mesmo sem BYOK —
+      // sem isso o card diria "Sem API key" enquanto o Copilot funciona normal.
+      try {
+        const aiRes = await authFetch('/api/copilot/chat');
+        const aiJson = await aiRes.json();
+        serverAiConfigured = aiJson?.configured === true;
+      } catch {
+        // silencioso
+      }
 
       try {
         const res = await authFetch('/api/content-studio/accounts');
@@ -91,7 +106,15 @@ export default function DashboardPage() {
       }
 
       if (!cancelled) {
-        setStatus({ postizConfigured, accounts, igAccounts, ttAccounts, agentRuns, aiConfigured });
+        setStatus({
+          postizConfigured,
+          accounts,
+          igAccounts,
+          ttAccounts,
+          agentRuns,
+          aiConfigured,
+          serverAiConfigured,
+        });
         setLoading(false);
       }
     }
@@ -121,9 +144,17 @@ export default function DashboardPage() {
           ok={status.ttAccounts > 0}
         />
         <StatusCard
-          label="IA (Agentes)"
-          value={loading ? '…' : status.aiConfigured ? 'Configurada' : 'Sem API key'}
-          ok={status.aiConfigured}
+          label="IA"
+          value={
+            loading
+              ? '…'
+              : status.aiConfigured
+                ? 'Sua chave'
+                : status.serverAiConfigured
+                  ? 'Chave do servidor'
+                  : 'Sem API key'
+          }
+          ok={status.aiConfigured || status.serverAiConfigured}
         />
         <StatusCard
           label="Execuções salvas"
@@ -133,7 +164,35 @@ export default function DashboardPage() {
       </div>
 
       <div className="mb-8 rounded-xl border border-ink-950/10 bg-white p-6">
-        <h2 className="font-display text-xl font-bold text-ink-950">Fluxo recomendado (sem post ainda)</h2>
+        <Link
+          href="/dashboard/copilot"
+          className="group mb-6 flex items-start gap-4 rounded-xl border border-signal-500/30 bg-signal-500/[0.04] p-5 transition-all hover:border-signal-500/60 hover:bg-signal-500/[0.07]"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-signal-500/10 text-xl">
+            🖼️
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-display text-lg font-bold text-ink-950">
+                Caminho rápido: Copilot
+              </h3>
+              <span className="rounded-full bg-signal-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-signal-700">
+                mais rápido
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-ink-950/60">
+              Anexe a foto, peça &quot;monta um post&quot; e receba legenda, título de TikTok,
+              hashtags e formato — pronto para agendar. Pule as três etapas abaixo.
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-signal-600 group-hover:text-signal-700">
+              Abrir Copilot <FiArrowRight />
+            </span>
+          </div>
+        </Link>
+
+        <h2 className="font-display text-xl font-bold text-ink-950">
+          Fluxo completo (quando quiser controlar cada etapa)
+        </h2>
         <p className="mt-2 text-sm text-ink-950/60">
           Use os agentes para estruturar oferta e copy, crie o visual no Creator e publique no Content
           Studio quando tiver mídia.
