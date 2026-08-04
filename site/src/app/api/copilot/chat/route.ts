@@ -183,6 +183,28 @@ function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | 
   return { mediaType: match[1], base64: match[2] };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Extrai "try again in Xs" de erros 429 da OpenAI. */
+function parseRetryAfterMs(errorText: string, fallbackMs = 35000): number {
+  const m = /try again in\s+([0-9]+(?:\.[0-9]+)?)s/i.exec(errorText);
+  if (!m) return fallbackMs;
+  return Math.min(90000, Math.ceil(parseFloat(m[1]) * 1000) + 800);
+}
+
+/** Mensagem curta e acionável quando a conta bate no TPM. */
+function formatRateLimitError(raw: string): string {
+  const wait = /try again in\s+([0-9]+(?:\.[0-9]+)?)s/i.exec(raw);
+  const secs = wait ? Math.ceil(parseFloat(wait[1])) : 30;
+  return (
+    `A OpenAI atingiu o limite de tokens por minuto no modelo de busca (gpt-5-search-api). ` +
+    `Espere ~${secs}s e tente de novo. ` +
+    `Dica: peça 1 nicho por vez e evite várias buscas seguidas.`
+  );
+}
+
 async function callOpenAICompatible(
   base: string,
   cfg: AIConfig,
@@ -216,30 +238,54 @@ async function callOpenAICompatible(
   // Responses API). Esse modelo sempre pesquisa antes de responder.
   const model = webSearch?.model || cfg.model;
 
-  const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cfg.apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: payloadMessages,
-      // GPT-5.x / série o* usam `max_completion_tokens` e rejeitam `temperature`.
-      ...buildSamplingParams(cfg.provider, model, { maxTokens, temperature }),
-      // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
-      // ser ignorado e consome o max_tokens antes de gerar a resposta.
-      ...providerExtras(cfg.provider, { thinking }),
-      ...(webSearch ? { web_search_options: webSearch.options } : {}),
-    }),
+  const body = JSON.stringify({
+    model,
+    messages: payloadMessages,
+    // GPT-5.x / série o* usam `max_completion_tokens` e rejeitam `temperature`.
+    ...buildSamplingParams(cfg.provider, model, { maxTokens, temperature }),
+    // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
+    // ser ignorado e consome o max_tokens antes de gerar a resposta.
+    ...providerExtras(cfg.provider, { thinking }),
+    ...(webSearch ? { web_search_options: webSearch.options } : {}),
   });
-  if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
-  const data = await res.json();
-  const message = data.choices?.[0]?.message;
-  return {
-    content: message?.content ?? '',
-    sources: webSearch ? extractSources(message) : [],
-  };
+
+  // gpt-5-search-api estoura TPM fácil (6000). Retry 1x no 429 em vez de
+  // devolver o erro bruto da OpenAI pro usuário.
+  const maxAttempts = webSearch ? 2 : 1;
+  let lastErr = '';
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cfg.apiKey}`,
+      },
+      body,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const message = data.choices?.[0]?.message;
+      return {
+        content: message?.content ?? '',
+        sources: webSearch ? extractSources(message) : [],
+      };
+    }
+
+    const raw = await res.text();
+    const parsed = parseProviderError(raw);
+    lastErr = `(${res.status}) ${parsed}`;
+
+    if (res.status === 429 && attempt < maxAttempts) {
+      await sleep(parseRetryAfterMs(parsed));
+      continue;
+    }
+
+    if (res.status === 429) throw new Error(formatRateLimitError(parsed));
+    throw new Error(lastErr);
+  }
+
+  throw new Error(lastErr || 'Falha ao chamar o modelo');
 }
 
 async function callAnthropic(
@@ -494,14 +540,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const history = (body.history || [])
-      .filter((m) => m && typeof m.content === 'string' && m.content.trim())
-      .slice(-8) // mantém as últimas 4 trocas para não estourar contexto/custo
-      .map<LLMMessage>((m) => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
-      }));
-
     const userText = message || (image ? 'Monta um post completo com esta foto.' : '');
 
     // ── Busca na web ──────────────────────────────────────────────
@@ -511,6 +549,19 @@ export async function POST(request: NextRequest) {
     const skill = decision.kind === 'skill' ? getSkillById(decision.id) : undefined;
     const wantsWebSearch = Boolean(skill?.needsWebSearch);
     const canWebSearch = wantsWebSearch && supportsWebSearch(cfg.provider);
+
+    // Busca na web já consome milhares de tokens de contexto de pesquisa.
+    // Histórico longo + playbook + maxTokens alto estoura o TPM (6000) fácil.
+    const history = (body.history || [])
+      .filter((m) => m && typeof m.content === 'string' && m.content.trim())
+      .slice(canWebSearch ? -2 : -8)
+      .map<LLMMessage>((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content:
+          canWebSearch && m.content.length > 500
+            ? `${m.content.slice(0, 500)}…`
+            : m.content,
+      }));
 
     if (wantsWebSearch && !canWebSearch) {
       systemPrompt +=
@@ -525,21 +576,37 @@ export async function POST(request: NextRequest) {
     const webSearch = canWebSearch
       ? {
           model: WEB_SEARCH_MODEL[cfg.provider],
-          options: buildWebSearchOptions({
-            country: 'BR',
-            city: body.cidade?.trim() || undefined,
-          }),
+          // medium: menos tokens de pesquisa, menos chance de estourar TPM 6000.
+          options: buildWebSearchOptions(
+            {
+              country: 'BR',
+              city: body.cidade?.trim() || undefined,
+            },
+            'medium'
+          ),
         }
       : undefined;
 
+    // Na busca real o playbook atemporal só atrapalha (gasta TPM e puxa resposta
+    // para formatos genéricos). Mantém o prompt da skill + nicho + cidade.
+    let finalSystemPrompt = systemPrompt;
+    if (canWebSearch) {
+      finalSystemPrompt = finalSystemPrompt.replace(
+        /\n\n--- CONTEXTO DE REFERÊNCIA ---[\s\S]*$/,
+        ''
+      );
+      finalSystemPrompt +=
+        '\n\nResponda curto: no máximo 3 vídeos. Cada item em 5 linhas. Sem preâmbulo.';
+    }
+
     const { content: reply, sources } = await callLLM(
       cfg,
-      [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userText }],
+      [{ role: 'system', content: finalSystemPrompt }, ...history, { role: 'user', content: userText }],
       {
         image: canSeeImage ? image : undefined,
         webSearch,
-        // Busca traz muito contexto; dá espaço para a síntese não ser truncada.
-        ...(canWebSearch ? { maxTokens: 2600 } : {}),
+        // Saída curta = menos tokens de saída = menos TPM.
+        ...(canWebSearch ? { maxTokens: 1200 } : {}),
       }
     );
 
