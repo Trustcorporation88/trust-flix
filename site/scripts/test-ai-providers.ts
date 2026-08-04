@@ -10,6 +10,7 @@ import {
   extrasForEndpoint,
   normalizeModel,
   resolveBaseUrl,
+  supportsVision,
 } from '../src/lib/aiProviders';
 
 let pass = 0;
@@ -128,6 +129,17 @@ const envModel = 'deepseek-chat';
 const resolved = normalizeModel(envModel || DEFAULT_MODEL.deepseek);
 check('env var antiga é curada em runtime', resolved.model, 'deepseek-v4-flash');
 checkTrue('e sinaliza que houve migração', resolved.migrated);
+
+console.log('\n─── Suporte a visão (imagem) ───');
+checkTrue('DeepSeek v4-flash NAO le imagem', !supportsVision('deepseek', 'deepseek-v4-flash'));
+checkTrue('DeepSeek v4-pro NAO le imagem', !supportsVision('deepseek', 'deepseek-v4-pro'));
+checkTrue('OpenAI gpt-4o-mini le imagem', supportsVision('openai', 'gpt-4o-mini'));
+checkTrue('OpenAI gpt-4o le imagem', supportsVision('openai', 'gpt-4o'));
+checkTrue('Anthropic claude-3-5-sonnet le imagem', supportsVision('anthropic', 'claude-3-5-sonnet-20241022'));
+checkTrue('Google gemini-1.5-flash le imagem', supportsVision('google', 'gemini-1.5-flash'));
+checkTrue('Mistral large NAO le imagem', !supportsVision('mistral', 'mistral-large-latest'));
+checkTrue('provider desconhecido NAO le imagem', !supportsVision('qualquer', 'modelo-x'));
+checkTrue('deteccao é case-insensitive', supportsVision('openai', 'GPT-4O-MINI'));
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

@@ -11,12 +11,17 @@ import {
   FiCheckCircle,
   FiArrowRight,
   FiZap,
+  FiImage,
+  FiX,
+  FiEye,
+  FiEyeOff,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { authFetch } from '@/lib/auth/clientFetch';
-import { saveContentDraft } from '@/lib/contentDraft';
+import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
+import { prepareImageForVision, aspectLabel, PreparedImage } from '@/lib/imagePrep';
 
 interface RouteInfo {
   kind: 'skill' | 'agent';
@@ -34,6 +39,12 @@ interface Message {
   model?: string;
   duration?: number;
   error?: boolean;
+  /** Miniatura da foto que acompanhou a mensagem do usuário */
+  imagePreview?: string;
+  /** Mídia no Postiz, para levar ao Content Studio junto da legenda */
+  media?: DraftMedia[];
+  /** false quando havia foto mas o provedor não sabe ler imagem */
+  visionUsed?: boolean;
 }
 
 interface CopilotStatus {
@@ -41,13 +52,31 @@ interface CopilotStatus {
   provider: string | null;
   model: string | null;
   modelMigratedFrom: string | null;
+  vision: boolean;
   agentCount: number;
+}
+
+interface Attachment {
+  file: File;
+  previewUrl: string;
+  prepared: PreparedImage;
+  /** Referência no Postiz — preenchida após o upload concluir */
+  media?: DraftMedia;
+  uploading: boolean;
+  uploadFailed?: boolean;
 }
 
 const STORAGE_KEY = 'sf_copilot_thread';
 const NICHO_KEY = 'sf_copilot_nicho';
+const MAX_FILE_MB = 8;
 
 const QUICK_ACTIONS: { label: string; emoji: string; route: string; prompt: string }[] = [
+  {
+    label: 'Montar post',
+    emoji: '🖼️',
+    route: 'skill:post',
+    prompt: 'Monta um post completo com esta foto.',
+  },
   {
     label: 'Ideias de Reels',
     emoji: '🎬',
@@ -90,8 +119,11 @@ export default function CopilotPage() {
   const [nicho, setNicho] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<CopilotStatus | null>(null);
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Restaura conversa e nicho
   useEffect(() => {
@@ -105,11 +137,15 @@ export default function CopilotPage() {
     }
   }, []);
 
-  // Persiste conversa
+  // Persiste conversa (sem as miniaturas, que estourariam a cota)
   useEffect(() => {
     if (messages.length) {
       try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30)));
+        const slim = messages.slice(-30).map(({ imagePreview, ...rest }) => {
+          void imagePreview;
+          return rest;
+        });
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
       } catch {
         /* quota estourada — ignora */
       }
@@ -128,6 +164,7 @@ export default function CopilotPage() {
             provider: data.provider,
             model: data.model,
             modelMigratedFrom: data.modelMigratedFrom ?? null,
+            vision: Boolean(data.vision),
             agentCount: data.agentCount ?? 0,
           });
         }
@@ -141,16 +178,90 @@ export default function CopilotPage() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Libera a URL da miniatura ao trocar/remover anexo
+  useEffect(() => {
+    return () => {
+      if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+    };
+  }, [attachment?.previewUrl]);
+
+  /** Anexa a foto: prepara versão reduzida para a IA e sobe a original ao Postiz. */
+  const attachFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por enquanto só imagens. Para vídeo, use o Content Studio.');
+      return;
+    }
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      toast.error(`Imagem muito grande (máx ${MAX_FILE_MB}MB).`);
+      return;
+    }
+
+    let prepared: PreparedImage;
+    try {
+      prepared = await prepareImageForVision(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao ler a imagem.');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setAttachment({ file, previewUrl, prepared, uploading: true });
+
+    // Sobe a ORIGINAL para o Postiz — assim o post já sai pronto para agendar.
+    try {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const res = await authFetch('/api/content-studio/upload-media', {
+        method: 'POST',
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json?.error || 'Falha no upload');
+      setAttachment((prev) => (prev ? { ...prev, media: json.data, uploading: false } : prev));
+    } catch (err) {
+      // A legenda ainda funciona — só o agendamento direto fica indisponível.
+      setAttachment((prev) =>
+        prev ? { ...prev, uploading: false, uploadFailed: true } : prev
+      );
+      toast.error(
+        err instanceof Error
+          ? `Foto anexada, mas o envio ao Postiz falhou: ${err.message}`
+          : 'Foto anexada, mas o envio ao Postiz falhou.'
+      );
+    }
+  }, []);
+
+  const removeAttachment = () => {
+    if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const send = useCallback(
     async (text: string, forceRoute?: string) => {
       const content = text.trim();
-      if (!content || loading) return;
+      if ((!content && !attachment) || loading) return;
 
-      const userMsg: Message = { id: uid(), role: 'user', content };
+      const userMsg: Message = {
+        id: uid(),
+        role: 'user',
+        content: content || '(foto anexada)',
+        imagePreview: attachment?.previewUrl,
+      };
       const history = messages
         .filter((m) => !m.error)
         .slice(-8)
         .map((m) => ({ role: m.role, content: m.content }));
+
+      const sentMedia = attachment?.media ? [attachment.media] : undefined;
+      const sentImage = attachment
+        ? {
+            dataUrl: attachment.prepared.dataUrl,
+            name: attachment.prepared.name,
+            width: attachment.prepared.width,
+            height: attachment.prepared.height,
+          }
+        : undefined;
 
       setMessages((prev) => [...prev, userMsg]);
       setInput('');
@@ -164,6 +275,7 @@ export default function CopilotPage() {
             message: content,
             history,
             forceRoute,
+            image: sentImage,
             nicho: nicho.trim() || undefined,
           }),
         });
@@ -191,6 +303,8 @@ export default function CopilotPage() {
             route: data.route,
             model: data.model,
             duration: data.duration,
+            media: sentMedia,
+            visionUsed: data.hadImage ? Boolean(data.visionUsed) : undefined,
           },
         ]);
       } catch (err) {
@@ -205,16 +319,23 @@ export default function CopilotPage() {
         ]);
       } finally {
         setLoading(false);
+        // O anexo é consumido pela mensagem; a miniatura segue no histórico.
+        setAttachment(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [loading, messages, nicho]
+    [loading, messages, nicho, attachment]
   );
 
   const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
     if (action.route === 'skill:improve') {
-      // Precisa do texto do usuário — só preenche o campo
       setInput(action.prompt);
       textareaRef.current?.focus();
+      return;
+    }
+    if (action.route === 'skill:post' && !attachment) {
+      toast.error('Anexe uma foto primeiro no botão de imagem.');
+      fileInputRef.current?.click();
       return;
     }
     void send(action.prompt, action.route);
@@ -225,9 +346,11 @@ export default function CopilotPage() {
     toast.success('Copiado');
   };
 
-  const sendToStudio = (text: string) => {
-    saveContentDraft({ caption: text, source: 'copilot' });
-    toast.success('Enviado para o Content Studio');
+  const sendToStudio = (m: Message) => {
+    saveContentDraft({ caption: m.content, media: m.media, source: 'copilot' });
+    toast.success(
+      m.media?.length ? 'Legenda + foto enviadas ao Content Studio' : 'Legenda enviada ao Content Studio'
+    );
   };
 
   const clearThread = () => {
@@ -248,7 +371,7 @@ export default function CopilotPage() {
   return (
     <DashboardShell
       title="Copilot"
-      subtitle="Pergunte qualquer coisa — o Copilot escolhe o especialista certo automaticamente"
+      subtitle="Anexe uma foto e peça o post — o Copilot escreve, você aprova"
       actions={
         messages.length > 0 ? (
           <button
@@ -267,10 +390,9 @@ export default function CopilotPage() {
           <div className="text-sm text-amber-900">
             <p className="font-semibold">Copilot sem chave de IA.</p>
             <p className="mt-1">
-              Defina <code className="rounded bg-amber-100 px-1">COPILOT_AI_API_KEY</code> (ou reaproveite{' '}
-              <code className="rounded bg-amber-100 px-1">CONTENT_STUDIO_AI_API_KEY</code>) nas variáveis de
-              ambiente da Vercel. Aceita chave da OpenAI, Anthropic, DeepSeek, Google, Groq, Mistral ou
-              OpenRouter.
+              Defina <code className="rounded bg-amber-100 px-1">COPILOT_AI_API_KEY</code> (ou
+              reaproveite <code className="rounded bg-amber-100 px-1">CONTENT_STUDIO_AI_API_KEY</code>)
+              nas variáveis de ambiente da Vercel.
             </p>
           </div>
         </div>
@@ -278,7 +400,23 @@ export default function CopilotPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         {/* ── Coluna do chat ── */}
-        <div className="flex min-h-[600px] flex-col rounded-xl border border-ink-950/10 bg-white">
+        <div
+          className={clsx(
+            'flex min-h-[600px] flex-col rounded-xl border bg-white transition-colors',
+            dragOver ? 'border-signal-500 ring-2 ring-signal-500/20' : 'border-ink-950/10'
+          )}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) void attachFile(file);
+          }}
+        >
           {/* Thread */}
           <div className="flex-1 space-y-4 overflow-y-auto p-5" style={{ maxHeight: '62vh' }}>
             {messages.length === 0 && (
@@ -290,9 +428,10 @@ export default function CopilotPage() {
                   Como posso ajudar no seu conteúdo?
                 </h3>
                 <p className="mt-2 max-w-md text-sm text-ink-950/55">
-                  Peça legendas, ideias de Reels, hashtags ou um plano semanal. Se a pergunta for de
-                  estratégia, oferta ou copy de vendas, eu encaminho para um dos{' '}
-                  {status?.agentCount ?? 18} agentes especialistas automaticamente.
+                  Anexe uma foto e peça <span className="font-semibold">&quot;monta um post&quot;</span> —
+                  eu escrevo legenda, título de TikTok, hashtags e sugiro o formato. Se a pergunta for de
+                  estratégia ou copy de vendas, encaminho para um dos {status?.agentCount ?? 18} agentes
+                  especialistas automaticamente.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                   {QUICK_ACTIONS.map((a) => (
@@ -320,12 +459,33 @@ export default function CopilotPage() {
                       <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/10 px-2 py-0.5 text-xs font-semibold text-signal-700">
                         {m.route.emoji} {m.route.name}
                       </span>
+                      {m.visionUsed === true && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-flow-600/10 px-2 py-0.5 text-xs font-semibold text-flow-700">
+                          <FiEye size={11} /> foto analisada
+                        </span>
+                      )}
+                      {m.visionUsed === false && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                          <FiEyeOff size={11} /> foto não lida
+                        </span>
+                      )}
                       <span className="text-[11px] text-ink-950/40">
                         {m.route.kind === 'agent' ? 'agente' : 'skill'}
                         {m.route.via === 'llm' && ' · roteado por IA'}
                         {m.duration ? ` · ${(m.duration / 1000).toFixed(1)}s` : ''}
                       </span>
                     </div>
+                  )}
+
+                  {/* Miniatura da foto enviada */}
+                  {m.imagePreview && (
+                    // blob: URL local — next/image não otimiza, e não precisa
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.imagePreview}
+                      alt="foto anexada"
+                      className="mb-1.5 max-h-48 w-auto max-w-full rounded-lg border border-ink-950/10 object-contain"
+                    />
                   )}
 
                   <div
@@ -352,10 +512,11 @@ export default function CopilotPage() {
                       </button>
                       <Link
                         href="/dashboard/content-studio"
-                        onClick={() => sendToStudio(m.content)}
+                        onClick={() => sendToStudio(m)}
                         className="inline-flex items-center gap-1 text-xs font-medium text-signal-600 hover:text-signal-700"
                       >
-                        <FiArrowRight size={12} /> Usar no Content Studio
+                        <FiArrowRight size={12} />
+                        {m.media?.length ? 'Agendar com a foto' : 'Usar no Content Studio'}
                       </Link>
                     </div>
                   )}
@@ -390,13 +551,78 @@ export default function CopilotPage() {
             </div>
           )}
 
+          {/* Miniatura do anexo pendente */}
+          {attachment && (
+            <div className="flex items-center gap-3 border-t border-ink-950/8 px-4 py-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={attachment.previewUrl}
+                alt="prévia"
+                className="h-16 w-16 rounded-lg border border-ink-950/10 object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-ink-950">{attachment.file.name}</p>
+                <p className="text-xs text-ink-950/50">
+                  {aspectLabel(attachment.prepared.width, attachment.prepared.height)}
+                  {' · '}
+                  {attachment.uploading ? (
+                    <span className="text-ink-950/60">enviando ao Postiz...</span>
+                  ) : attachment.uploadFailed ? (
+                    <span className="text-amber-700">só legenda (upload falhou)</span>
+                  ) : (
+                    <span className="text-flow-700">pronta para agendar</span>
+                  )}
+                </p>
+                {status && !status.vision && (
+                  <p className="mt-0.5 text-[11px] leading-snug text-amber-700">
+                    {status.provider} não lê imagens — descreva a foto em 1 linha para uma legenda
+                    melhor.
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={removeAttachment}
+                className="shrink-0 rounded-lg p-2 text-ink-950/40 hover:bg-ink-950/5 hover:text-ink-950"
+                aria-label="Remover foto"
+              >
+                <FiX size={16} />
+              </button>
+            </div>
+          )}
+
           {/* Composer */}
           <div className="border-t border-ink-950/10 p-4">
             <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void attachFile(file);
+                }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-ink-950/15 text-ink-950/60 transition-colors hover:border-signal-500/40 hover:bg-signal-500/5 hover:text-signal-600 disabled:opacity-40"
+                aria-label="Anexar foto"
+                title="Anexar foto"
+              >
+                <FiImage size={18} />
+              </button>
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onPaste={(e) => {
+                  const file = Array.from(e.clipboardData.files)[0];
+                  if (file) {
+                    e.preventDefault();
+                    void attachFile(file);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -404,12 +630,16 @@ export default function CopilotPage() {
                   }
                 }}
                 rows={2}
-                placeholder="Ex: me dá 3 ideias de Reels pra loja de suplementos..."
+                placeholder={
+                  attachment
+                    ? 'Ex: monta um post com essa foto pro meu nicho...'
+                    : 'Ex: me dá 3 ideias de Reels pra loja de suplementos...'
+                }
                 className="flex-1 resize-none rounded-lg border border-ink-950/15 px-3 py-2.5 text-sm outline-none focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30"
               />
               <button
                 onClick={() => void send(input)}
-                disabled={loading || !input.trim()}
+                disabled={loading || (!input.trim() && !attachment)}
                 className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-signal-500 text-white transition-colors hover:bg-signal-600 disabled:opacity-40"
                 aria-label="Enviar"
               >
@@ -417,7 +647,7 @@ export default function CopilotPage() {
               </button>
             </div>
             <p className="mt-2 text-[11px] text-ink-950/40">
-              Enter envia · Shift+Enter quebra linha
+              Enter envia · Shift+Enter quebra linha · arraste ou cole uma imagem
             </p>
           </div>
         </div>
@@ -442,7 +672,9 @@ export default function CopilotPage() {
 
           {/* Status */}
           <div className="rounded-xl border border-ink-950/10 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">Motor de IA</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-950/45">
+              Motor de IA
+            </p>
             {status ? (
               <div className="mt-2 flex items-start gap-2">
                 {status.configured ? (
@@ -450,11 +682,24 @@ export default function CopilotPage() {
                 ) : (
                   <FiAlertCircle className="mt-0.5 shrink-0 text-amber-500" size={15} />
                 )}
-                <div className="text-sm">
+                <div className="min-w-0 text-sm">
                   {status.configured ? (
                     <>
                       <p className="font-semibold text-ink-950">{status.provider}</p>
                       <p className="text-xs text-ink-950/50">{status.model}</p>
+                      <p className="mt-1.5 inline-flex items-center gap-1 text-xs">
+                        {status.vision ? (
+                          <>
+                            <FiEye size={12} className="text-flow-600" />
+                            <span className="text-flow-700">analisa fotos</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiEyeOff size={12} className="text-amber-600" />
+                            <span className="text-amber-700">não analisa fotos</span>
+                          </>
+                        )}
+                      </p>
                       {status.modelMigratedFrom && (
                         <p className="mt-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-800">
                           <span className="font-semibold">{status.modelMigratedFrom}</span> foi
@@ -473,6 +718,37 @@ export default function CopilotPage() {
             )}
           </div>
 
+          {/* Visão: como habilitar */}
+          {status?.configured && !status.vision && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2">
+                <FiEyeOff className="text-amber-600" size={15} />
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  Ler fotos
+                </p>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-amber-900">
+                O <span className="font-semibold">{status.provider}</span> é text-only: a foto é
+                anexada ao post, mas ele não vê o conteúdo dela.
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-amber-900">
+                Para o Copilot descrever a foto sozinho, use um provedor com visão em{' '}
+                <code className="rounded bg-amber-100 px-1">COPILOT_AI_PROVIDER</code>:
+              </p>
+              <ul className="mt-1.5 space-y-0.5 text-xs text-amber-900">
+                <li>
+                  • <span className="font-semibold">openai</span> · gpt-4o-mini
+                </li>
+                <li>
+                  • <span className="font-semibold">anthropic</span> · claude-3-5-sonnet
+                </li>
+                <li>
+                  • <span className="font-semibold">google</span> · gemini-1.5-flash
+                </li>
+              </ul>
+            </div>
+          )}
+
           {/* Como funciona */}
           <div className="rounded-xl border border-ink-950/10 bg-white p-4">
             <div className="flex items-center gap-2">
@@ -483,18 +759,18 @@ export default function CopilotPage() {
             </div>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-950/60">
               <li>
-                <span className="font-semibold text-ink-950">Skills de conteúdo</span> — legenda, Reels,
-                hashtags, plano semanal.
+                <span className="font-semibold text-ink-950">Com foto anexada</span> — monta o post
+                completo: legenda, título TikTok, hashtags e formato.
+              </li>
+              <li>
+                <span className="font-semibold text-ink-950">Skills de conteúdo</span> — legenda,
+                Reels, hashtags, plano semanal.
               </li>
               <li>
                 <span className="font-semibold text-ink-950">
                   {status?.agentCount ?? 18} agentes especialistas
                 </span>{' '}
                 — oferta, preço, posicionamento, público e copy de vendas.
-              </li>
-              <li>
-                A escolha é automática: por palavra-chave primeiro e, se não bastar, um classificador de IA
-                decide.
               </li>
             </ul>
             <Link

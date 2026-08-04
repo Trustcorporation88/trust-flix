@@ -63,6 +63,51 @@ for (const c of cases) {
   }
 }
 
+console.log('\n─── Roteamento com foto anexada ───');
+const withImage: { input: string; expectId: string; note: string }[] = [
+  { input: 'monta um post', expectId: 'post', note: 'pedido explícito' },
+  { input: 'usa essa foto pra fazer um post', expectId: 'post', note: 'referência à foto' },
+  { input: 'e aí', expectId: 'post', note: 'texto vago + foto → assume montar post' },
+  { input: '', expectId: 'post', note: 'só a foto, sem texto' },
+];
+for (const c of withImage) {
+  const r = routeByKeyword(c.input, true);
+  const ok = r?.id === c.expectId;
+  if (ok) {
+    pass++;
+    console.log(`  ✅ "${c.input || '(vazio)'}" + foto → skill:${r?.id} (${c.note})`);
+  } else {
+    fail++;
+    const msg = `  ❌ "${c.input}" + foto → esperado skill:${c.expectId}, obtido ${r?.kind}:${r?.id}`;
+    failures.push(msg);
+    console.log(msg);
+  }
+}
+
+// Sem foto, texto vago NÃO deve virar montagem de post — deve ir pro classificador.
+const vagueNoImage = routeByKeyword('e aí', false);
+if (vagueNoImage === null) {
+  pass++;
+  console.log('  ✅ "e aí" SEM foto → cai no classificador (não assume post)');
+} else {
+  fail++;
+  const msg = `  ❌ "e aí" SEM foto deveria ir ao classificador, mas roteou para ${vagueNoImage.kind}:${vagueNoImage.id}`;
+  failures.push(msg);
+  console.log(msg);
+}
+
+// Palavra-chave específica vence a heurística da foto.
+const reelsWithImage = routeByKeyword('me dá ideias de reels', true);
+if (reelsWithImage?.id === 'reels') {
+  pass++;
+  console.log('  ✅ "ideias de reels" + foto → skill:reels (palavra-chave vence a heurística)');
+} else {
+  fail++;
+  const msg = `  ❌ "ideias de reels" + foto deveria ir para skill:reels, obtido ${reelsWithImage?.id}`;
+  failures.push(msg);
+  console.log(msg);
+}
+
 console.log('\n─── Integridade do catálogo ───');
 console.log(`Skills registradas: ${COPILOT_SKILLS.length}`);
 console.log(`Agentes no Arsenal: ${ARSENAL_AGENTS.length}`);

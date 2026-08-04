@@ -18,13 +18,14 @@ import {
   FiTrash2,
   FiDownload,
   FiFileText,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
 import { authFetch } from '@/lib/auth/clientFetch';
-import { loadContentDraft, clearContentDraft } from '@/lib/contentDraft';
+import { loadContentDraft, clearContentDraft, DraftMedia } from '@/lib/contentDraft';
 import {
   deleteCustomTemplate,
   downloadCustomTemplates,
@@ -147,6 +148,8 @@ export default function ContentStudioPage() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [postType, setPostType] = useState<'post' | 'story'>('post');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  /** Foto já enviada ao Postiz pelo Copilot — chega via draft, dispensa novo upload. */
+  const [draftMedia, setDraftMedia] = useState<DraftMedia[] | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('schedule');
@@ -275,7 +278,17 @@ export default function ContentStudioPage() {
     const draft = loadContentDraft();
     if (draft?.caption) {
       setCaption(draft.caption);
-      toast.success(draft.source ? `Draft de ${draft.source} carregado` : 'Draft de copy carregado');
+      // A foto anexada no Copilot já foi enviada ao Postiz — reaproveita a
+      // referência {id, path} para que o agendamento não precise de novo upload.
+      if (draft.media?.length) setDraftMedia(draft.media);
+      if (draft.tiktokTitle) setTiktokTitle(draft.tiktokTitle);
+      toast.success(
+        draft.media?.length
+          ? `Legenda + foto de ${draft.source || 'draft'} carregadas`
+          : draft.source
+            ? `Draft de ${draft.source} carregado`
+            : 'Draft de copy carregado'
+      );
       clearContentDraft();
     }
   }, []);
@@ -363,6 +376,8 @@ export default function ContentStudioPage() {
       return;
     }
     setMediaFile(file);
+    // Arquivo escolhido aqui substitui a foto que veio do Copilot.
+    if (file) setDraftMedia(null);
     if (file && file.type.startsWith('image/')) {
       setMediaPreviewUrl(URL.createObjectURL(file));
     }
@@ -374,7 +389,10 @@ export default function ContentStudioPage() {
       toast.error('Selecione ao menos uma conta (Instagram e/ou TikTok)');
       return;
     }
-    if (!mediaFile) {
+    // Aceita mídia de duas origens: arquivo escolhido aqui, ou foto que já foi
+    // enviada ao Postiz pelo Copilot (chega via draft, sem novo upload).
+    const hasPreUploaded = Boolean(draftMedia?.length);
+    if (!mediaFile && !hasPreUploaded) {
       toast.error('Envie um vídeo ou imagem — redes sociais exigem mídia no Postiz');
       return;
     }
@@ -386,7 +404,9 @@ export default function ContentStudioPage() {
     }
 
     const hasTikTok = targets.some((a) => isTikTokIntegration(a.identifier));
-    if (hasTikTok && mediaFile.type.startsWith('image/')) {
+    // Foto vinda do Copilot é sempre imagem, então também bloqueia TikTok.
+    const mediaIsImage = mediaFile ? mediaFile.type.startsWith('image/') : hasPreUploaded;
+    if (hasTikTok && mediaIsImage) {
       toast.error('TikTok precisa de vídeo (MP4). Troque a mídia ou desmarque o TikTok.');
       return;
     }
@@ -407,19 +427,25 @@ export default function ContentStudioPage() {
 
     setIsScheduling(true);
     try {
-      setIsUploadingMedia(true);
-      const form = new FormData();
-      form.append('file', mediaFile, mediaFile.name);
-      const uploadRes = await authFetch('/api/content-studio/upload-media', {
-        method: 'POST',
-        body: form,
-      });
-      const uploadJson = await uploadRes.json();
-      setIsUploadingMedia(false);
-      if (!uploadRes.ok || !uploadJson.success) {
-        throw new Error(uploadJson?.error || 'Erro ao enviar o arquivo de mídia');
+      let media: DraftMedia[];
+      if (mediaFile) {
+        setIsUploadingMedia(true);
+        const form = new FormData();
+        form.append('file', mediaFile, mediaFile.name);
+        const uploadRes = await authFetch('/api/content-studio/upload-media', {
+          method: 'POST',
+          body: form,
+        });
+        const uploadJson = await uploadRes.json();
+        setIsUploadingMedia(false);
+        if (!uploadRes.ok || !uploadJson.success) {
+          throw new Error(uploadJson?.error || 'Erro ao enviar o arquivo de mídia');
+        }
+        media = [uploadJson.data];
+      } else {
+        // Já está no Postiz (enviada pelo Copilot) — não precisa subir de novo.
+        media = draftMedia as DraftMedia[];
       }
-      const media = [uploadJson.data];
 
       const results: string[] = [];
       for (const account of targets) {
@@ -468,6 +494,7 @@ export default function ContentStudioPage() {
       setCaption('');
       setTiktokTitle('');
       setMediaFile(null);
+      setDraftMedia(null);
       if (mediaPreviewUrl) {
         URL.revokeObjectURL(mediaPreviewUrl);
         setMediaPreviewUrl(null);
@@ -1110,6 +1137,28 @@ export default function ContentStudioPage() {
                       type="button"
                       onClick={() => handleMediaChange(null)}
                       className="shrink-0 text-ink-400 hover:text-white"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                </div>
+              ) : draftMedia?.length ? (
+                <div className="mt-2 space-y-3 rounded-xl border border-flow-500/30 bg-flow-500/[0.06] px-4 py-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={draftMedia[0].path}
+                    alt="Foto do Copilot"
+                    className="max-h-48 rounded-lg object-contain"
+                  />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 truncate text-sm text-flow-200">
+                      <FiCheckCircle className="shrink-0" /> Foto do Copilot — já enviada ao Postiz
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDraftMedia(null)}
+                      className="shrink-0 text-ink-400 hover:text-white"
+                      aria-label="Remover foto"
                     >
                       <FiX />
                     </button>

@@ -46,6 +46,48 @@ const BASE_VOICE =
 
 export const COPILOT_SKILLS: CopilotSkill[] = [
   {
+    id: 'post',
+    name: 'Montar post completo',
+    emoji: '🖼️',
+    description: 'Monta o post inteiro a partir de uma foto: legenda, hashtags e formato',
+    keywords: [
+      'monta um post',
+      'montar post',
+      'monta o post',
+      'cria um post',
+      'criar post',
+      'post completo',
+      'post com essa foto',
+      'post com a foto',
+      'usa essa foto',
+      'usa a foto',
+      'essa imagem',
+      'publica isso',
+    ],
+    systemPrompt: `${BASE_VOICE}
+
+TAREFA: montar um post COMPLETO e pronto para publicar.
+
+Entregue nesta ordem exata, com estes títulos:
+
+**Legenda:**
+O texto pronto para colar, com gancho na primeira linha e CTA no fim.
+
+**Título TikTok:**
+Uma linha de no máximo 90 caracteres.
+
+**Hashtags:**
+5 a 8, misturando alcance amplo e nicho.
+
+**Formato sugerido:**
+Uma linha dizendo se funciona melhor como Reels, carrossel, story ou post único — e por quê.
+
+Regras:
+- Se você recebeu a imagem, USE o que vê nela: objeto, cenário, cores, texto visível, clima da cena. Seja concreto sobre o que está na foto.
+- Se NÃO recebeu a imagem, escreva a partir do texto do usuário e não invente detalhes visuais que você não pode confirmar.
+- Nada de placeholder entre [colchetes]. Se faltar informação, escolha algo plausível e siga.`,
+  },
+  {
     id: 'caption',
     name: 'Sugestão de legenda',
     emoji: '✍️',
@@ -213,8 +255,11 @@ export function getAgentSystemPrompt(agent: Agent): string {
 
 /**
  * Camada 1 — roteamento por palavra-chave. Retorna null se não houver match confiável.
+ *
+ * `hasImage` desempata: com foto anexada, um pedido vago como "monta aí" ou
+ * "escreve algo" quase sempre significa montar o post daquela imagem.
  */
-export function routeByKeyword(message: string): RouteDecision | null {
+export function routeByKeyword(message: string, hasImage = false): RouteDecision | null {
   const text = normalize(message);
 
   // Agentes têm prioridade quando o assunto é claramente estratégia/oferta,
@@ -246,6 +291,20 @@ export function routeByKeyword(message: string): RouteDecision | null {
         systemPrompt: skill.systemPrompt,
       };
     }
+  }
+
+  // Com foto anexada e sem palavra-chave clara, montar o post é a intenção
+  // muito mais provável do que qualquer outra skill.
+  if (hasImage) {
+    const skill = getSkillById('post')!;
+    return {
+      kind: 'skill',
+      id: skill.id,
+      name: skill.name,
+      emoji: skill.emoji,
+      via: 'keyword',
+      systemPrompt: skill.systemPrompt,
+    };
   }
 
   return null;

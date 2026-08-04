@@ -132,6 +132,35 @@ export function normalizeModel(model: string): NormalizedModel {
   return { model, thinking: false, migrated: false };
 }
 
+/**
+ * Modelos que aceitam imagem como entrada (visão), por provedor.
+ *
+ * ⚠️ DeepSeek NÃO está aqui de propósito: o V4 (flash e pro) é text-only — o
+ * schema de mensagens da API não aceita conteúdo de imagem, e uma chamada com
+ * imagem falha na camada de request. Deixar DeepSeek fora faz o Copilot degradar
+ * de forma controlada (anexa a foto ao post, mas escreve a legenda a partir do
+ * texto do usuário) em vez de estourar um erro cru.
+ */
+export const VISION_MODEL_PATTERNS: Record<string, RegExp[]> = {
+  openai: [/^gpt-4o/, /^gpt-4\.1/, /^gpt-4-turbo/, /^o[1-9]/],
+  anthropic: [/^claude-3/, /^claude-4/, /^claude-sonnet/, /^claude-opus/, /^claude-haiku/],
+  google: [/^gemini-/],
+  // OpenRouter roteia para modelos de terceiros — depende do modelo escolhido.
+  openrouter: [/gpt-4o/, /claude-3/, /claude-4/, /gemini/, /vision/],
+  groq: [/vision/],
+};
+
+/** Um provedor+modelo consegue analisar imagens? */
+export function supportsVision(provider: string, model: string): boolean {
+  const patterns = VISION_MODEL_PATTERNS[provider];
+  if (!patterns) return false;
+  const m = (model || '').trim().toLowerCase();
+  return patterns.some((re) => re.test(m));
+}
+
+/** Provedores que têm ao menos um modelo com visão — usado nas mensagens de UI. */
+export const VISION_CAPABLE_PROVIDERS = Object.keys(VISION_MODEL_PATTERNS);
+
 /** Resolve o base URL de um provedor OpenAI-compatible. */
 export function resolveBaseUrl(provider: string, customBaseUrl?: string): string | undefined {
   if (provider === 'custom') return customBaseUrl;

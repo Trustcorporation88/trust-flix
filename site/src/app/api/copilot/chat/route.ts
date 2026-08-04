@@ -19,6 +19,7 @@ import {
   normalizeModel,
   parseProviderError,
   providerExtras,
+  supportsVision,
 } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
@@ -33,7 +34,11 @@ export const dynamic = 'force-dynamic';
  *  2. COPILOT_AI_API_KEY / COPILOT_AI_PROVIDER / COPILOT_AI_MODEL (chave dedicada do Copilot).
  *  3. CONTENT_STUDIO_AI_API_KEY / _PROVIDER / _MODEL (reaproveita a chave compartilhada).
  *
- * Assim funciona tanto no modo "SocialFlow paga a chamada" quanto no modo BYOK.
+ * VISÃO: quando uma foto é anexada, ela só é enviada ao modelo se o provedor
+ * suportar imagem (ver supportsVision). DeepSeek V4 é text-only, então nesse
+ * caso enviamos apenas os METADADOS da foto (dimensões, proporção) e instruímos
+ * o modelo a não inventar detalhes visuais. Assim o recurso degrada de forma
+ * controlada em vez de estourar erro de schema.
  */
 
 type Provider =
@@ -51,11 +56,22 @@ interface ChatMessage {
   content: string;
 }
 
+/** Foto anexada pelo usuário no composer do Copilot. */
+interface ImageInput {
+  /** data URL completa: data:image/jpeg;base64,XXXX */
+  dataUrl: string;
+  name?: string;
+  width?: number;
+  height?: number;
+}
+
 interface RequestBody {
   message: string;
   history?: ChatMessage[];
   /** Força uma rota específica (ex: 'skill:reels' quando o usuário clica num atalho). */
   forceRoute?: string;
+  /** Foto anexada — usada para montar o post. */
+  image?: ImageInput;
   /** BYOK opcional */
   apiKey?: string;
   provider?: Provider;
@@ -125,7 +141,8 @@ function resolveConfig(body: RequestBody): AIConfig | null {
     return finalize({
       provider,
       apiKey: process.env.CONTENT_STUDIO_AI_API_KEY,
-      model: process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
+      model:
+        process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
       baseUrl: process.env.CONTENT_STUDIO_AI_BASE_URL,
       byok: false,
     });
@@ -139,14 +156,41 @@ interface LLMMessage {
   content: string;
 }
 
+/** Separa uma data URL em tipo MIME e payload base64. */
+function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
+  if (!match) return null;
+  return { mediaType: match[1], base64: match[2] };
+}
+
 async function callOpenAICompatible(
   base: string,
   cfg: AIConfig,
   messages: LLMMessage[],
   maxTokens: number,
   temperature: number,
-  thinking: boolean
+  thinking: boolean,
+  image?: ImageInput
 ): Promise<string> {
+  // Formato OpenAI: a última mensagem do usuário passa a ser um array de partes.
+  let payloadMessages: unknown[] = messages;
+  if (image) {
+    const parsed = parseDataUrl(image.dataUrl);
+    if (parsed) {
+      payloadMessages = messages.map((m, i) =>
+        i === messages.length - 1 && m.role === 'user'
+          ? {
+              role: 'user',
+              content: [
+                { type: 'text', text: m.content },
+                { type: 'image_url', image_url: { url: image.dataUrl } },
+              ],
+            }
+          : m
+      );
+    }
+  }
+
   const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -155,7 +199,7 @@ async function callOpenAICompatible(
     },
     body: JSON.stringify({
       model: cfg.model,
-      messages,
+      messages: payloadMessages,
       temperature,
       max_tokens: maxTokens,
       // DeepSeek V4: thinking mode vem ligado de fábrica, o que faz `temperature`
@@ -172,13 +216,36 @@ async function callAnthropic(
   cfg: AIConfig,
   messages: LLMMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  image?: ImageInput
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
     .join('\n\n');
   const rest = messages.filter((m) => m.role !== 'system');
+
+  // Formato Anthropic: bloco { type: 'image', source: { type: 'base64', ... } }
+  let payloadMessages: unknown[] = rest;
+  if (image) {
+    const parsed = parseDataUrl(image.dataUrl);
+    if (parsed) {
+      payloadMessages = rest.map((m, i) =>
+        i === rest.length - 1 && m.role === 'user'
+          ? {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: parsed.mediaType, data: parsed.base64 },
+                },
+                { type: 'text', text: m.content },
+              ],
+            }
+          : m
+      );
+    }
+  }
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -191,7 +258,7 @@ async function callAnthropic(
       model: cfg.model,
       max_tokens: maxTokens,
       system,
-      messages: rest,
+      messages: payloadMessages,
       temperature,
     }),
   });
@@ -204,24 +271,38 @@ async function callGoogle(
   cfg: AIConfig,
   messages: LLMMessage[],
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  image?: ImageInput
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
     .join('\n\n');
+  const rest = messages.filter((m) => m.role !== 'system');
+  const parsedImage = image ? parseDataUrl(image.dataUrl) : null;
+
+  const contents = rest.map((m, i) => {
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    // Formato Google: parts com inline_data
+    if (parsedImage && i === rest.length - 1 && m.role === 'user') {
+      return {
+        role,
+        parts: [
+          { text: m.content },
+          { inline_data: { mime_type: parsedImage.mediaType, data: parsedImage.base64 } },
+        ],
+      };
+    }
+    return { role, parts: [{ text: m.content }] };
+  });
+
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: messages
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-          })),
+        contents,
         systemInstruction: { parts: [{ text: system }] },
         generationConfig: { temperature, maxOutputTokens: maxTokens },
       }),
@@ -235,7 +316,7 @@ async function callGoogle(
 async function callLLM(
   cfg: AIConfig,
   messages: LLMMessage[],
-  opts: { maxTokens?: number; temperature?: number; thinking?: boolean } = {}
+  opts: { maxTokens?: number; temperature?: number; thinking?: boolean; image?: ImageInput } = {}
 ): Promise<string> {
   const maxTokens = opts.maxTokens ?? 1600;
   const temperature = opts.temperature ?? 0.7;
@@ -243,9 +324,11 @@ async function callLLM(
   // 'deepseek-reasoner'). O roteador passa thinking:false para garantir
   // classificação determinística dentro de um orçamento pequeno de tokens.
   const thinking = (opts.thinking ?? true) && Boolean(cfg.thinking);
+  const image = opts.image;
 
-  if (cfg.provider === 'anthropic') return callAnthropic(cfg, messages, maxTokens, temperature);
-  if (cfg.provider === 'google') return callGoogle(cfg, messages, maxTokens, temperature);
+  if (cfg.provider === 'anthropic')
+    return callAnthropic(cfg, messages, maxTokens, temperature, image);
+  if (cfg.provider === 'google') return callGoogle(cfg, messages, maxTokens, temperature, image);
 
   const base = cfg.provider === 'custom' ? cfg.baseUrl : OPENAI_COMPATIBLE_BASE[cfg.provider];
   if (!base) {
@@ -253,7 +336,7 @@ async function callLLM(
       `Provider "${cfg.provider}" não suportado ou baseUrl ausente para provider custom.`
     );
   }
-  return callOpenAICompatible(base, cfg, messages, maxTokens, temperature, thinking);
+  return callOpenAICompatible(base, cfg, messages, maxTokens, temperature, thinking, image);
 }
 
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
@@ -303,6 +386,22 @@ async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision
   }
 }
 
+/** Descreve a foto em texto — usado quando o provedor não tem visão. */
+function describeImageMetadata(image: ImageInput): string {
+  const bits: string[] = [];
+  if (image.name) bits.push(`arquivo "${image.name}"`);
+  if (image.width && image.height) {
+    bits.push(`${image.width}x${image.height}px`);
+    const ratio = image.width / image.height;
+    let orientation = 'quadrada (1:1)';
+    if (ratio > 1.2) orientation = 'horizontal (paisagem)';
+    else if (ratio < 0.7) orientation = 'vertical alta (9:16 — ideal para Reels/Story)';
+    else if (ratio < 0.95) orientation = 'vertical (4:5 — ideal para feed)';
+    bits.push(orientation);
+  }
+  return bits.join(', ');
+}
+
 export async function POST(request: NextRequest) {
   const auth = requireAuth(request);
   if (isAuthError(auth)) return auth;
@@ -315,7 +414,9 @@ export async function POST(request: NextRequest) {
   }
 
   const message = (body.message || '').trim();
-  if (!message) {
+  const image = body.image?.dataUrl ? body.image : undefined;
+
+  if (!message && !image) {
     return NextResponse.json({ success: false, error: 'Mensagem vazia.' }, { status: 400 });
   }
 
@@ -334,20 +435,40 @@ export async function POST(request: NextRequest) {
   }
 
   const startedAt = Date.now();
+  // Só manda a imagem ao modelo se o provedor souber ler imagem.
+  const canSeeImage = Boolean(image) && supportsVision(cfg.provider, cfg.model);
 
   try {
     // ── Roteamento ────────────────────────────────────────────────
     let decision: RouteDecision | null = null;
 
     if (body.forceRoute) decision = resolveForcedRoute(body.forceRoute);
-    if (!decision) decision = routeByKeyword(message);
-    if (!decision) decision = await routeByLLM(cfg, message);
+    if (!decision) decision = routeByKeyword(message, Boolean(image));
+    if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
 
     // ── Execução ──────────────────────────────────────────────────
     let systemPrompt = buildFinalSystemPrompt(decision);
     if (body.nicho) {
       systemPrompt += `\n\nNICHO DO USUÁRIO: ${body.nicho}. Adapte todos os exemplos a este nicho.`;
+    }
+
+    if (image) {
+      if (canSeeImage) {
+        systemPrompt +=
+          '\n\nO usuário anexou uma FOTO e você a está recebendo. Baseie a legenda no que ' +
+          'realmente aparece nela — objeto, cenário, cores, texto visível e clima da cena. ' +
+          'Seja concreto: mencione elementos que você vê, não generalidades.';
+      } else {
+        systemPrompt +=
+          '\n\nO usuário anexou uma FOTO, mas seu modelo não consegue vê-la. ' +
+          `Metadados disponíveis: ${describeImageMetadata(image)}. ` +
+          'Escreva a legenda a partir do texto do usuário e do nicho. ' +
+          'NÃO invente nem descreva detalhes visuais da foto. ' +
+          'Use a proporção da imagem apenas para sugerir o formato de publicação. ' +
+          'Se o texto do usuário não disser o que a foto mostra, peça em UMA linha curta ' +
+          'no fim que ele descreva a cena para você refinar a legenda.';
+      }
     }
 
     const history = (body.history || [])
@@ -358,11 +479,14 @@ export async function POST(request: NextRequest) {
         content: m.content,
       }));
 
-    const reply = await callLLM(cfg, [
-      { role: 'system', content: systemPrompt },
-      ...history,
-      { role: 'user', content: message },
-    ]);
+    const userText =
+      message || (image ? 'Monta um post completo com esta foto.' : '');
+
+    const reply = await callLLM(
+      cfg,
+      [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userText }],
+      { image: canSeeImage ? image : undefined }
+    );
 
     return NextResponse.json({
       success: true,
@@ -378,6 +502,9 @@ export async function POST(request: NextRequest) {
       model: cfg.model,
       modelMigratedFrom: cfg.migratedFrom,
       byok: cfg.byok,
+      /** true = a foto foi realmente analisada; false com imagem = provedor sem visão */
+      visionUsed: canSeeImage,
+      hadImage: Boolean(image),
       duration: Date.now() - startedAt,
     });
   } catch (error) {
@@ -398,6 +525,8 @@ export async function GET(request: NextRequest) {
     provider: cfg?.provider ?? null,
     model: cfg?.model ?? null,
     modelMigratedFrom: cfg?.migratedFrom ?? null,
+    /** false → o provedor atual não lê imagens (ex: DeepSeek V4) */
+    vision: cfg ? supportsVision(cfg.provider, cfg.model) : false,
     skills: COPILOT_SKILLS.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji })),
     agentCount: ARSENAL_AGENTS.length,
   });
