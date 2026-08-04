@@ -323,6 +323,25 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              {/* Alerta de pendência: sem isso o usuário preenche, sai da tela e
+                  acha que salvou. */}
+              {apiKey.trim() && !isConfigured && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <strong>Alterações não salvas.</strong> Clique em &quot;Salvar chave de IA&quot;
+                  abaixo — antes disso o Copilot continua usando a chave do servidor.
+                </div>
+              )}
+
+              {/* Botão de salvar junto do formulário — o do topo da página passa
+                  despercebido, e sem clicar nele a chave nunca chega ao localStorage. */}
+              <button
+                type="button"
+                onClick={handleSaveAi}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-signal-600 sm:w-auto"
+              >
+                <FiSave /> Salvar chave de IA
+              </button>
+
               {isConfigured && (
                 <button
                   type="button"
