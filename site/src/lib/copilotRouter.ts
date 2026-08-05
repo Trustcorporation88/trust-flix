@@ -28,6 +28,12 @@ export interface CopilotSkill {
   needsReelsContext?: boolean;
   /** Exige busca na web (usa modelo de busca dedicado do provedor) */
   needsWebSearch?: boolean;
+  /**
+   * Roda o pipeline multi-agente (StoryAds → Dissecação → doug.tensão/Ugly Copy).
+   * A execução real fica em reelsPipeline + route.ts — o systemPrompt da skill
+   * é só fallback se o pipeline não rodar.
+   */
+  needsPipeline?: boolean;
 }
 
 export interface RouteDecision {
@@ -50,6 +56,44 @@ const BASE_VOICE =
   'apareceriam literalmente no post. Para dar ênfase, use MAIÚSCULAS ou emoji.';
 
 export const COPILOT_SKILLS: CopilotSkill[] = [
+  {
+    id: 'reels-pipeline',
+    name: 'Reels + Post pronto',
+    emoji: '🚀',
+    description:
+      'Caça referências e usa StoryAds + Dissecação + doug.tensão/Ugly Copy para entregar roteiro, legenda e DM prontos',
+    keywords: [
+      'post pronto',
+      'reels + post',
+      'reels e post',
+      'pipeline de reels',
+      'pacote de reels',
+      'roteiro e legenda',
+      'roteiro + legenda',
+      'grave e publique',
+      'pronto pra gravar',
+      'pronto para gravar',
+      'storyads',
+      'dissecação neural',
+      'dissecacao neural',
+      'usar agentes',
+      'com os agentes',
+      'modelo de post',
+      'modelos de post',
+      'pack de conteudo',
+      'pack de conteúdo',
+      'conteudo completo de reels',
+      'conteúdo completo de reels',
+    ],
+    needsWebSearch: true,
+    needsReelsContext: false,
+    needsPipeline: true,
+    systemPrompt: `${BASE_VOICE}
+
+TAREFA: entregar um PACOTE completo de Reels (referência + roteiro + legenda + DM).
+Use mentalidade dos agentes StoryAds, Dissecação Neural, doug.tensão e Ugly Copy.
+Não entregue só teoria. Se não houver link real, diga e use molde filmável.`,
+  },
   {
     id: 'trends',
     name: 'Reels em alta',
@@ -325,6 +369,20 @@ function normalize(text: string): string {
 }
 
 /**
+ * Match de keyword com limite de palavra.
+ * Evita que "ads" dentro de "storyads" roube o roteamento do pipeline.
+ */
+function includesKeyword(text: string, keyword: string): boolean {
+  const t = normalize(text);
+  const k = normalize(keyword).trim();
+  if (!k) return false;
+  if (k.includes(' ')) return t.includes(k);
+  const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`);
+  return re.test(t);
+}
+
+/**
  * Palavras que indicam AJUSTE de uma resposta anterior, não um pedido novo.
  *
  * Existe porque um refinamento costuma citar termos que batem em regras de
@@ -415,6 +473,11 @@ export function getSkillById(id: string): CopilotSkill | undefined {
   return COPILOT_SKILLS.find((s) => s.id === id);
 }
 
+export function skillNeedsPipeline(decision: RouteDecision): boolean {
+  if (decision.kind !== 'skill') return false;
+  return Boolean(getSkillById(decision.id)?.needsPipeline);
+}
+
 export function getAgentSystemPrompt(agent: Agent): string {
   return (
     agent.systemPrompt ||
@@ -438,8 +501,6 @@ export function routeByKeyword(
   hasImage = false,
   lastRoute?: string
 ): RouteDecision | null {
-  const text = normalize(message);
-
   // Ajuste de resposta anterior: preserva o especialista que já estava atuando.
   if (lastRoute && isRefinement(message)) {
     const kept = resolveRoute(lastRoute, 'keyword');
@@ -449,7 +510,7 @@ export function routeByKeyword(
   // Agentes têm prioridade quando o assunto é claramente estratégia/oferta,
   // porque são mais especializados que as skills genéricas.
   for (const hint of AGENT_HINTS) {
-    if (hint.keywords.some((k) => text.includes(normalize(k)))) {
+    if (hint.keywords.some((k) => includesKeyword(message, k))) {
       const agent = ARSENAL_AGENTS.find((a) => a.id === hint.agentId);
       if (agent) {
         return {
@@ -465,7 +526,7 @@ export function routeByKeyword(
   }
 
   for (const skill of COPILOT_SKILLS) {
-    if (skill.keywords.some((k) => text.includes(normalize(k)))) {
+    if (skill.keywords.some((k) => includesKeyword(message, k))) {
       return {
         kind: 'skill',
         id: skill.id,
