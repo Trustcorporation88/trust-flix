@@ -414,6 +414,136 @@ function buildPromptBlock(opts: {
   return lines.join('\n');
 }
 
+/**
+ * Resolve o Instagram Business Account ID.
+ * Aceita tanto o IG id quanto o Page id (erro #100 comum quando a Page id
+ * é colada em INSTAGRAM_BUSINESS_ACCOUNT_ID).
+ */
+async function resolveInstagramBusinessId(opts: {
+  accessToken: string;
+  candidateId: string;
+  preferredHandle?: string;
+}): Promise<{ id: string; via: string; username?: string }> {
+  const token = opts.accessToken;
+  const candidate = String(opts.candidateId || '').trim();
+  const handle = normalizeHandle(opts.preferredHandle);
+
+  async function graphGet(pathAndQuery: string): Promise<Record<string, unknown>> {
+    const url = pathAndQuery.startsWith('http')
+      ? pathAndQuery
+      : `https://graph.facebook.com/v19.0/${pathAndQuery}${
+          pathAndQuery.includes('?') ? '&' : '?'
+        }access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url, { method: 'GET' });
+    const text = await res.text();
+    let json: Record<string, unknown> = {};
+    try {
+      json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+    } catch {
+      json = { raw: text };
+    }
+    if (!res.ok) {
+      const err = asRecord(json.error);
+      const msg = err?.message ? String(err.message) : text.slice(0, 180);
+      throw new Error(`(${res.status}) ${msg}`);
+    }
+    return json;
+  }
+
+  // 1) candidate já é IG business?
+  if (candidate) {
+    try {
+      const ig = await graphGet(`${candidate}?fields=id,username,name`);
+      const username = typeof ig.username === 'string' ? ig.username : undefined;
+      // Page nodes não têm username de IG; IG user tem.
+      if (username) {
+        return { id: String(ig.id || candidate), via: 'direct-ig', username };
+      }
+    } catch {
+      /* tenta como Page */
+    }
+
+    // 2) candidate é Page id?
+    try {
+      const page = await graphGet(
+        `${candidate}?fields=id,name,instagram_business_account{id,username}`
+      );
+      const iba = asRecord(page.instagram_business_account);
+      if (iba?.id) {
+        return {
+          id: String(iba.id),
+          via: 'page-id',
+          username: typeof iba.username === 'string' ? iba.username : undefined,
+        };
+      }
+    } catch {
+      /* tenta me/accounts */
+    }
+  }
+
+  // 3) lista pages do token e acha IG (preferindo handle)
+  try {
+    const accounts = await graphGet(
+      'me/accounts?fields=id,name,access_token,instagram_business_account{id,username}'
+    );
+    const data = Array.isArray(accounts.data) ? accounts.data : [];
+    const parsed = data
+      .map((row) => {
+        const r = asRecord(row);
+        if (!r) return null;
+        const iba = asRecord(r.instagram_business_account);
+        if (!iba?.id) return null;
+        return {
+          pageId: String(r.id || ''),
+          pageName: String(r.name || ''),
+          igId: String(iba.id),
+          username: typeof iba.username === 'string' ? iba.username : undefined,
+        };
+      })
+      .filter(Boolean) as Array<{
+      pageId: string;
+      pageName: string;
+      igId: string;
+      username?: string;
+    }>;
+
+    if (handle) {
+      const byUser = parsed.find((p) => normalizeHandle(p.username) === handle);
+      if (byUser) return { id: byUser.igId, via: 'me/accounts-handle', username: byUser.username };
+    }
+
+    // se o candidate bate com page id na lista
+    if (candidate) {
+      const byPage = parsed.find((p) => p.pageId === candidate);
+      if (byPage) return { id: byPage.igId, via: 'me/accounts-page', username: byPage.username };
+    }
+
+    if (parsed.length === 1) {
+      return { id: parsed[0].igId, via: 'me/accounts-single', username: parsed[0].username };
+    }
+
+    if (parsed.length > 1) {
+      const names = parsed
+        .map((p) => `@${p.username || p.pageName}:${p.igId}`)
+        .slice(0, 5)
+        .join(', ');
+      throw new Error(
+        `Várias Pages com Instagram no token. Defina INSTAGRAM_BUSINESS_ACCOUNT_ID com o IG id. Opções: ${names}`
+      );
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('Várias Pages')) throw err;
+  }
+
+  // 4) último recurso: devolve o candidate (pode falhar no /media com #100)
+  if (!candidate) {
+    throw new Error(
+      'Não achei Instagram Business no token. Confira permissões pages_show_list + instagram_basic e se a Page está ligada ao IG.'
+    );
+  }
+  return { id: candidate, via: 'unresolved' };
+}
+
 /** Graph API opcional: lista mídia publicada (inclui Reels via media_product_type). */
 async function fetchGraphMedia(opts: {
   accessToken: string;
@@ -667,26 +797,82 @@ export async function loadInstagramProfileContext(opts?: {
 
   if (graphToken && graphUser) {
     try {
+      const resolved = await resolveInstagramBusinessId({
+        accessToken: graphToken,
+        candidateId: graphUser,
+        preferredHandle: resolvedHandle || handle,
+      });
+      const igId = resolved.id;
+
       const [media, stories] = await Promise.all([
         fetchGraphMedia({
           accessToken: graphToken,
-          businessAccountId: graphUser,
+          businessAccountId: igId,
           limit: Math.min(50, maxPosts),
         }),
-        fetchGraphStories({ accessToken: graphToken, businessAccountId: graphUser }),
+        fetchGraphStories({ accessToken: graphToken, businessAccountId: igId }),
       ]);
       graphPosts = mergePosts(media, stories);
       graphUsed = graphPosts.length > 0;
+
+      if (resolved.username) {
+        // alinha handle ao username real da Graph quando possível
+        const gu = normalizeHandle(resolved.username);
+        if (gu) resolvedHandle = gu;
+      }
+
       if (!graphUsed) {
         graphNotice =
-          'Graph respondeu sem mídia. Confira se INSTAGRAM_BUSINESS_ACCOUNT_ID é o id de instagram_business_account (não o id da Page) e se o token é da Page correta.';
+          resolved.via === 'unresolved'
+            ? `Graph sem mídia. O id ${graphUser} não resolveu para Instagram Business (via=${resolved.via}). Use o id de instagram_business_account, não o da Page.`
+            : `Graph ok (ig=${igId}, via=${resolved.via}) mas sem mídia retornada. Conta pode estar sem posts na API ou token sem permissão instagram_basic.`;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'falhou';
-      graphNotice = `Graph API falhou: ${msg.slice(0, 180)}`;
+      // Erro #100 = id inexistente para o edge /media (quase sempre Page id).
+      if (/#100|nonexist/i.test(msg)) {
+        graphNotice =
+          `Graph #100: id inválido para /media. Você provavelmente colou o ID da Page. ` +
+          `No Graph Explorer rode: me/accounts?fields=id,name,instagram_business_account{id,username} ` +
+          `e use instagram_business_account.id. Detalhe: ${msg.slice(0, 120)}`;
+      } else {
+        graphNotice = `Graph API falhou: ${msg.slice(0, 180)}`;
+      }
     }
   } else if (graphToken && !graphUser) {
-    graphNotice = 'INSTAGRAM_ACCESS_TOKEN presente, mas falta INSTAGRAM_BUSINESS_ACCOUNT_ID.';
+    // token sem id: tenta descobrir sozinho via me/accounts
+    try {
+      const resolved = await resolveInstagramBusinessId({
+        accessToken: graphToken,
+        candidateId: '',
+        preferredHandle: resolvedHandle || handle,
+      });
+      if (resolved.id && resolved.via !== 'unresolved') {
+        const [media, stories] = await Promise.all([
+          fetchGraphMedia({
+            accessToken: graphToken,
+            businessAccountId: resolved.id,
+            limit: Math.min(50, maxPosts),
+          }),
+          fetchGraphStories({
+            accessToken: graphToken,
+            businessAccountId: resolved.id,
+          }),
+        ]);
+        graphPosts = mergePosts(media, stories);
+        graphUsed = graphPosts.length > 0;
+        if (resolved.username) resolvedHandle = normalizeHandle(resolved.username) || resolvedHandle;
+        if (!graphUsed) {
+          graphNotice = `Graph descobriu ig=${resolved.id} (via=${resolved.via}) mas sem mídia.`;
+        }
+      } else {
+        graphNotice =
+          'INSTAGRAM_ACCESS_TOKEN presente, mas falta INSTAGRAM_BUSINESS_ACCOUNT_ID e não achei IG em me/accounts.';
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'falhou';
+      graphNotice = `INSTAGRAM_BUSINESS_ACCOUNT_ID ausente e auto-detect falhou: ${msg.slice(0, 140)}`;
+    }
   } else if (!graphToken && graphUser) {
     graphNotice = 'INSTAGRAM_BUSINESS_ACCOUNT_ID presente, mas falta INSTAGRAM_ACCESS_TOKEN.';
   }
