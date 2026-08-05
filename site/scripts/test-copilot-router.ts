@@ -401,6 +401,12 @@ checkTrue2(
   })
 );
 checkTrue2('DEFAULT_IG_HANDLE é cyntiarinaldidoces', DEFAULT_IG_HANDLE === 'cyntiarinaldidoces');
+checkTrue2(
+  'prompt profile pede reels e stories',
+  Boolean(profileSkill?.systemPrompt.includes('REELS')) &&
+    Boolean(profileSkill?.systemPrompt.includes('STORIES')) &&
+    Boolean(profileSkill?.systemPrompt.includes('mídia'))
+);
 
 
 
