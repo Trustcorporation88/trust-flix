@@ -8,6 +8,7 @@ import {
   COPILOT_SKILLS,
   getSkillById,
   skillNeedsPipeline,
+  skillNeedsProfileContext,
 } from '../src/lib/copilotRouter';
 import { REELS_FORMATS, buildReelsContext } from '../src/lib/reelsPlaybook';
 import { ARSENAL_AGENTS } from '../src/services/arsenalService';
@@ -20,6 +21,7 @@ import {
   buildStoryAdsPrompt,
   buildHuntPrompt,
 } from '../src/lib/reelsPipeline';
+import { DEFAULT_IG_HANDLE } from '../src/lib/instagramProfileContext';
 
 /** Helper de asserção booleana usado nas seções novas. */
 function checkTrue2(label: string, cond: boolean) {
@@ -363,6 +365,43 @@ checkTrue2('assemble inclui pacote', assembled.includes('pacote teste'));
 checkTrue2('assemble inclui link', assembled.includes('instagram.com/reel/ABC'));
 checkTrue2('assemble inclui bastidores StoryAds', assembled.includes('STORYADS'));
 checkTrue2('REELS_PIPELINE_ID estável', REELS_PIPELINE_ID === 'reels-pipeline');
+
+console.log('\n─── Ideias do Instagram autorizado ───');
+const profileSkill = getSkillById('profile-ideas');
+checkTrue2('skill profile-ideas existe', Boolean(profileSkill));
+checkTrue2('skill profile-ideas pede contexto do perfil', profileSkill?.needsProfileContext === true);
+checkTrue2(
+  '"analisa meu instagram" → profile-ideas',
+  routeByKeyword('analisa meu instagram e me dá ideias')?.id === 'profile-ideas'
+);
+checkTrue2(
+  '"@cyntiarinaldidoces ideias" → profile-ideas',
+  routeByKeyword('ideias no estilo @cyntiarinaldidoces')?.id === 'profile-ideas'
+);
+checkTrue2(
+  'skillNeedsProfileContext true',
+  skillNeedsProfileContext({
+    kind: 'skill',
+    id: 'profile-ideas',
+    name: 'x',
+    emoji: '📸',
+    via: 'keyword',
+    systemPrompt: '',
+  })
+);
+checkTrue2(
+  'reels-pipeline também pede perfil',
+  skillNeedsProfileContext({
+    kind: 'skill',
+    id: 'reels-pipeline',
+    name: 'x',
+    emoji: '🚀',
+    via: 'keyword',
+    systemPrompt: '',
+  })
+);
+checkTrue2('DEFAULT_IG_HANDLE é cyntiarinaldidoces', DEFAULT_IG_HANDLE === 'cyntiarinaldidoces');
+
 
 
 console.log('\n─── Separacao de fontes: video vs artigo ───');

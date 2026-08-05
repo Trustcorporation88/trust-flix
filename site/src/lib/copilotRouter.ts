@@ -34,6 +34,11 @@ export interface CopilotSkill {
    * é só fallback se o pipeline não rodar.
    */
   needsPipeline?: boolean;
+  /**
+   * Injeta contexto do Instagram autorizado (Postiz) — bio/posts recentes da
+   * conta conectada (default @cyntiarinaldidoces).
+   */
+  needsProfileContext?: boolean;
 }
 
 export interface RouteDecision {
@@ -88,11 +93,59 @@ export const COPILOT_SKILLS: CopilotSkill[] = [
     needsWebSearch: true,
     needsReelsContext: false,
     needsPipeline: true,
+    needsProfileContext: true,
     systemPrompt: `${BASE_VOICE}
 
 TAREFA: entregar um PACOTE completo de Reels (referência + roteiro + legenda + DM).
 Use mentalidade dos agentes StoryAds, Dissecação Neural, doug.tensão e Ugly Copy.
 Não entregue só teoria. Se não houver link real, diga e use molde filmável.`,
+  },
+  {
+    id: 'profile-ideas',
+    name: 'Ideias do meu Instagram',
+    emoji: '📸',
+    description:
+      'Lê o Instagram autorizado (ex: @cyntiarinaldidoces) e gera ideias no tom e nos temas reais do perfil',
+    keywords: [
+      'meu instagram',
+      'meu perfil',
+      'baseado no meu perfil',
+      'baseado no perfil',
+      'varrer o instagram',
+      'analisa meu instagram',
+      'analise meu instagram',
+      'ideias do perfil',
+      'ideias pro meu perfil',
+      'ideias para meu perfil',
+      'cyntiarinaldidoces',
+      '@cyntiarinaldidoces',
+      'conteudo do meu feed',
+      'conteúdo do meu feed',
+      'no estilo do meu perfil',
+      'como eu posto',
+      'no meu tom',
+    ],
+    needsProfileContext: true,
+    needsReelsContext: true,
+    systemPrompt: `${BASE_VOICE}
+
+TAREFA: gerar ideias de conteúdo baseadas no Instagram AUTORIZADO do usuário (contexto injetado abaixo).
+
+Regras:
+- Use o histórico real do perfil como base (temas, tom, produtos, CTA).
+- NÃO invente posts antigos que não estejam no contexto.
+- Se o contexto vier vazio, diga e use o playbook no tom de confeitaria/doces artesanais (ou do nicho informado).
+- Entregue 4 ideias filmáveis, concretas, prontas para gravar.
+
+Formato de cada ideia:
+[nome curto]
+Por que combina com o perfil: 1 frase
+Gancho (0-3s): ...
+Roteiro: 0-3s / 3-8s / final
+Legenda: pronta para colar
+CTA: DM ou comentário
+
+Feche com "Grave primeiro:" + a ideia #1.`,
   },
   {
     id: 'trends',
@@ -476,6 +529,11 @@ export function getSkillById(id: string): CopilotSkill | undefined {
 export function skillNeedsPipeline(decision: RouteDecision): boolean {
   if (decision.kind !== 'skill') return false;
   return Boolean(getSkillById(decision.id)?.needsPipeline);
+}
+
+export function skillNeedsProfileContext(decision: RouteDecision): boolean {
+  if (decision.kind !== 'skill') return false;
+  return Boolean(getSkillById(decision.id)?.needsProfileContext);
 }
 
 export function getAgentSystemPrompt(agent: Agent): string {
