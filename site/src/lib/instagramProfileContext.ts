@@ -72,10 +72,39 @@ function asRecord(v: unknown): Record<string, unknown> | null {
 
 function postText(post: PostizPost): string {
   if (typeof post.content === 'string' && post.content.trim()) return post.content.trim();
-  const value = (post as { value?: Array<{ content?: string }> }).value;
-  if (Array.isArray(value) && value[0]?.content) return String(value[0].content).trim();
-  const settings = asRecord(post.settings);
+  const row = post as Record<string, unknown>;
+  const value = row.value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const rec = asRecord(item);
+      if (rec && typeof rec.content === 'string' && rec.content.trim()) {
+        return rec.content.trim();
+      }
+    }
+  }
+  // alguns payloads aninham posts: [{ value: [{ content }] }]
+  const nestedPosts = row.posts;
+  if (Array.isArray(nestedPosts)) {
+    for (const np of nestedPosts) {
+      const npr = asRecord(np);
+      if (!npr) continue;
+      if (typeof npr.content === 'string' && npr.content.trim()) return npr.content.trim();
+      const nv = npr.value;
+      if (Array.isArray(nv)) {
+        for (const item of nv) {
+          const rec = asRecord(item);
+          if (rec && typeof rec.content === 'string' && rec.content.trim()) {
+            return rec.content.trim();
+          }
+        }
+      }
+    }
+  }
+  const settings = asRecord(row.settings);
   if (settings && typeof settings.caption === 'string') return settings.caption.trim();
+  if (typeof row.caption === 'string' && row.caption.trim()) return row.caption.trim();
+  if (typeof row.text === 'string' && row.text.trim()) return row.text.trim();
+  if (typeof row.message === 'string' && row.message.trim()) return row.message.trim();
   return '';
 }
 
@@ -159,8 +188,62 @@ function extractMedia(post: PostizPost): ProfileMediaItem[] {
   if (settings) {
     pushMedia(out, settings.image);
     pushMedia(out, settings.video);
-    const postType = String(settings.post_type || settings.postType || '').toLowerCase();
-    void postType;
+  }
+
+  // posts: [{ value: [{ image: [{path,url}] }] }]
+  const nestedPosts = row.posts;
+  if (Array.isArray(nestedPosts)) {
+    for (const np of nestedPosts) {
+      const npr = asRecord(np);
+      if (!npr) continue;
+      const nv = npr.value;
+      if (Array.isArray(nv)) {
+        for (const item of nv) {
+          const rec = asRecord(item);
+          if (!rec) continue;
+          const image = rec.image;
+          if (Array.isArray(image)) {
+            for (const img of image) {
+              const ir = asRecord(img);
+              if (!ir) continue;
+              pushMedia(out, ir.path);
+              pushMedia(out, ir.url);
+            }
+          }
+          pushMedia(out, rec.image);
+          pushMedia(out, rec.url);
+        }
+      }
+      pushMedia(out, npr.image);
+      pushMedia(out, npr.video);
+    }
+  }
+
+  // varredura rasa de qualquer string https no objeto (último recurso)
+  if (out.length === 0) {
+    const stack: unknown[] = [row];
+    let guard = 0;
+    while (stack.length && guard < 80) {
+      guard++;
+      const cur = stack.pop();
+      if (typeof cur === 'string') {
+        if (/^https?:\/\//i.test(cur)) pushMedia(out, cur);
+        continue;
+      }
+      if (Array.isArray(cur)) {
+        for (const x of cur.slice(0, 20)) stack.push(x);
+        continue;
+      }
+      const rec = asRecord(cur);
+      if (!rec) continue;
+      for (const [k, v] of Object.entries(rec)) {
+        if (['path', 'url', 'media', 'image', 'video', 'thumbnail', 'picture', 'media_url', 'permalink'].includes(k)) {
+          stack.push(v);
+        } else if (k === 'value' || k === 'posts' || k === 'children' || k === 'image') {
+          stack.push(v);
+        }
+      }
+    }
   }
 
   return out;
@@ -198,7 +281,12 @@ function classifyKind(post: PostizPost, media: ProfileMediaItem[]): ContentKind 
   }
   if (images.length >= 2) return 'carousel';
   if (images.length >= 1 && videos.length === 0) return 'feed';
-  return media.length ? 'feed' : 'unknown';
+  if (videos.length >= 1) return 'reel';
+  // Postiz costuma devolver legenda sem mídia/tipo. Se tem conteúdo publicado,
+  // conta como FEED — nunca deixar "unknown" zerar o badge.
+  const hasText = Boolean(String(post.content || postText(post) || '').trim());
+  if (hasText || media.length || post.releaseURL) return 'feed';
+  return 'feed';
 }
 
 function matchesHandle(integration: PostizIntegration, handle: string): boolean {
@@ -450,6 +538,23 @@ function mergePosts(a: ProfilePostSummary[], b: ProfilePostSummary[]): ProfilePo
  * Carrega contexto do Instagram conectado no Postiz (+ Graph se configurado).
  * Best-effort: nunca lança — devolve notice se algo faltar.
  */
+/** Achata payloads do Postiz que vêm como grupos / posts aninhados. */
+function flattenPostizPayload(posts: PostizPost[]): PostizPost[] {
+  const out: PostizPost[] = [];
+  for (const p of posts) {
+    const row = p as Record<string, unknown>;
+    const nested = row.posts;
+    if (Array.isArray(nested) && nested.length && !postText(p) && !extractMedia(p).length) {
+      for (const n of nested) {
+        if (n && typeof n === 'object') out.push(n as PostizPost);
+      }
+      continue;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
 export async function loadInstagramProfileContext(opts?: {
   handle?: string;
   days?: number;
@@ -511,6 +616,9 @@ export async function loadInstagramProfileContext(opts?: {
           posts = [];
         }
 
+        // Algumas instâncias devolvem agrupado; achata 1 nível.
+        posts = flattenPostizPayload(posts);
+
         const forAccount = posts.filter((p) => {
           const igId = p.integration?.id;
           const igName = String(p.integration?.name || '').toLowerCase();
@@ -569,9 +677,18 @@ export async function loadInstagramProfileContext(opts?: {
       ]);
       graphPosts = mergePosts(media, stories);
       graphUsed = graphPosts.length > 0;
+      if (!graphUsed) {
+        graphNotice =
+          'Graph respondeu sem mídia. Confira se INSTAGRAM_BUSINESS_ACCOUNT_ID é o id de instagram_business_account (não o id da Page) e se o token é da Page correta.';
+      }
     } catch (err) {
-      graphNotice = `Graph API: ${err instanceof Error ? err.message : 'falhou'}`;
+      const msg = err instanceof Error ? err.message : 'falhou';
+      graphNotice = `Graph API falhou: ${msg.slice(0, 180)}`;
     }
+  } else if (graphToken && !graphUser) {
+    graphNotice = 'INSTAGRAM_ACCESS_TOKEN presente, mas falta INSTAGRAM_BUSINESS_ACCOUNT_ID.';
+  } else if (!graphToken && graphUser) {
+    graphNotice = 'INSTAGRAM_BUSINESS_ACCOUNT_ID presente, mas falta INSTAGRAM_ACCESS_TOKEN.';
   }
 
   const merged = mergePosts(postizPosts, graphPosts).slice(0, maxPosts);

@@ -667,6 +667,15 @@ export default function CopilotPage() {
                           {m.profile.graphUsed ? ' · graph' : ''}
                         </span>
                       )}
+                      {m.profile?.notice && (
+                        <span
+                          className="inline-flex max-w-full items-start gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800"
+                          title={m.profile.notice}
+                        >
+                          perfil: {m.profile.notice.slice(0, 90)}
+                          {m.profile.notice.length > 90 ? '…' : ''}
+                        </span>
+                      )}
                       <span className="text-[11px] text-ink-950/40">
                         {m.route.kind === 'agent' ? 'agente' : 'skill'}
                         {m.route.via === 'llm' && ' · roteado por IA'}
