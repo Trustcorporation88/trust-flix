@@ -862,6 +862,11 @@ export async function POST(request: NextRequest) {
               handle: profileCtx.handle,
               accountName: profileCtx.accountName,
               postsAnalyzed: profileCtx.postsAnalyzed,
+              reelsAnalyzed: profileCtx.reelsAnalyzed,
+              storiesAnalyzed: profileCtx.storiesAnalyzed,
+              feedAnalyzed: profileCtx.feedAnalyzed,
+              mediaCount: profileCtx.mediaCount,
+              graphUsed: Boolean(profileCtx.graphUsed),
               notice: profileCtx.notice || null,
             }
           : null,
@@ -1010,6 +1015,11 @@ export async function POST(request: NextRequest) {
             handle: profileCtx.handle,
             accountName: profileCtx.accountName,
             postsAnalyzed: profileCtx.postsAnalyzed,
+            reelsAnalyzed: profileCtx.reelsAnalyzed,
+            storiesAnalyzed: profileCtx.storiesAnalyzed,
+            feedAnalyzed: profileCtx.feedAnalyzed,
+            mediaCount: profileCtx.mediaCount,
+            graphUsed: Boolean(profileCtx.graphUsed),
             notice: profileCtx.notice || null,
           }
         : null,

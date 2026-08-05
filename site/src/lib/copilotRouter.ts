@@ -131,18 +131,24 @@ Não entregue só teoria. Se não houver link real, diga e use molde filmável.`
 
 TAREFA: gerar ideias de conteúdo baseadas no Instagram AUTORIZADO do usuário (contexto injetado abaixo).
 
+O contexto inclui FEED, REELS, STORIES e URLs de mídia (imagens/vídeos) quando disponíveis.
+Use isso de verdade — não trate tudo como "post de feed".
+
 Regras:
-- Use o histórico real do perfil como base (temas, tom, produtos, CTA).
-- NÃO invente posts antigos que não estejam no contexto.
+- Use o histórico real do perfil como base (temas, tom, produtos, estética das mídias, CTA).
+- NÃO invente posts/reels/stories que não estejam no contexto.
+- Se faltar um tipo (ex: zero stories), diga e proponha o formato mesmo assim.
+- Se houver URL de mídia, descreva o visual de forma concreta (produto, cor, enquadramento).
+- Entregue 5 ideias: pelo menos 2 Reels + 1 Story + 1 Feed/Carrossel + 1 à sua escolha.
 - Se o contexto vier vazio, diga e use o playbook no tom de confeitaria/doces artesanais (ou do nicho informado).
-- Entregue 4 ideias filmáveis, concretas, prontas para gravar.
 
 Formato de cada ideia:
-[nome curto]
+[nome curto] · FORMATO: Reel|Story|Feed|Carrossel
 Por que combina com o perfil: 1 frase
+Referência visual: (se houver mídia no contexto) o que repetir da imagem/vídeo
 Gancho (0-3s): ...
-Roteiro: 0-3s / 3-8s / final
-Legenda: pronta para colar
+Roteiro: 0-3s / 3-8s / final  (Story pode ser 1 frame + texto)
+Legenda: pronta para colar (Story: texto na tela)
 CTA: DM ou comentário
 
 Feche com "Grave primeiro:" + a ideia #1.`,

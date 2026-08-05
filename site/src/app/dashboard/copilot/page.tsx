@@ -68,7 +68,17 @@ interface Message {
   fallbackUsed?: boolean;
   fallback?: { provider: string; model: string; reason?: string };
   /** Instagram autorizado usado como base */
-  profile?: { handle: string; accountName: string; postsAnalyzed: number; notice?: string | null };
+  profile?: {
+    handle: string;
+    accountName: string;
+    postsAnalyzed: number;
+    reelsAnalyzed?: number;
+    storiesAnalyzed?: number;
+    feedAnalyzed?: number;
+    mediaCount?: number;
+    graphUsed?: boolean;
+    notice?: string | null;
+  };
   /** true = resposta baseada em busca real na web */
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
@@ -645,9 +655,16 @@ export default function CopilotPage() {
                       {m.profile?.handle && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-xs font-semibold text-pink-800">
                           @{m.profile.handle}
-                          {typeof m.profile.postsAnalyzed === 'number'
-                            ? ` · ${m.profile.postsAnalyzed} posts`
+                          {typeof m.profile.reelsAnalyzed === 'number' ||
+                          typeof m.profile.storiesAnalyzed === 'number'
+                            ? ` · ${m.profile.reelsAnalyzed ?? 0} reels · ${m.profile.storiesAnalyzed ?? 0} stories · ${m.profile.feedAnalyzed ?? 0} feed`
+                            : typeof m.profile.postsAnalyzed === 'number'
+                              ? ` · ${m.profile.postsAnalyzed} posts`
+                              : ''}
+                          {typeof m.profile.mediaCount === 'number' && m.profile.mediaCount > 0
+                            ? ` · ${m.profile.mediaCount} mídias`
                             : ''}
+                          {m.profile.graphUsed ? ' · graph' : ''}
                         </span>
                       )}
                       <span className="text-[11px] text-ink-950/40">
@@ -1090,8 +1107,8 @@ export default function CopilotPage() {
                 StoryAds → Dissecação → doug.tensão/Ugly Copy com busca de referências.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">📸 Ideias do meu IG</span> — lê o
-                Instagram autorizado (@cyntiarinaldidoces) e gera ideias no tom do perfil.
+                <span className="font-semibold text-ink-950">📸 Ideias do meu IG</span> — lê
+                Reels, Stories, Feed e mídias do Instagram autorizado (@cyntiarinaldidoces).
               </li>
               <li>
                 <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na
