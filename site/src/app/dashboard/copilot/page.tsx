@@ -67,6 +67,8 @@ interface Message {
   /** true = provedor principal falhou e o fallback (Anthropic) atendeu */
   fallbackUsed?: boolean;
   fallback?: { provider: string; model: string; reason?: string };
+  /** Instagram autorizado usado como base */
+  profile?: { handle: string; accountName: string; postsAnalyzed: number; notice?: string | null };
   /** true = resposta baseada em busca real na web */
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
@@ -109,6 +111,13 @@ const QUICK_ACTIONS: { label: string; emoji: string; route: string; prompt: stri
     route: 'skill:reels-pipeline',
     prompt:
       'Quero um Reels + post pronto: busca referências e usa StoryAds, Dissecação, doug.tensão e Ugly Copy.',
+  },
+  {
+    label: 'Ideias do meu IG',
+    emoji: '📸',
+    route: 'skill:profile-ideas',
+    prompt:
+      'Analisa meu Instagram @cyntiarinaldidoces (conta autorizada) e me dá ideias de Reels e posts no tom do perfil.',
   },
   {
     label: 'Reels em alta',
@@ -341,6 +350,8 @@ export default function CopilotPage() {
             image: sentImage,
             nicho: nicho.trim() || undefined,
             cidade: cidade.trim() || undefined,
+            // Conta Instagram autorizada no Postiz (site pessoal).
+            instagramHandle: 'cyntiarinaldidoces',
             // Se o usuário configurou a própria chave em Configurações, ela tem
             // prioridade — inclusive habilita visão sem mexer na Vercel.
             ...(byok
@@ -394,6 +405,7 @@ export default function CopilotPage() {
               : undefined,
             fallbackUsed: data.fallbackUsed || undefined,
             fallback: data.fallback || undefined,
+            profile: data.profile || undefined,
             webSearchUsed: data.webSearchUsed || undefined,
             webSearchUnavailable: data.webSearchUnavailable || undefined,
           },
@@ -628,6 +640,14 @@ export default function CopilotPage() {
                       {m.fallbackUsed && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
                           <FiServer size={11} /> fallback {m.fallback?.provider || 'anthropic'}
+                        </span>
+                      )}
+                      {m.profile?.handle && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-xs font-semibold text-pink-800">
+                          @{m.profile.handle}
+                          {typeof m.profile.postsAnalyzed === 'number'
+                            ? ` · ${m.profile.postsAnalyzed} posts`
+                            : ''}
                         </span>
                       )}
                       <span className="text-[11px] text-ink-950/40">
@@ -1068,6 +1088,10 @@ export default function CopilotPage() {
               <li>
                 <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — pipeline
                 StoryAds → Dissecação → doug.tensão/Ugly Copy com busca de referências.
+              </li>
+              <li>
+                <span className="font-semibold text-ink-950">📸 Ideias do meu IG</span> — lê o
+                Instagram autorizado (@cyntiarinaldidoces) e gera ideias no tom do perfil.
               </li>
               <li>
                 <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na

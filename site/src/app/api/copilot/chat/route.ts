@@ -11,10 +11,15 @@ import {
   resolveRoute,
   routeByKeyword,
   skillNeedsPipeline,
+  skillNeedsProfileContext,
   RouteDecision,
 } from '@/lib/copilotRouter';
 import { ARSENAL_AGENTS } from '@/services/arsenalService';
 import { trendsService } from '@/services/trendsService';
+import {
+  DEFAULT_IG_HANDLE,
+  loadInstagramProfileContext,
+} from '@/lib/instagramProfileContext';
 import {
   REELS_PIPELINE_AGENTS,
   assemblePipelineReply,
@@ -105,6 +110,8 @@ interface RequestBody {
   nicho?: string;
   /** Cidade do usuário — usada para buscar tendências locais na web. */
   cidade?: string;
+  /** Handle do Instagram autorizado (default cyntiarinaldidoces). */
+  instagramHandle?: string;
 }
 
 interface AIConfig {
@@ -798,13 +805,28 @@ export async function POST(request: NextRequest) {
     if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
 
+    // Instagram autorizado (Postiz) — default @cyntiarinaldidoces no site pessoal.
+    const wantsProfile =
+      skillNeedsProfileContext(decision) || skillNeedsPipeline(decision);
+    const profileCtx = wantsProfile
+      ? await loadInstagramProfileContext({
+          handle: body.instagramHandle?.trim() || DEFAULT_IG_HANDLE,
+        })
+      : null;
+
     // ── Pipeline multi-agente (Reels + Post pronto) ─────────────────────────
     if (skillNeedsPipeline(decision)) {
       const canWebSearch = supportsWebSearch(cfg.provider);
+      const baseMsg =
+        message || (image ? 'Monta um Reels completo com esta foto.' : 'Reels + post pronto pro meu nicho');
+      const profilePrefix = profileCtx?.promptBlock
+        ? `[CONTEXTO DO INSTAGRAM AUTORIZADO]\n${profileCtx.promptBlock}\n\n`
+        : profileCtx?.notice
+          ? `[AVISO PERFIL] ${profileCtx.notice}\n\n`
+          : '';
       const pipe = await runReelsPipeline(cfg, {
-        userMessage:
-          message || (image ? 'Monta um Reels completo com esta foto.' : 'Reels + post pronto pro meu nicho'),
-        nicho: body.nicho?.trim() || undefined,
+        userMessage: `${profilePrefix}${baseMsg}`,
+        nicho: body.nicho?.trim() || profileCtx?.handle || undefined,
         cidade: body.cidade?.trim() || undefined,
         canWebSearch,
       });
@@ -835,6 +857,14 @@ export async function POST(request: NextRequest) {
         byok: cfg.byok,
         fallbackUsed: Boolean(pipe.usedFallback),
         fallback: pipe.usedFallback || null,
+        profile: profileCtx
+          ? {
+              handle: profileCtx.handle,
+              accountName: profileCtx.accountName,
+              postsAnalyzed: profileCtx.postsAnalyzed,
+              notice: profileCtx.notice || null,
+            }
+          : null,
         visionUsed: false,
         hadImage: Boolean(image),
         duration: Date.now() - startedAt,
@@ -844,6 +874,12 @@ export async function POST(request: NextRequest) {
     let systemPrompt = buildFinalSystemPrompt(decision);
     if (body.nicho) {
       systemPrompt += `\n\nNICHO DO USUÁRIO: ${body.nicho}. Adapte todos os exemplos a este nicho.`;
+    }
+
+    if (profileCtx?.promptBlock) {
+      systemPrompt += `\n\n--- INSTAGRAM AUTORIZADO (@${profileCtx.handle}) ---\n${profileCtx.promptBlock}`;
+    } else if (profileCtx?.notice && skillNeedsProfileContext(decision)) {
+      systemPrompt += `\n\nAVISO SOBRE O PERFIL: ${profileCtx.notice}`;
     }
 
     if (image) {
@@ -969,6 +1005,14 @@ export async function POST(request: NextRequest) {
       byok: cfg.byok,
       fallbackUsed: Boolean(llmResult.usedFallback),
       fallback: llmResult.usedFallback || null,
+      profile: profileCtx
+        ? {
+            handle: profileCtx.handle,
+            accountName: profileCtx.accountName,
+            postsAnalyzed: profileCtx.postsAnalyzed,
+            notice: profileCtx.notice || null,
+          }
+        : null,
       /** true = a foto foi realmente analisada; false com imagem = provedor sem visão */
       visionUsed: canSeeImage,
       hadImage: Boolean(image),
