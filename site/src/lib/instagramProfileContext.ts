@@ -148,8 +148,8 @@ export async function loadInstagramProfileContext(opts?: {
   maxPosts?: number;
 }): Promise<InstagramProfileContext> {
   const handle = normalizeHandle(opts?.handle) || DEFAULT_IG_HANDLE;
-  const days = opts?.days ?? 90;
-  const maxPosts = opts?.maxPosts ?? 12;
+  const days = opts?.days ?? 180;
+  const maxPosts = opts?.maxPosts ?? 24;
 
   if (!postizService.isConfigured()) {
     return {
