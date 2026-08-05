@@ -2,11 +2,24 @@
  * Teste da camada 1 do roteador do Copilot (match por palavra-chave).
  * Roda sem chamar IA — valida só a decisão de roteamento.
  */
-import { routeByKeyword, buildRoutingCatalog, COPILOT_SKILLS } from '../src/lib/copilotRouter';
+import {
+  routeByKeyword,
+  buildRoutingCatalog,
+  COPILOT_SKILLS,
+  getSkillById,
+  skillNeedsPipeline,
+} from '../src/lib/copilotRouter';
 import { REELS_FORMATS, buildReelsContext } from '../src/lib/reelsPlaybook';
 import { ARSENAL_AGENTS } from '../src/services/arsenalService';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '../src/lib/textClean';
 import { isVideoUrl, splitSources } from '../src/lib/aiProviders';
+import {
+  REELS_PIPELINE_ID,
+  REELS_PIPELINE_AGENTS,
+  assemblePipelineReply,
+  buildStoryAdsPrompt,
+  buildHuntPrompt,
+} from '../src/lib/reelsPipeline';
 
 /** Helper de asserção booleana usado nas seções novas. */
 function checkTrue2(label: string, cond: boolean) {
@@ -287,6 +300,70 @@ checkTrue2(
   'prompt nao proibe URL no corpo da resposta',
   !trendsSkill?.systemPrompt.includes('Não repita URLs')
 );
+
+console.log('\n─── Pipeline Reels + Post pronto ───');
+const pipeSkill = getSkillById('reels-pipeline');
+checkTrue2('skill reels-pipeline existe', Boolean(pipeSkill));
+checkTrue2('skill reels-pipeline marca needsPipeline', pipeSkill?.needsPipeline === true);
+checkTrue2('skill reels-pipeline pede web search', pipeSkill?.needsWebSearch === true);
+checkTrue2(
+  '"quero reels + post pronto" → pipeline',
+  routeByKeyword('quero reels + post pronto pro meu nicho')?.id === 'reels-pipeline'
+);
+checkTrue2(
+  '"pack de conteúdo com storyads" → pipeline',
+  routeByKeyword('pack de conteúdo com storyads')?.id === 'reels-pipeline'
+);
+checkTrue2(
+  'skillNeedsPipeline true no pipeline',
+  skillNeedsPipeline({
+    kind: 'skill',
+    id: 'reels-pipeline',
+    name: 'x',
+    emoji: '🚀',
+    via: 'keyword',
+    systemPrompt: '',
+  })
+);
+checkTrue2(
+  'skillNeedsPipeline false em trends',
+  !skillNeedsPipeline({
+    kind: 'skill',
+    id: 'trends',
+    name: 'x',
+    emoji: '🔥',
+    via: 'keyword',
+    systemPrompt: '',
+  })
+);
+checkTrue2('pipeline usa 4 agentes do arsenal', REELS_PIPELINE_AGENTS.length === 4);
+checkTrue2(
+  'agentes do pipeline existem no arsenal',
+  REELS_PIPELINE_AGENTS.every((a) => ARSENAL_AGENTS.some((x) => x.id === a.id))
+);
+checkTrue2(
+  'buildStoryAdsPrompt cita STORYADS',
+  buildStoryAdsPrompt({
+    userMessage: 'doces artesanais',
+    nicho: 'doces',
+    webSearchUsed: false,
+  }).includes('STORYADS')
+);
+checkTrue2(
+  'buildHuntPrompt pede link de reel',
+  buildHuntPrompt({ userMessage: 'reels de café' }).includes('instagram.com/reel')
+);
+const assembled = assemblePipelineReply({
+  storyAds: 'formato teste',
+  dissecacao: 'persona teste',
+  closer: 'pacote teste',
+  videoLinks: [{ url: 'https://www.instagram.com/reel/ABC/', title: 'reel' }],
+});
+checkTrue2('assemble inclui pacote', assembled.includes('pacote teste'));
+checkTrue2('assemble inclui link', assembled.includes('instagram.com/reel/ABC'));
+checkTrue2('assemble inclui bastidores StoryAds', assembled.includes('STORYADS'));
+checkTrue2('REELS_PIPELINE_ID estável', REELS_PIPELINE_ID === 'reels-pipeline');
+
 
 console.log('\n─── Separacao de fontes: video vs artigo ───');
 const videoCases = [

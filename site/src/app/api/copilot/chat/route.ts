@@ -10,9 +10,20 @@ import {
   parseRouteDecision,
   resolveRoute,
   routeByKeyword,
+  skillNeedsPipeline,
   RouteDecision,
 } from '@/lib/copilotRouter';
 import { ARSENAL_AGENTS } from '@/services/arsenalService';
+import { trendsService } from '@/services/trendsService';
+import {
+  REELS_PIPELINE_AGENTS,
+  assemblePipelineReply,
+  buildCloserPrompt,
+  buildDissecacaoPrompt,
+  buildHuntPrompt,
+  buildStoryAdsPrompt,
+  type PipelineRunInput,
+} from '@/lib/reelsPipeline';
 import {
   DEFAULT_MODEL,
   OPENAI_COMPATIBLE_BASE,
@@ -434,6 +445,185 @@ async function callLLM(
 }
 
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
+/**
+ * Pipeline multi-agente: caça → StoryAds → Dissecação → doug.tensão/Ugly Copy.
+ * Cada etapa é uma chamada curta. Falha parcial ainda devolve o que deu.
+ */
+async function runReelsPipeline(
+  cfg: AIConfig,
+  input: {
+    userMessage: string;
+    nicho?: string;
+    cidade?: string;
+    canWebSearch: boolean;
+  }
+): Promise<{
+  reply: string;
+  sources: WebSource[];
+  videoSources: WebSource[];
+  articleSources: WebSource[];
+  webSearchUsed: boolean;
+  pipelineSteps: { id: string; label: string; ok: boolean }[];
+  agentsUsed: string[];
+}> {
+  const steps: { id: string; label: string; ok: boolean }[] = [];
+  const agentsUsed = REELS_PIPELINE_AGENTS.map((a) => `${a.emoji} ${a.name}`);
+
+  let trendingHashtags: string[] = [];
+  if (trendsService.isConfigured() && (input.nicho || input.userMessage)) {
+    try {
+      const q = (input.nicho || input.userMessage).slice(0, 80);
+      const tags = await trendsService.getTrendingHashtags(q);
+      trendingHashtags = tags.slice(0, 8).map((t) => t.hashtag);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let huntText = '';
+  let sources: WebSource[] = [];
+  let webSearchUsed = false;
+  let huntPreface = '';
+
+  if (input.canWebSearch) {
+    try {
+      const huntPrompt = buildHuntPrompt({
+        userMessage: input.userMessage,
+        nicho: input.nicho,
+        cidade: input.cidade,
+      });
+      const hunt = await callLLM(
+        cfg,
+        [
+          { role: 'system', content: huntPrompt },
+          {
+            role: 'user',
+            content:
+              input.userMessage ||
+              `Referências de Reels para ${input.nicho || 'meu nicho'}`,
+          },
+        ],
+        {
+          webSearch: {
+            model: WEB_SEARCH_MODEL[cfg.provider],
+            options: buildWebSearchOptions(
+              { country: 'BR', city: input.cidade?.trim() || undefined },
+              'medium'
+            ),
+          },
+          maxTokens: 900,
+        }
+      );
+      huntText = hunt.content || '';
+      sources = hunt.sources || [];
+      webSearchUsed = true;
+      steps.push({ id: 'hunt', label: 'Caçando referências', ok: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'falha na busca';
+      huntPreface = `Busca na web indisponível agora (${msg}). Seguimos com os agentes e o playbook.`;
+      steps.push({ id: 'hunt', label: 'Caçando referências', ok: false });
+    }
+  } else {
+    huntPreface =
+      'Sem busca na web neste provedor — StoryAds usa formatos comprovados (não são "em alta" do momento).';
+    steps.push({ id: 'hunt', label: 'Caçando referências', ok: false });
+  }
+
+  const { videos: videoSources, articles: articleSources } = splitSources(sources);
+
+  const baseInput: PipelineRunInput = {
+    userMessage: input.userMessage,
+    nicho: input.nicho,
+    cidade: input.cidade,
+    huntText,
+    videoLinks: videoSources,
+    trendingHashtags,
+    webSearchUsed,
+  };
+
+  let storyAds = '';
+  try {
+    const r = await callLLM(
+      cfg,
+      [
+        { role: 'system', content: buildStoryAdsPrompt(baseInput) },
+        { role: 'user', content: 'Monte os formatos agora.' },
+      ],
+      { maxTokens: 900, temperature: 0.6 }
+    );
+    storyAds = r.content || '';
+    steps.push({ id: 'storyads', label: 'STORYADS montando formato', ok: Boolean(storyAds) });
+  } catch (err) {
+    storyAds = `STORYADS falhou: ${err instanceof Error ? err.message : 'erro'}`;
+    steps.push({ id: 'storyads', label: 'STORYADS montando formato', ok: false });
+  }
+
+  let dissecacao = '';
+  try {
+    const r = await callLLM(
+      cfg,
+      [
+        { role: 'system', content: buildDissecacaoPrompt(baseInput, storyAds) },
+        { role: 'user', content: 'Disseque o cliente ideal para esses formatos.' },
+      ],
+      { maxTokens: 700, temperature: 0.5 }
+    );
+    dissecacao = r.content || '';
+    steps.push({
+      id: 'dissecacao',
+      label: 'Dissecação adaptando ao público',
+      ok: Boolean(dissecacao),
+    });
+  } catch (err) {
+    dissecacao = `Dissecação falhou: ${err instanceof Error ? err.message : 'erro'}`;
+    steps.push({ id: 'dissecacao', label: 'Dissecação adaptando ao público', ok: false });
+  }
+
+  let closer = '';
+  try {
+    const r = await callLLM(
+      cfg,
+      [
+        { role: 'system', content: buildCloserPrompt(baseInput, storyAds, dissecacao) },
+        { role: 'user', content: 'Feche o pacote pronto para gravar e publicar.' },
+      ],
+      { maxTokens: 1100, temperature: 0.7 }
+    );
+    closer = r.content || '';
+    steps.push({
+      id: 'closer',
+      label: 'doug.tensão + Ugly Copy fechando o post',
+      ok: Boolean(closer),
+    });
+  } catch (err) {
+    closer = `Fechamento falhou: ${err instanceof Error ? err.message : 'erro'}`;
+    steps.push({
+      id: 'closer',
+      label: 'doug.tensão + Ugly Copy fechando o post',
+      ok: false,
+    });
+  }
+
+  const reply = assemblePipelineReply({
+    huntPreface,
+    storyAds,
+    dissecacao,
+    closer,
+    videoLinks: videoSources,
+    agentsUsed,
+  });
+
+  return {
+    reply,
+    sources,
+    videoSources,
+    articleSources,
+    webSearchUsed,
+    pipelineSteps: steps,
+    agentsUsed,
+  };
+}
+
 function resolveForcedRoute(forceRoute: string): RouteDecision | null {
   return resolveRoute(forceRoute, 'keyword');
 }
@@ -516,7 +706,46 @@ export async function POST(request: NextRequest) {
     if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
 
-    // ── Execução ──────────────────────────────────────────────────
+    // ── Pipeline multi-agente (Reels + Post pronto) ─────────────────────────
+    if (skillNeedsPipeline(decision)) {
+      const canWebSearch = supportsWebSearch(cfg.provider);
+      const pipe = await runReelsPipeline(cfg, {
+        userMessage:
+          message || (image ? 'Monta um Reels completo com esta foto.' : 'Reels + post pronto pro meu nicho'),
+        nicho: body.nicho?.trim() || undefined,
+        cidade: body.cidade?.trim() || undefined,
+        canWebSearch,
+      });
+
+      return NextResponse.json({
+        success: true,
+        reply: pipe.reply,
+        sources: pipe.sources,
+        videoSources: pipe.videoSources,
+        articleSources: pipe.articleSources,
+        webSearchUsed: pipe.webSearchUsed,
+        webSearchUnavailable: !canWebSearch,
+        pipeline: {
+          steps: pipe.pipelineSteps,
+          agentsUsed: pipe.agentsUsed,
+        },
+        route: {
+          kind: decision.kind,
+          id: decision.id,
+          name: decision.name,
+          emoji: decision.emoji,
+          via: decision.via,
+        },
+        provider: cfg.provider,
+        model: pipe.webSearchUsed ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model,
+        modelMigratedFrom: cfg.migratedFrom,
+        byok: cfg.byok,
+        visionUsed: false,
+        hadImage: Boolean(image),
+        duration: Date.now() - startedAt,
+      });
+    }
+
     let systemPrompt = buildFinalSystemPrompt(decision);
     if (body.nicho) {
       systemPrompt += `\n\nNICHO DO USUÁRIO: ${body.nicho}. Adapte todos os exemplos a este nicho.`;

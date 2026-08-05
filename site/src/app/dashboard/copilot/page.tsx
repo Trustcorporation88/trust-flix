@@ -60,6 +60,10 @@ interface Message {
   videoSources?: { url: string; title: string }[];
   /** Artigos de apoio, separados dos vídeos */
   articleSources?: { url: string; title: string }[];
+  /** Etapas do pipeline multi-agente (Reels + Post pronto) */
+  pipelineSteps?: { id: string; label: string; ok: boolean }[];
+  /** Agentes do Arsenal usados na resposta */
+  agentsUsed?: string[];
   /** true = resposta baseada em busca real na web */
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
@@ -92,6 +96,13 @@ const CIDADE_KEY = 'sf_copilot_cidade';
 const MAX_FILE_MB = 8;
 
 const QUICK_ACTIONS: { label: string; emoji: string; route: string; prompt: string }[] = [
+  {
+    label: 'Reels + Post pronto',
+    emoji: '🚀',
+    route: 'skill:reels-pipeline',
+    prompt:
+      'Quero um Reels + post pronto: busca referências e usa StoryAds, Dissecação, doug.tensão e Ugly Copy.',
+  },
   {
     label: 'Reels em alta',
     emoji: '🔥',
@@ -367,6 +378,10 @@ export default function CopilotPage() {
               Array.isArray(data.articleSources) && data.articleSources.length
                 ? data.articleSources
                 : undefined,
+            pipelineSteps: Array.isArray(data.pipeline?.steps) ? data.pipeline.steps : undefined,
+            agentsUsed: Array.isArray(data.pipeline?.agentsUsed)
+              ? data.pipeline.agentsUsed
+              : undefined,
             webSearchUsed: data.webSearchUsed || undefined,
             webSearchUnavailable: data.webSearchUnavailable || undefined,
           },
@@ -622,6 +637,36 @@ export default function CopilotPage() {
                   >
                     <p className="whitespace-pre-wrap break-words">{m.content}</p>
                   </div>
+
+                  {/* Pipeline multi-agente */}
+                  {m.agentsUsed?.length || m.pipelineSteps?.length ? (
+                    <div className="mt-2 rounded-lg border border-ink-950/10 bg-white p-3">
+                      {m.agentsUsed?.length ? (
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-950/45">
+                          Agentes: {m.agentsUsed.join(' → ')}
+                        </p>
+                      ) : null}
+                      {m.pipelineSteps?.length ? (
+                        <ul className="mt-2 space-y-1">
+                          {m.pipelineSteps.map((st) => (
+                            <li
+                              key={st.id}
+                              className="flex items-center gap-2 text-xs text-ink-950/70"
+                            >
+                              <span
+                                className={
+                                  st.ok
+                                    ? 'inline-block h-1.5 w-1.5 rounded-full bg-emerald-500'
+                                    : 'inline-block h-1.5 w-1.5 rounded-full bg-amber-500'
+                                }
+                              />
+                              {st.label}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {/* Vídeos para copiar — o entregável da skill "Reels em alta" */}
                   {m.videoSources?.length ? (
@@ -980,6 +1025,10 @@ export default function CopilotPage() {
               </p>
             </div>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-950/60">
+              <li>
+                <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — pipeline
+                StoryAds → Dissecação → doug.tensão/Ugly Copy com busca de referências.
+              </li>
               <li>
                 <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na
                 web o que está performando agora, com links das fontes.
