@@ -379,3 +379,18 @@ export function parseProviderError(text: string): string {
     return text.slice(0, 300);
   }
 }
+
+
+/** Erros em que vale tentar outro provedor (429 / 5xx / sobrecarga). */
+export function isRetryableProviderError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  if (!msg) return false;
+  if (/\(429\)/.test(msg) || /rate limit/i.test(msg) || /tokens per min/i.test(msg)) {
+    return true;
+  }
+  if (/\((500|502|503|529)\)/.test(msg)) return true;
+  if (/overloaded|capacity|temporarily unavailable|service unavailable/i.test(msg)) {
+    return true;
+  }
+  return false;
+}

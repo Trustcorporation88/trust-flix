@@ -12,7 +12,7 @@ import {
 import { REELS_FORMATS, buildReelsContext } from '../src/lib/reelsPlaybook';
 import { ARSENAL_AGENTS } from '../src/services/arsenalService';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '../src/lib/textClean';
-import { isVideoUrl, splitSources } from '../src/lib/aiProviders';
+import { isVideoUrl, splitSources, isRetryableProviderError } from '../src/lib/aiProviders';
 import {
   REELS_PIPELINE_ID,
   REELS_PIPELINE_AGENTS,
@@ -405,6 +405,13 @@ console.log(`Contém biblioteca de ganchos: ${ctx.includes('BIBLIOTECA DE GANCHO
 // Todo formato precisa de estrutura e gancho preenchidos
 const brokenFormats = REELS_FORMATS.filter((f) => !f.hook || f.structure.length < 3);
 console.log(`Formatos completos: ${brokenFormats.length === 0 ? 'OK' : 'INCOMPLETOS: ' + brokenFormats.map((f) => f.id).join(',')}`);
+
+console.log('\n─── Fallback de provedor (retryable errors) ───');
+checkTrue2('429 é retryable', isRetryableProviderError(new Error('(429) Rate limit reached')));
+checkTrue2('TPM é retryable', isRetryableProviderError(new Error('tokens per min (TPM)')));
+checkTrue2('503 é retryable', isRetryableProviderError(new Error('(503) overloaded')));
+checkTrue2('401 NÃO é retryable', !isRetryableProviderError(new Error('(401) Invalid API key')));
+checkTrue2('mensagem vazia NÃO é retryable', !isRetryableProviderError(new Error('')));
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) {
