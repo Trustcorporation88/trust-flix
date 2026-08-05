@@ -64,6 +64,9 @@ interface Message {
   pipelineSteps?: { id: string; label: string; ok: boolean }[];
   /** Agentes do Arsenal usados na resposta */
   agentsUsed?: string[];
+  /** true = provedor principal falhou e o fallback (Anthropic) atendeu */
+  fallbackUsed?: boolean;
+  fallback?: { provider: string; model: string; reason?: string };
   /** true = resposta baseada em busca real na web */
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
@@ -77,6 +80,10 @@ interface CopilotStatus {
   modelMigratedFrom: string | null;
   vision: boolean;
   webSearch: boolean;
+  /** true se o servidor tem ANTHROPIC_API_KEY / COPILOT_AI_FALLBACK_API_KEY */
+  fallbackConfigured: boolean;
+  fallbackProvider: string | null;
+  fallbackModel: string | null;
   agentCount: number;
 }
 
@@ -211,6 +218,9 @@ export default function CopilotPage() {
             modelMigratedFrom: data.modelMigratedFrom ?? null,
             vision: Boolean(data.vision),
             webSearch: Boolean(data.webSearch),
+            fallbackConfigured: Boolean(data.fallbackConfigured),
+            fallbackProvider: data.fallbackProvider ?? null,
+            fallbackModel: data.fallbackModel ?? null,
             agentCount: data.agentCount ?? 0,
           });
         }
@@ -382,6 +392,8 @@ export default function CopilotPage() {
             agentsUsed: Array.isArray(data.pipeline?.agentsUsed)
               ? data.pipeline.agentsUsed
               : undefined,
+            fallbackUsed: data.fallbackUsed || undefined,
+            fallback: data.fallback || undefined,
             webSearchUsed: data.webSearchUsed || undefined,
             webSearchUnavailable: data.webSearchUnavailable || undefined,
           },
@@ -476,6 +488,10 @@ export default function CopilotPage() {
         model: byok.model,
         vision: supportsVision(byok.provider, byok.model),
         webSearch: supportsWebSearch(byok.provider),
+        // Fallback é sempre server-side (env). BYOK não carrega a chave Anthropic no browser.
+        fallbackConfigured: Boolean(status?.fallbackConfigured),
+        fallbackProvider: status?.fallbackProvider ?? null,
+        fallbackModel: status?.fallbackModel ?? null,
         modelMigratedFrom: null as string | null,
         source: 'byok' as const,
       }
@@ -486,6 +502,9 @@ export default function CopilotPage() {
           model: status.model ?? '',
           vision: status.vision,
           webSearch: status.webSearch,
+          fallbackConfigured: status.fallbackConfigured,
+          fallbackProvider: status.fallbackProvider,
+          fallbackModel: status.fallbackModel,
           modelMigratedFrom: status.modelMigratedFrom,
           source: 'server' as const,
         }
@@ -604,6 +623,11 @@ export default function CopilotPage() {
                       {m.webSearchUnavailable && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                           <FiWifiOff size={11} /> sem acesso à web
+                        </span>
+                      )}
+                      {m.fallbackUsed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
+                          <FiServer size={11} /> fallback {m.fallback?.provider || 'anthropic'}
                         </span>
                       )}
                       <span className="text-[11px] text-ink-950/40">
@@ -950,6 +974,22 @@ export default function CopilotPage() {
                           <>
                             <FiWifiOff size={12} className="text-amber-600" />
                             <span className="text-amber-700">sem pesquisa na web</span>
+                          </>
+                        )}
+                      </p>
+                      <p className="mt-1.5 inline-flex items-center gap-1 text-xs">
+                        {effective.fallbackConfigured ? (
+                          <>
+                            <FiServer size={12} className="text-violet-600" />
+                            <span className="text-violet-700">
+                              fallback {effective.fallbackProvider || 'anthropic'}
+                              {effective.fallbackModel ? ` · ${effective.fallbackModel}` : ''}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <FiServer size={12} className="text-ink-950/35" />
+                            <span className="text-ink-950/45">sem fallback Anthropic</span>
                           </>
                         )}
                       </p>

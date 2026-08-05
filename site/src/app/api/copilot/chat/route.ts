@@ -38,6 +38,7 @@ import {
   providerExtras,
   supportsVision,
   supportsWebSearch,
+  isRetryableProviderError,
 } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
@@ -176,6 +177,45 @@ function resolveConfig(body: RequestBody): AIConfig | null {
   return null;
 }
 
+/**
+ * Fallback Anthropic (ou outro provedor) quando a chave principal estoura
+ * rate limit / fica indisponível.
+ *
+ * Ordem:
+ *  1. COPILOT_AI_FALLBACK_API_KEY (+ PROVIDER/MODEL opcionais)
+ *  2. ANTHROPIC_API_KEY / COPILOT_ANTHROPIC_API_KEY
+ */
+function resolveFallbackConfig(primary?: AIConfig | null): AIConfig | null {
+  const fallbackKey =
+    process.env.COPILOT_AI_FALLBACK_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.COPILOT_ANTHROPIC_API_KEY;
+  if (!fallbackKey) return null;
+
+  const provider = (process.env.COPILOT_AI_FALLBACK_PROVIDER || 'anthropic') as Provider;
+  const model =
+    process.env.COPILOT_AI_FALLBACK_MODEL ||
+    DEFAULT_MODEL[provider] ||
+    DEFAULT_MODEL.anthropic;
+
+  // Não "fallbacka" para o mesmo provedor+chave — seria loop inútil.
+  if (
+    primary &&
+    primary.provider === provider &&
+    primary.apiKey === fallbackKey
+  ) {
+    return null;
+  }
+
+  return finalize({
+    provider,
+    apiKey: fallbackKey,
+    model,
+    byok: false,
+  });
+}
+
+
 interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -185,6 +225,8 @@ interface LLMMessage {
 interface LLMResult {
   content: string;
   sources: WebSource[];
+  /** Preenchido quando a chamada principal falhou e o fallback Anthropic atendeu. */
+  usedFallback?: { provider: string; model: string; reason: string };
 }
 
 /** Separa uma data URL em tipo MIME e payload base64. */
@@ -403,7 +445,7 @@ async function callGoogle(
   };
 }
 
-async function callLLM(
+async function callLLMPrimary(
   cfg: AIConfig,
   messages: LLMMessage[],
   opts: {
@@ -412,7 +454,7 @@ async function callLLM(
     thinking?: boolean;
     image?: ImageInput;
     webSearch?: { model: string; options: Record<string, unknown> };
-  } = {}
+  }
 ): Promise<LLMResult> {
   const maxTokens = opts.maxTokens ?? 1600;
   const temperature = opts.temperature ?? 0.7;
@@ -444,6 +486,50 @@ async function callLLM(
   );
 }
 
+async function callLLM(
+  cfg: AIConfig,
+  messages: LLMMessage[],
+  opts: {
+    maxTokens?: number;
+    temperature?: number;
+    thinking?: boolean;
+    image?: ImageInput;
+    webSearch?: { model: string; options: Record<string, unknown> };
+    /** Desliga fallback Anthropic nesta chamada (ex.: classificador). */
+    disableFallback?: boolean;
+  } = {}
+): Promise<LLMResult> {
+  try {
+    return await callLLMPrimary(cfg, messages, opts);
+  } catch (err) {
+    // Busca web é exclusiva da OpenAI neste stack — fallback Anthropic não
+    // substitui gpt-5-search-api. O caller (hunt/trends) trata a falha.
+    if (opts.webSearch || opts.disableFallback || !isRetryableProviderError(err)) {
+      throw err;
+    }
+
+    const fallback = resolveFallbackConfig(cfg);
+    if (!fallback) throw err;
+
+    const reason = err instanceof Error ? err.message : 'erro no provedor principal';
+    const result = await callLLMPrimary(fallback, messages, {
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+      thinking: false,
+      image: opts.image,
+      // sem webSearch no fallback
+    });
+    return {
+      ...result,
+      usedFallback: {
+        provider: fallback.provider,
+        model: fallback.model,
+        reason: reason.slice(0, 180),
+      },
+    };
+  }
+}
+
 /** Resolve uma rota forçada vinda dos atalhos da interface. */
 /**
  * Pipeline multi-agente: caça → StoryAds → Dissecação → doug.tensão/Ugly Copy.
@@ -465,9 +551,11 @@ async function runReelsPipeline(
   webSearchUsed: boolean;
   pipelineSteps: { id: string; label: string; ok: boolean }[];
   agentsUsed: string[];
+  usedFallback?: { provider: string; model: string; reason: string };
 }> {
   const steps: { id: string; label: string; ok: boolean }[] = [];
   const agentsUsed = REELS_PIPELINE_AGENTS.map((a) => `${a.emoji} ${a.name}`);
+  let usedFallback: { provider: string; model: string; reason: string } | undefined;
 
   let trendingHashtags: string[] = [];
   if (trendsService.isConfigured() && (input.nicho || input.userMessage)) {
@@ -552,6 +640,7 @@ async function runReelsPipeline(
       { maxTokens: 900, temperature: 0.6 }
     );
     storyAds = r.content || '';
+    if (r.usedFallback) usedFallback = r.usedFallback;
     steps.push({ id: 'storyads', label: 'STORYADS montando formato', ok: Boolean(storyAds) });
   } catch (err) {
     storyAds = `STORYADS falhou: ${err instanceof Error ? err.message : 'erro'}`;
@@ -569,6 +658,7 @@ async function runReelsPipeline(
       { maxTokens: 700, temperature: 0.5 }
     );
     dissecacao = r.content || '';
+    if (r.usedFallback) usedFallback = r.usedFallback;
     steps.push({
       id: 'dissecacao',
       label: 'Dissecação adaptando ao público',
@@ -590,6 +680,7 @@ async function runReelsPipeline(
       { maxTokens: 1100, temperature: 0.7 }
     );
     closer = r.content || '';
+    if (r.usedFallback) usedFallback = r.usedFallback;
     steps.push({
       id: 'closer',
       label: 'doug.tensão + Ugly Copy fechando o post',
@@ -621,6 +712,7 @@ async function runReelsPipeline(
     webSearchUsed,
     pipelineSteps: steps,
     agentsUsed,
+    usedFallback,
   };
 }
 
@@ -637,7 +729,7 @@ async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision
         { role: 'system', content: `${ROUTER_SYSTEM_PROMPT}\n\n${buildRoutingCatalog()}` },
         { role: 'user', content: message },
       ],
-      { maxTokens: 150, temperature: 0, thinking: false }
+      { maxTokens: 150, temperature: 0, thinking: false, disableFallback: true }
     );
     return parseRouteDecision(content);
   } catch {
@@ -736,10 +828,13 @@ export async function POST(request: NextRequest) {
           emoji: decision.emoji,
           via: decision.via,
         },
-        provider: cfg.provider,
-        model: pipe.webSearchUsed ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model,
+        provider: pipe.usedFallback?.provider || cfg.provider,
+        model: pipe.usedFallback?.model
+          || (pipe.webSearchUsed ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model),
         modelMigratedFrom: cfg.migratedFrom,
         byok: cfg.byok,
+        fallbackUsed: Boolean(pipe.usedFallback),
+        fallback: pipe.usedFallback || null,
         visionUsed: false,
         hadImage: Boolean(image),
         duration: Date.now() - startedAt,
@@ -828,7 +923,7 @@ export async function POST(request: NextRequest) {
         '\n\nResponda curto: no máximo 3 vídeos. Cada item em 5 linhas. Sem preâmbulo.';
     }
 
-    const { content: reply, sources } = await callLLM(
+    const llmResult = await callLLM(
       cfg,
       [{ role: 'system', content: finalSystemPrompt }, ...history, { role: 'user', content: userText }],
       {
@@ -838,6 +933,8 @@ export async function POST(request: NextRequest) {
         ...(canWebSearch ? { maxTokens: 1200 } : {}),
       }
     );
+    const reply = llmResult.content;
+    const sources = llmResult.sources;
 
     /**
      * A skill "Reels em alta" precisa entregar vídeo para copiar, então os
@@ -865,10 +962,13 @@ export async function POST(request: NextRequest) {
         emoji: decision.emoji,
         via: decision.via,
       },
-      provider: cfg.provider,
-      model: canWebSearch ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model,
+      provider: llmResult.usedFallback?.provider || cfg.provider,
+      model: llmResult.usedFallback?.model
+        || (canWebSearch ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model),
       modelMigratedFrom: cfg.migratedFrom,
       byok: cfg.byok,
+      fallbackUsed: Boolean(llmResult.usedFallback),
+      fallback: llmResult.usedFallback || null,
       /** true = a foto foi realmente analisada; false com imagem = provedor sem visão */
       visionUsed: canSeeImage,
       hadImage: Boolean(image),
@@ -886,6 +986,7 @@ export async function GET(request: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   const cfg = resolveConfig({ message: '' });
+  const fallback = resolveFallbackConfig(cfg);
   return NextResponse.json({
     success: true,
     configured: Boolean(cfg),
@@ -896,6 +997,10 @@ export async function GET(request: NextRequest) {
     vision: cfg ? supportsVision(cfg.provider, cfg.model) : false,
     /** false → o provedor atual não pesquisa na web pelo Chat Completions */
     webSearch: cfg ? supportsWebSearch(cfg.provider) : false,
+    /** true se ANTHROPIC_API_KEY / COPILOT_AI_FALLBACK_API_KEY está no servidor */
+    fallbackConfigured: Boolean(fallback),
+    fallbackProvider: fallback?.provider ?? null,
+    fallbackModel: fallback?.model ?? null,
     skills: COPILOT_SKILLS.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji })),
     agentCount: ARSENAL_AGENTS.length,
   });
