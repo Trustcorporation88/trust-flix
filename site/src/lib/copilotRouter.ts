@@ -62,6 +62,53 @@ const BASE_VOICE =
 
 export const COPILOT_SKILLS: CopilotSkill[] = [
   {
+    id: 'agendar',
+    name: 'Agendar / Publicar',
+    emoji: '📤',
+    description:
+      'EXECUTA entregas: agenda posts/stories, publica agora, lista o que está agendado e mostra as contas conectadas (via Postiz)',
+    keywords: [
+      'agendar',
+      'agende',
+      'agenda esse',
+      'agenda esse post',
+      'agenda o post',
+      'agenda pra',
+      'agenda para',
+      'agendar pra',
+      'agendar para',
+      'agendar post',
+      'deixa agendado',
+      'deixar agendado',
+      'marca pra postar',
+      'marcar post',
+      'publica agora',
+      'publicar agora',
+      'publique agora',
+      'posta agora',
+      'postar agora',
+      'sobe agora',
+      'sobe o post',
+      'joga no ar',
+      'publicar no instagram',
+      'postar no instagram',
+      'o que esta agendado',
+      'o que está agendado',
+      'posts agendados',
+      'meus agendamentos',
+      'ver agendados',
+      'listar agendados',
+      'contas conectadas',
+      'quais contas',
+    ],
+    // Sem systemPrompt real: o route.ts intercepta esta skill e executa via
+    // copilotActions (runCopilotAction). Este texto é só um fallback defensivo.
+    systemPrompt: `${BASE_VOICE}
+
+TAREFA: você é o executor de entregas. Se cair aqui sem as ferramentas do Postiz,
+diga que o agendamento não está disponível no momento e oriente configurar o Postiz.`,
+  },
+  {
     id: 'reels-pipeline',
     name: 'Reels + Post pronto',
     emoji: '🚀',
@@ -530,6 +577,14 @@ export function isRefinement(message: string): boolean {
 
 export function getSkillById(id: string): CopilotSkill | undefined {
   return COPILOT_SKILLS.find((s) => s.id === id);
+}
+
+/**
+ * A rota é a skill de EXECUÇÃO (agendar/publicar)? Quando true, o route.ts não
+ * gera texto pela skill — ele desvia para copilotActions (runCopilotAction).
+ */
+export function isActionSkill(decision: RouteDecision): boolean {
+  return decision.kind === 'skill' && decision.id === 'agendar';
 }
 
 export function skillNeedsPipeline(decision: RouteDecision): boolean {

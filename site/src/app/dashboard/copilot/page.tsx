@@ -40,6 +40,17 @@ interface RouteInfo {
   via: 'keyword' | 'llm' | 'fallback';
 }
 
+interface PendingAction {
+  intent: 'schedule' | 'publish_now';
+  integrationId: string;
+  integrationName: string;
+  integrationType: string;
+  content: string;
+  postType: 'post' | 'story';
+  scheduledFor?: string;
+  media: { id: string; path: string }[];
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -83,6 +94,8 @@ interface Message {
   webSearchUsed?: boolean;
   /** true = a skill pedia busca mas o provedor não oferece */
   webSearchUnavailable?: boolean;
+  /** Acao de agendamento aguardando confirmacao (echo de ida e volta). */
+  pendingAction?: PendingAction | null;
 }
 
 interface CopilotStatus {
@@ -335,6 +348,10 @@ export default function CopilotPage() {
         .reverse()
         .find((m) => m.role === 'assistant' && m.route)?.route;
       const lastRouteId = lastRoute ? `${lastRoute.kind}:${lastRoute.id}` : undefined;
+      // Acao pendente da ultima resposta: reenviada para o turno de confirmacao.
+      const pendingActionToSend = [...messages]
+        .reverse()
+        .find((m) => m.role === 'assistant' && m.pendingAction)?.pendingAction;
       const sentImage = attachment
         ? {
             dataUrl: attachment.prepared.dataUrl,
@@ -358,6 +375,8 @@ export default function CopilotPage() {
             forceRoute,
             lastRoute: lastRouteId,
             image: sentImage,
+            media: sentMedia,
+            pendingAction: pendingActionToSend,
             nicho: nicho.trim() || undefined,
             cidade: cidade.trim() || undefined,
             // Conta Instagram autorizada no Postiz (site pessoal).
@@ -418,6 +437,7 @@ export default function CopilotPage() {
             profile: data.profile || undefined,
             webSearchUsed: data.webSearchUsed || undefined,
             webSearchUnavailable: data.webSearchUnavailable || undefined,
+            pendingAction: data.pendingAction ?? undefined,
           },
         ]);
       } catch (err) {

@@ -7,6 +7,7 @@ import {
   buildRoutingCatalog,
   fallbackRoute,
   getSkillById,
+  isActionSkill,
   parseRouteDecision,
   resolveRoute,
   routeByKeyword,
@@ -14,6 +15,7 @@ import {
   skillNeedsProfileContext,
   RouteDecision,
 } from '@/lib/copilotRouter';
+import { ACTION_SKILL_ID, runCopilotAction, type PendingAction } from '@/lib/copilotActions';
 import { ARSENAL_AGENTS } from '@/services/arsenalService';
 import { trendsService } from '@/services/trendsService';
 import {
@@ -101,6 +103,17 @@ interface RequestBody {
   lastRoute?: string;
   /** Foto anexada — usada para montar o post. */
   image?: ImageInput;
+  /**
+   * Referência(s) de mídia já enviadas ao Postiz (id/path) — usadas pela skill
+   * de ação para agendar/publicar o post com a foto anexada.
+   */
+  media?: { id: string; path: string }[];
+  /**
+   * Ação pendente devolvida na resposta anterior e reenviada pelo cliente.
+   * Carrega conta + mídia + legenda + data para sobreviver ao turno de
+   * confirmação (o chat é stateless entre turnos).
+   */
+  pendingAction?: PendingAction | null;
   /** BYOK opcional */
   apiKey?: string;
   provider?: Provider;
@@ -804,6 +817,66 @@ export async function POST(request: NextRequest) {
     if (!decision) decision = routeByKeyword(message, Boolean(image), body.lastRoute);
     if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
+
+    // Turno de confirmacao/ajuste: com acao pendente, forca o modo acao
+    // independentemente do texto ("confirmar", "muda pra 20h", "cancela").
+    if (body.pendingAction) {
+      decision = resolveRoute(`skill:${ACTION_SKILL_ID}`, 'keyword') || decision;
+    }
+
+    // ── Modo AÇÃO (agendar/publicar via Postiz) ─────────────────────────────
+    // Diferente das demais skills, esta EXECUTA entregas em vez de gerar texto.
+    // Publicar é irreversível → runCopilotAction só age após confirmação (o
+    // resumo + pendingAction voltam ao cliente e são reenviados no confirmar).
+    if (isActionSkill(decision)) {
+      const actionHistory = (body.history || [])
+        .filter((m) => m && typeof m.content === 'string' && m.content.trim())
+        .slice(-8)
+        .map((m) => ({
+          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+          content: m.content,
+        }));
+
+      const result = await runCopilotAction({
+        message,
+        history: actionHistory,
+        media: body.media,
+        pendingAction: body.pendingAction || null,
+        defaultHandle: body.instagramHandle?.trim() || DEFAULT_IG_HANDLE,
+        nowISO: new Date(startedAt).toISOString(),
+        llm: async (system, user) => {
+          const r = await callLLM(
+            cfg,
+            [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            { maxTokens: 700, temperature: 0, thinking: false }
+          );
+          return r.content;
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        reply: result.reply,
+        pendingAction: result.pendingAction,
+        action: { intent: result.intent, executed: result.executed },
+        route: {
+          kind: decision.kind,
+          id: decision.id,
+          name: decision.name,
+          emoji: decision.emoji,
+          via: decision.via,
+        },
+        provider: cfg.provider,
+        model: cfg.model,
+        modelMigratedFrom: cfg.migratedFrom,
+        byok: cfg.byok,
+        hadImage: Boolean(image),
+        duration: Date.now() - startedAt,
+      });
+    }
 
     // Instagram autorizado (Postiz) — default @cyntiarinaldidoces no site pessoal.
     const wantsProfile =
