@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   FiInstagram,
@@ -26,6 +26,7 @@ import clsx from 'clsx';
 import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { loadContentDraft, clearContentDraft, DraftMedia } from '@/lib/contentDraft';
+import { PostPreview } from '@/components/dashboard/PostPreview';
 import {
   deleteCustomTemplate,
   downloadCustomTemplates,
@@ -49,6 +50,18 @@ interface Template {
   trendScore: number;
   custom?: boolean;
 }
+
+const COPILOT_DRAFT_TEMPLATE: Template = {
+  id: 'copilot-draft',
+  format: 'post',
+  title: 'Post do Copilot',
+  objetivo: 'engajamento',
+  descricao: 'Montado no Copilot — confira a prévia e publique',
+  estrutura: [],
+  duracaoSugerida: '',
+  tags: [],
+  trendScore: 0,
+};
 
 interface PostizIntegration {
   id: string;
@@ -154,6 +167,7 @@ export default function ContentStudioPage() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('schedule');
   const [scheduledLocal, setScheduledLocal] = useState(defaultScheduleLocal);
+  const composerRef = useRef<HTMLDivElement>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importForm, setImportForm] = useState({
     title: '',
@@ -276,22 +290,34 @@ export default function ContentStudioPage() {
 
   useEffect(() => {
     const draft = loadContentDraft();
-    if (draft?.caption) {
-      setCaption(draft.caption);
-      // A foto anexada no Copilot já foi enviada ao Postiz — reaproveita a
-      // referência {id, path} para que o agendamento não precise de novo upload.
-      if (draft.media?.length) setDraftMedia(draft.media);
-      if (draft.tiktokTitle) setTiktokTitle(draft.tiktokTitle);
-      toast.success(
-        draft.media?.length
-          ? `Legenda + foto de ${draft.source || 'draft'} carregadas`
-          : draft.source
-            ? `Draft de ${draft.source} carregado`
-            : 'Draft de copy carregado'
-      );
-      clearContentDraft();
-    }
+    if (!draft?.caption && !draft?.media?.length) return;
+
+    if (draft.caption) setCaption(draft.caption);
+    // A foto anexada no Copilot já foi enviada ao Postiz — reaproveita a
+    // referência {id, path} para que o agendamento não precise de novo upload.
+    if (draft.media?.length) setDraftMedia(draft.media);
+    if (draft.tiktokTitle) setTiktokTitle(draft.tiktokTitle);
+    setSelectedTemplate({
+      ...COPILOT_DRAFT_TEMPLATE,
+      title:
+        draft.media && draft.media.length > 1
+          ? `Carrossel do Copilot (${draft.media.length} fotos)`
+          : 'Post do Copilot',
+    });
+    toast.success(
+      draft.media?.length
+        ? 'Post do Copilot carregado — confira a prévia antes de publicar'
+        : draft.source
+          ? `Draft de ${draft.source} carregado`
+          : 'Draft de copy carregado'
+    );
+    clearContentDraft();
   }, []);
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedTemplate?.id]);
 
   useEffect(() => {
     return () => {
@@ -323,6 +349,7 @@ export default function ContentStudioPage() {
     setCaption('');
     setTiktokTitle(template.title.slice(0, 90));
     setMediaFile(null);
+    setDraftMedia(null);
     if (mediaPreviewUrl) {
       URL.revokeObjectURL(mediaPreviewUrl);
       setMediaPreviewUrl(null);
@@ -518,6 +545,9 @@ export default function ContentStudioPage() {
     accounts?.data?.integrations?.filter((a) => selectedAccountIds.includes(a.id)) || [];
   const hasTikTokSelected = selectedTargets.some((a) => isTikTokIntegration(a.identifier));
   const hasInstagramSelected = selectedTargets.some((a) => isInstagramIntegration(a.identifier));
+  const previewImages = mediaPreviewUrl
+    ? [mediaPreviewUrl]
+    : (draftMedia || []).map((m) => m.path).filter(Boolean);
 
   const handleSaveImportedTemplate = () => {
     const estrutura = parseEstruturaFromText(importForm.estruturaText);
@@ -969,7 +999,11 @@ export default function ContentStudioPage() {
         )}
 
         {selectedTemplate && (
-          <div className="card-surface mt-10 border-white/10 bg-ink-900/80 p-6">
+          <div
+            ref={composerRef}
+            className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start"
+          >
+          <div className="card-surface border-white/10 bg-ink-900/80 p-6">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold text-white">{selectedTemplate.title}</h2>
               {isGenerating && <FiLoader className="animate-spin text-signal-400" />}
@@ -1236,6 +1270,13 @@ export default function ContentStudioPage() {
                 Cancelar
               </button>
             </div>
+          </div>
+          <PostPreview
+            className="lg:sticky lg:top-4"
+            images={previewImages}
+            caption={caption}
+            handle="cyntiarinaldidoces"
+          />
           </div>
         )}
       </div>
