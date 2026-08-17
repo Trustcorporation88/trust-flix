@@ -4,6 +4,7 @@ import {
   COPILOT_SKILLS,
   ROUTER_SYSTEM_PROMPT,
   buildFinalSystemPrompt,
+  skillScopeLock,
   buildRoutingCatalog,
   fallbackRoute,
   getSkillById,
@@ -951,10 +952,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (decision.kind === 'skill' && decision.id === 'post') {
-      systemPrompt +=
-        '\n\nLEMBRETE FINAL: entregue SOMENTE o post de feed do Instagram (legenda + hashtags). ' +
-        'Zero TikTok, zero Reels, zero vídeo, zero Story, zero título de vídeo.';
+    if (decision.kind === 'skill') {
+      systemPrompt += `\n\n${skillScopeLock(decision.id)}`;
     }
 
     const userText = message || (hasImage ? defaultPostPrompt(images.length) : '');
