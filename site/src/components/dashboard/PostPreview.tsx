@@ -13,11 +13,14 @@ export function PostPreview({
   caption,
   handle = 'cyntiarinaldidoces',
   className,
+  showBadge = true,
 }: {
   images: string[];
   caption: string;
   handle?: string;
   className?: string;
+  /** Selo TESTE no topo — desligar quando o card já está dentro de outro TESTE */
+  showBadge?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -39,7 +42,13 @@ export function PostPreview({
         <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-950/45">
           Prévia do post
         </p>
-        <p className="text-[11px] text-ink-950/40">ainda não publicado</p>
+        {showBadge ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+            TESTE
+          </span>
+        ) : (
+          <p className="text-[11px] text-ink-950/40">ainda não publicado</p>
+        )}
       </div>
 
       <div className="flex items-center gap-2 px-3 py-2">

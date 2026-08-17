@@ -80,6 +80,7 @@ const capNovo = extractCaption(
 checkTrue('legenda sem secoes passa inteira', capNovo.includes('não se divide'));
 checkTrue('hashtags ficam na legenda', capNovo.includes('#BrigadeiroGourmet'));
 checkTrue('escopo do post veta TikTok', skillScopeLock('post').includes('TikTok'));
+checkTrue('escopo promete TESTE visual', skillScopeLock('post').includes('TESTE'));
 checkTrue('escopo de hashtags veta legenda', skillScopeLock('hashtags').includes('legenda'));
 checkTrue('escopo de reels veta post de feed', skillScopeLock('reels').includes('post de feed'));
 checkTrue(

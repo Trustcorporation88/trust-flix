@@ -30,7 +30,7 @@ import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, PreparedImage } from '@/lib/imagePrep';
 import { MAX_COPILOT_IMAGES } from '@/lib/copilotImages';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '@/lib/textClean';
-import { PostPreview } from '@/components/dashboard/PostPreview';
+import { SkillPreview } from '@/components/dashboard/SkillPreview';
 import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
 import { supportsVision, supportsWebSearch } from '@/lib/aiProviders';
 
@@ -881,15 +881,14 @@ export default function CopilotPage() {
                     </div>
                   ) : null}
 
-                  {/* Prévia do post (fotos + legenda) — visível antes de publicar */}
-                  {m.role === 'assistant' &&
-                  !m.error &&
-                  (m.imagePreviews?.length ||
-                    m.media?.length ||
-                    m.pendingAction?.media?.length) ? (
-                    <PostPreview
+                  {/* TESTE visual de cada skill — o usuário precisa ver o resultado */}
+                  {m.role === 'assistant' && !m.error ? (
+                    <SkillPreview
                       className="mt-2 max-w-sm"
-                      handle="cyntiarinaldidoces"
+                      routeKind={m.route?.kind}
+                      skillId={m.route?.id}
+                      handle={m.profile?.handle || 'cyntiarinaldidoces'}
+                      content={m.pendingAction?.content || m.content}
                       images={
                         m.imagePreviews?.length
                           ? m.imagePreviews
@@ -897,11 +896,8 @@ export default function CopilotPage() {
                             ? m.pendingAction.media.map((x) => x.path)
                             : m.media?.map((x) => x.path) || []
                       }
-                      caption={
-                        m.pendingAction?.content
-                          ? m.pendingAction.content
-                          : extractCaption(m.content)
-                      }
+                      videoSources={m.videoSources}
+                      pendingAction={m.pendingAction}
                     />
                   ) : null}
 

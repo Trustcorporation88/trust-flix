@@ -804,7 +804,7 @@ export function skillScopeLock(skillId: string): string {
   if (!scope) {
     return 'ESCOPO: entregue somente o que o usuário pediu. Nada a mais.';
   }
-  return `${scope} Se faltar informação, pergunte em 1 linha — não complete com outro formato.`;
+  return `${scope} O usuário vê um TESTE visual desta entrega — mantenha o formato pedido. Se faltar informação, pergunte em 1 linha — não complete com outro formato.`;
 }
 
 /** Monta o system prompt final, injetando contexto extra quando a skill pede. */
