@@ -52,6 +52,8 @@ const cases: Case[] = [
   { input: 'monta meu calendário da semana', expectKind: 'skill', expectId: 'plan' },
   { input: 'o que postar amanha', expectKind: 'skill', expectId: 'reels' },
   { input: 'monte um post com essas 3 fotos', expectKind: 'skill', expectId: 'post' },
+  { input: 'escreve um post', expectKind: 'skill', expectId: 'post' },
+  { input: 'quero um reels + post pronto', expectKind: 'skill', expectId: 'reels-pipeline' },
 
   // Agentes especialistas
   { input: 'como estruturar minha oferta e o preço', expectKind: 'agent', expectId: '100m-models' },
@@ -249,6 +251,31 @@ const tt = extractTikTokTitle(respostaPost);
 checkTrue2('titulo de TikTok extraido', tt === 'A caixa de brigadeiros que todo mundo queria ganhar');
 checkTrue2('titulo respeita 90 caracteres', (tt?.length ?? 0) <= 90);
 checkTrue2('sem asteriscos residuais na legenda', !cap.includes('**'));
+
+const postSkill = COPILOT_SKILLS.find((s) => s.id === 'post');
+checkTrue2('skill post existe', Boolean(postSkill));
+checkTrue2(
+  'skill post e so Instagram (proibe TikTok/Reels/video)',
+  Boolean(postSkill?.systemPrompt.includes('PROIBIDO')) &&
+    Boolean(postSkill?.systemPrompt.includes('TikTok')) &&
+    Boolean(postSkill?.systemPrompt.includes('Reels')) &&
+    !Boolean(postSkill?.systemPrompt.includes('**Título TikTok:**'))
+);
+checkTrue2(
+  'skill post nao pede titulo de TikTok',
+  !Boolean(postSkill?.systemPrompt.includes('**Título TikTok:**'))
+);
+
+const postNovo = `Uma caixa dessas não se divide. Se disputa. 🤎
+
+Brigadeiros gourmet para presentear.
+
+Chama no direct.
+
+#BrigadeiroGourmet #Brigaderia #DocesBauru`;
+const capNovo = extractCaption(postNovo);
+checkTrue2('formato novo (sem secoes) vira a legenda inteira', capNovo.includes('não se divide'));
+checkTrue2('formato novo mantem hashtags', capNovo.includes('#BrigadeiroGourmet'));
 
 console.log('\n─── Roteamento para pesquisa de tendências ───');
 const casosTrends: { input: string; expectId: string; note: string }[] = [

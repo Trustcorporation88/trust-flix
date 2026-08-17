@@ -31,8 +31,9 @@ export function stripMarkdown(text: string): string {
 
 /**
  * Extrai apenas a legenda de uma resposta estruturada da skill "post".
- * A resposta traz seções (Legenda / Título TikTok / Hashtags / Formato) e para
- * publicar interessa a legenda + hashtags, não os rótulos.
+ * A skill "post" agora devolve só a legenda. Respostas antigas ainda podem
+ * ter seções (Legenda / Título TikTok / Hashtags / Formato) — extraímos a
+ * legenda + hashtags e ignoramos o resto.
  */
 export function extractCaption(reply: string): string {
   const clean = stripMarkdown(reply);

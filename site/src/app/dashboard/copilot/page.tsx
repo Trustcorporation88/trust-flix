@@ -154,10 +154,11 @@ const QUICK_ACTIONS: { label: string; emoji: string; route: string; prompt: stri
     prompt: 'Pesquisa o que está em alta em Reels no meu nicho agora e me dá o molde pra copiar.',
   },
   {
-    label: 'Montar post',
+    label: 'Post Instagram',
     emoji: '🖼️',
     route: 'skill:post',
-    prompt: 'Monta um post completo com estas fotos.',
+    prompt:
+      'Monta um post de Instagram (feed/carrossel) com estas fotos. Só a legenda do Instagram — sem TikTok, sem Reels, sem vídeo.',
   },
   {
     label: 'Ideias de Reels',
@@ -681,7 +682,7 @@ export default function CopilotPage() {
                 </h3>
                 <p className="mt-2 max-w-md text-sm text-ink-950/55">
                   Anexe as fotos e peça <span className="font-semibold">&quot;monta um post&quot;</span> —
-                  eu escrevo a legenda, título de TikTok, hashtags e sugiro o formato (carrossel se forem várias). Se a pergunta for de
+                  eu escrevo só a legenda do Instagram (feed ou carrossel). Reels, TikTok e vídeo ficam nos atalhos deles. Se a pergunta for de
                   estratégia ou copy de vendas, encaminho para um dos {status?.agentCount ?? 18} agentes
                   especialistas automaticamente.
                 </p>
@@ -1271,8 +1272,8 @@ export default function CopilotPage() {
                 web o que está performando agora, com links das fontes.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">Com foto anexada</span> — monta o post
-                completo: legenda, título TikTok, hashtags e formato.
+                <span className="font-semibold text-ink-950">Com foto anexada</span> — monta só o
+                post de Instagram (legenda + hashtags). Reels e TikTok são atalhos separados.
               </li>
               <li>
                 <span className="font-semibold text-ink-950">Skills de conteúdo</span> — legenda,

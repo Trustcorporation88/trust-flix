@@ -280,9 +280,10 @@ fontes é conferência, não substitui o link no corpo do texto.`,
   },
   {
     id: 'post',
-    name: 'Montar post completo',
+    name: 'Post Instagram',
     emoji: '🖼️',
-    description: 'Monta o post inteiro a partir das fotos: legenda, hashtags e formato',
+    description:
+      'Só o post de feed do Instagram (foto ou carrossel + legenda). Não é Reels, não é TikTok, não é vídeo',
     keywords: [
       'monta um post',
       'monte um post',
@@ -290,7 +291,14 @@ fontes é conferência, não substitui o link no corpo do texto.`,
       'monta o post',
       'cria um post',
       'criar post',
+      'escreve um post',
+      'escreva um post',
       'post completo',
+      'post do instagram',
+      'post de instagram',
+      'post pro instagram',
+      'post para instagram',
+      'post no instagram',
       'post com essa foto',
       'post com a foto',
       'post com essas fotos',
@@ -303,55 +311,60 @@ fontes é conferência, não substitui o link no corpo do texto.`,
       'estas fotos',
       'publica isso',
     ],
-    systemPrompt: `${BASE_VOICE}
+    systemPrompt: `Você é o Copilot do SocialFlow. Nesta tarefa você monta APENAS um post de FEED do Instagram.
+Responda em português do Brasil, direto ao ponto.
+NUNCA use markdown no texto publicado (nada de **negrito**): o Instagram mostra os asteriscos.
 
-TAREFA: montar um post COMPLETO e pronto para publicar.
+TAREFA: um post de Instagram. Só isso.
 
-Entregue nesta ordem exata, com estes títulos:
+PROIBIDO nesta resposta:
+- TikTok (título, capa, duração, áudio)
+- Reels, Shorts, YouTube, vídeo, roteiro, "grave", "0-3s"
+- Story
+- Pacote misto ("e também no TikTok", "versão Reels", "título de vídeo")
 
-**Legenda:**
-O texto pronto para colar, com gancho na primeira linha e CTA no fim.
+O QUE ENTREGAR — só o texto que vai no feed, pronto para colar:
 
-**Título TikTok:**
-Uma linha de no máximo 90 caracteres.
+gancho na primeira linha
+corpo curto
+CTA no fim
 
-**Hashtags:**
-5 a 8, misturando alcance amplo e nicho.
+(linha em branco)
 
-**Formato sugerido:**
-Uma linha dizendo se funciona melhor como Reels, carrossel, story ou post único — e por quê.
-Se recebeu 2 ou mais fotos, o formato é carrossel (na ordem anexada), salvo o usuário pedir outra coisa.
+5 a 8 hashtags (alcance + nicho)
 
-Regras:
-- Se você recebeu a(s) imagem(ns), USE o que vê: objeto, cenário, cores, texto visível, clima da cena. Seja concreto. Com várias fotos, uma legenda única que amarra todas, na ordem.
-- Se NÃO recebeu a imagem, escreva a partir do texto do usuário e não invente detalhes visuais que você não pode confirmar.
-- Nada de placeholder entre [colchetes]. Se faltar informação, escolha algo plausível e siga.`,
+Sem títulos de seção. Sem "Legenda:". Sem "Título TikTok:". Sem "Formato sugerido:".
+Se vieram 2 ou mais fotos, é carrossel de feed — UMA legenda que amarra todas, na ordem.
+Se você recebeu as fotos, use o que vê (objeto, cor, texto na imagem, clima). Seja concreto.
+Se não recebeu as fotos, escreva a partir do texto do usuário e não invente detalhes visuais.
+Nada de placeholder entre [colchetes].`,
   },
   {
     id: 'caption',
     name: 'Sugestão de legenda',
     emoji: '✍️',
-    description: 'Escreve legendas prontas para post, carrossel ou Reels',
+    description: 'Escreve 3 legendas de feed do Instagram (não é Reels nem TikTok)',
     keywords: [
       'legenda',
       'caption',
       'texto para post',
       'texto do post',
-      'escreve um post',
-      'escreva um post',
       'copy do post',
       'descrição do post',
+      '3 legendas',
+      'variacoes de legenda',
+      'variações de legenda',
     ],
     systemPrompt: `${BASE_VOICE}
 
-TAREFA: gerar legendas prontas para publicação.
+TAREFA: gerar 3 legendas de FEED do Instagram. Não entregue TikTok, Reels, vídeo nem Story.
 
 Regras:
 - Entregue SEMPRE 3 variações numeradas, com ângulos diferentes entre si.
-- Cada variação: gancho na primeira linha, corpo escaneável, CTA claro no fim.
-- Instagram: até ~150 palavras, emoji com moderação. TikTok: até ~150 caracteres.
-- Feche com um bloco "Hashtags:" contendo 5 a 8 hashtags relevantes (mistura de volume alto e nicho).
-- Se o usuário não informou o nicho, assuma um genérico e diga qual assumiu em uma linha no início.`,
+- Cada variação: gancho na primeira linha, corpo escaneável, CTA claro no fim. Até ~150 palavras.
+- Feche cada variação com 5 a 8 hashtags (alcance + nicho).
+- Se o usuário não informou o nicho, assuma um genérico e diga qual assumiu em uma linha no início.
+- Sem "Título TikTok", sem roteiro, sem duração de vídeo.`,
   },
   {
     id: 'reels',
