@@ -951,6 +951,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (decision.kind === 'skill' && decision.id === 'post') {
+      systemPrompt +=
+        '\n\nLEMBRETE FINAL: entregue SOMENTE o post de feed do Instagram (legenda + hashtags). ' +
+        'Zero TikTok, zero Reels, zero vídeo, zero Story, zero título de vídeo.';
+    }
+
     const userText = message || (hasImage ? defaultPostPrompt(images.length) : '');
 
     // ── Busca na web ──────────────────────────────────────────────

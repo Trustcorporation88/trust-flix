@@ -9,6 +9,8 @@ import {
   describeImagesMetadata,
   visionCanSeeHint,
 } from '../src/lib/copilotImages';
+import { COPILOT_SKILLS } from '../src/lib/copilotRouter';
+import { extractCaption } from '../src/lib/textClean';
 
 let pass = 0;
 let fail = 0;
@@ -51,6 +53,32 @@ checkTrue(
 );
 checkTrue('hint de visão cita carrossel com 3 fotos', visionCanSeeHint(3).includes('carrossel'));
 checkTrue('hint de 1 foto nao fala carrossel', !visionCanSeeHint(1).includes('carrossel'));
+checkTrue(
+  'prompt padrao e so Instagram',
+  defaultPostPrompt(3).includes('Instagram') &&
+    defaultPostPrompt(3).includes('sem TikTok') &&
+    defaultPostPrompt(3).includes('sem Reels')
+);
+checkTrue('hint de visao veta titulo de TikTok', visionCanSeeHint(2).includes('nem título de TikTok'));
+
+console.log('\n─── Skill post e so Instagram ───');
+const postSkill = COPILOT_SKILLS.find((s) => s.id === 'post');
+checkTrue('skill post existe', Boolean(postSkill));
+checkTrue(
+  'prompt proibe TikTok/Reels/video',
+  Boolean(postSkill?.systemPrompt.includes('PROIBIDO')) &&
+    Boolean(postSkill?.systemPrompt.includes('TikTok')) &&
+    Boolean(postSkill?.systemPrompt.includes('Reels'))
+);
+checkTrue(
+  'prompt nao pede secao Titulo TikTok',
+  !Boolean(postSkill?.systemPrompt.includes('**Título TikTok:**'))
+);
+const capNovo = extractCaption(
+  `Uma caixa dessas não se divide.\n\nChama no direct.\n\n#BrigadeiroGourmet`
+);
+checkTrue('legenda sem secoes passa inteira', capNovo.includes('não se divide'));
+checkTrue('hashtags ficam na legenda', capNovo.includes('#BrigadeiroGourmet'));
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

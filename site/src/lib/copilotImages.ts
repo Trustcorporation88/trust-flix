@@ -51,8 +51,10 @@ export function describeImagesMetadata(images: CopilotImageInput[]): string {
 }
 
 export function defaultPostPrompt(count: number): string {
-  if (count <= 1) return 'Monta um post completo com esta foto.';
-  return `Monta um post (carrossel) com estas ${count} fotos, na ordem em que foram anexadas.`;
+  if (count <= 1) {
+    return 'Monta um post de Instagram (feed) com esta foto. Só a legenda do Instagram — sem TikTok, sem Reels, sem vídeo.';
+  }
+  return `Monta um post de Instagram (carrossel de feed) com estas ${count} fotos, na ordem. Só a legenda do Instagram — sem TikTok, sem Reels, sem vídeo.`;
 }
 
 export function visionCanSeeHint(count: number): string {
@@ -62,9 +64,10 @@ export function visionCanSeeHint(count: number): string {
     'realmente aparece nelas — objeto, cenário, cores, texto visível e clima da cena. ' +
     'Seja concreto: mencione elementos que você vê, não generalidades. ' +
     (count > 1
-      ? 'Trate como um carrossel: uma legenda única que amarra todas as fotos, na ordem. '
-      : '') +
-    'Não fale de ChatGPT, DeepSeek nem de limites de outros modelos.'
+      ? 'Trate como um carrossel de FEED do Instagram: uma legenda única que amarra todas as fotos, na ordem. '
+      : 'É um post de FEED do Instagram (foto + legenda). ') +
+    'Não fale de ChatGPT, DeepSeek nem de limites de outros modelos. ' +
+    'Não sugira vídeo, Reels, Story nem título de TikTok.'
   );
 }
 
@@ -78,8 +81,8 @@ export function visionCannotSeeHint(count: number, metadata: string, provider: s
     'NÃO invente nem descreva detalhes visuais. ' +
     'NÃO mencione ChatGPT, GPT, Claude ou qualquer outro produto. ' +
     'NÃO diga que "não consegue ler imagens" como se fosse um limite do ChatGPT. ' +
-    'Use a proporção apenas para sugerir o formato de publicação. ' +
-    (count > 1 ? 'Com várias fotos, sugira carrossel. ' : '') +
+    'Se houver várias fotos, é carrossel de feed. ' +
+    'Não sugira Reels, TikTok, Story nem vídeo. ' +
     'Se o texto do usuário não disser o que as fotos mostram, peça em UMA linha curta ' +
     'no fim que ele descreva a cena para você refinar a legenda.'
   );
