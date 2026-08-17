@@ -1144,15 +1144,29 @@ export default function ContentStudioPage() {
                 </div>
               ) : draftMedia?.length ? (
                 <div className="mt-2 space-y-3 rounded-xl border border-flow-500/30 bg-flow-500/[0.06] px-4 py-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={draftMedia[0].path}
-                    alt="Foto do Copilot"
-                    className="max-h-48 rounded-lg object-contain"
-                  />
+                  <div
+                    className={
+                      draftMedia.length === 1
+                        ? ''
+                        : 'grid grid-cols-3 gap-2'
+                    }
+                  >
+                    {draftMedia.map((m) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={m.id}
+                        src={m.path}
+                        alt="Foto do Copilot"
+                        className="max-h-48 w-full rounded-lg object-cover"
+                      />
+                    ))}
+                  </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2 truncate text-sm text-flow-200">
-                      <FiCheckCircle className="shrink-0" /> Foto do Copilot — já enviada ao Postiz
+                      <FiCheckCircle className="shrink-0" />
+                      {draftMedia.length > 1
+                        ? `${draftMedia.length} fotos do Copilot — já enviadas ao Postiz (carrossel)`
+                        : 'Foto do Copilot — já enviada ao Postiz'}
                     </span>
                     <button
                       type="button"
@@ -1208,7 +1222,7 @@ export default function ContentStudioPage() {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleApproveAndSchedule}
-                disabled={isScheduling || !caption || !mediaFile}
+                disabled={isScheduling || !caption || (!mediaFile && !draftMedia?.length)}
                 className="btn-primary disabled:opacity-50"
               >
                 {isScheduling ? <FiLoader className="animate-spin" /> : <FiCheck />}

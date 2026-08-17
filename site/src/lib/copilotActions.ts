@@ -410,7 +410,7 @@ function buildPending(params: {
   if (!media.length) {
     return {
       clarification:
-        'O Instagram exige uma foto ou vídeo no post. Anexe a foto aqui no Copilot (botão de imagem) junto com o pedido e eu preparo o agendamento.',
+        'O Instagram exige foto ou vídeo no post. Anexe as fotos aqui no Copilot (botão de imagem) junto com o pedido e eu preparo o agendamento.',
     };
   }
 

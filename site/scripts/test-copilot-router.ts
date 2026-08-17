@@ -51,6 +51,7 @@ const cases: Case[] = [
   { input: 'melhora esse meu texto aqui', expectKind: 'skill', expectId: 'improve' },
   { input: 'monta meu calendário da semana', expectKind: 'skill', expectId: 'plan' },
   { input: 'o que postar amanha', expectKind: 'skill', expectId: 'reels' },
+  { input: 'monte um post com essas 3 fotos', expectKind: 'skill', expectId: 'post' },
 
   // Agentes especialistas
   { input: 'como estruturar minha oferta e o preço', expectKind: 'agent', expectId: '100m-models' },
@@ -97,6 +98,7 @@ console.log('\n─── Roteamento com foto anexada ───');
 const withImage: { input: string; expectId: string; note: string }[] = [
   { input: 'monta um post', expectId: 'post', note: 'pedido explícito' },
   { input: 'usa essa foto pra fazer um post', expectId: 'post', note: 'referência à foto' },
+  { input: 'monte um post com essas 3 fotos', expectId: 'post', note: 'várias fotos' },
   { input: 'e aí', expectId: 'post', note: 'texto vago + foto → assume montar post' },
   { input: '', expectId: 'post', note: 'só a foto, sem texto' },
 ];

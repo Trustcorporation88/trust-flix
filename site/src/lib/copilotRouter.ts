@@ -282,9 +282,10 @@ fontes é conferência, não substitui o link no corpo do texto.`,
     id: 'post',
     name: 'Montar post completo',
     emoji: '🖼️',
-    description: 'Monta o post inteiro a partir de uma foto: legenda, hashtags e formato',
+    description: 'Monta o post inteiro a partir das fotos: legenda, hashtags e formato',
     keywords: [
       'monta um post',
+      'monte um post',
       'montar post',
       'monta o post',
       'cria um post',
@@ -292,9 +293,14 @@ fontes é conferência, não substitui o link no corpo do texto.`,
       'post completo',
       'post com essa foto',
       'post com a foto',
+      'post com essas fotos',
+      'post com estas fotos',
       'usa essa foto',
       'usa a foto',
+      'usa essas fotos',
       'essa imagem',
+      'essas fotos',
+      'estas fotos',
       'publica isso',
     ],
     systemPrompt: `${BASE_VOICE}
@@ -314,9 +320,10 @@ Uma linha de no máximo 90 caracteres.
 
 **Formato sugerido:**
 Uma linha dizendo se funciona melhor como Reels, carrossel, story ou post único — e por quê.
+Se recebeu 2 ou mais fotos, o formato é carrossel (na ordem anexada), salvo o usuário pedir outra coisa.
 
 Regras:
-- Se você recebeu a imagem, USE o que vê nela: objeto, cenário, cores, texto visível, clima da cena. Seja concreto sobre o que está na foto.
+- Se você recebeu a(s) imagem(ns), USE o que vê: objeto, cenário, cores, texto visível, clima da cena. Seja concreto. Com várias fotos, uma legenda única que amarra todas, na ordem.
 - Se NÃO recebeu a imagem, escreva a partir do texto do usuário e não invente detalhes visuais que você não pode confirmar.
 - Nada de placeholder entre [colchetes]. Se faltar informação, escolha algo plausível e siga.`,
   },
