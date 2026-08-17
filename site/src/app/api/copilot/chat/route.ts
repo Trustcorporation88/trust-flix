@@ -47,6 +47,8 @@ import {
   supportsWebSearch,
   isRetryableProviderError,
   pickVisionTarget,
+  anthropicMessageParams,
+  extractAnthropicText,
 } from '@/lib/aiProviders';
 import {
   resolveCopilotFallbackFromEnv,
@@ -373,15 +375,14 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: cfg.model,
-      max_tokens: maxTokens,
       system,
       messages: payloadMessages,
-      temperature,
+      ...anthropicMessageParams(cfg.model, { maxTokens, temperature }),
     }),
   });
   if (!res.ok) throw new Error(`(${res.status}) ${parseProviderError(await res.text())}`);
   const data = await res.json();
-  return { content: data.content?.[0]?.text ?? '', sources: [] };
+  return { content: extractAnthropicText(data), sources: [] };
 }
 
 async function callGoogle(

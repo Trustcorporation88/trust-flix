@@ -19,6 +19,9 @@ import {
   WEB_SEARCH_MODEL,
   buildWebSearchOptions,
   extractSources,
+  anthropicOmitsTemperature,
+  anthropicMessageParams,
+  extractAnthropicText,
 } from '../src/lib/aiProviders';
 import {
   resolveCopilotPrimaryFromEnv,
@@ -47,7 +50,18 @@ console.log('─── Modelos vigentes ───');
 check('modelo padrão do DeepSeek é v4-flash', DEFAULT_MODEL.deepseek, 'deepseek-v4-flash');
 checkTrue(
   'nenhum modelo padrão usa nome legado descontinuado',
-  !Object.values(DEFAULT_MODEL).some((m) => m === 'deepseek-chat' || m === 'deepseek-reasoner')
+  !Object.values(DEFAULT_MODEL).some(
+    (m) =>
+      m === 'deepseek-chat' ||
+      m === 'deepseek-reasoner' ||
+      m === 'claude-3-5-sonnet-20241022'
+  )
+);
+check('modelo padrão do Anthropic é claude-sonnet-5', DEFAULT_MODEL.anthropic, 'claude-sonnet-5');
+checkTrue(
+  'lista Anthropic só tem ids vigentes',
+  PROVIDER_MODELS.anthropic.includes('claude-sonnet-5') &&
+    !PROVIDER_MODELS.anthropic.includes('claude-3-5-sonnet-20241022')
 );
 checkTrue(
   'lista de modelos DeepSeek só tem os vigentes',
@@ -133,6 +147,27 @@ check(
   'deepseek-v4-flash'
 );
 checkTrue('modelo vazio não quebra', normalizeModel('').migrated === false);
+check(
+  'claude-3-5-sonnet-20241022 (404) migra para claude-sonnet-5',
+  normalizeModel('claude-3-5-sonnet-20241022'),
+  {
+    model: 'claude-sonnet-5',
+    thinking: false,
+    migrated: true,
+    original: 'claude-3-5-sonnet-20241022',
+  }
+);
+check(
+  'claude-3-5-sonnet-latest tambem migra',
+  normalizeModel('claude-3-5-sonnet-latest').model,
+  'claude-sonnet-5'
+);
+check(
+  'claude-3-5-haiku-20241022 migra para haiku 4.5',
+  normalizeModel('claude-3-5-haiku-20241022').model,
+  'claude-haiku-4-5-20251001'
+);
+check('claude-sonnet-5 vigente passa intacto', normalizeModel('claude-sonnet-5').migrated, false);
 
 console.log('\n─── Cenário real: env var antiga na Vercel ───');
 // Reproduz exatamente o que o screenshot do usuário mostrou:
@@ -150,7 +185,8 @@ checkTrue('OpenAI gpt-5.6-sol le imagem', supportsVision('openai', 'gpt-5.6-sol'
 checkTrue('OpenAI gpt-5.6-luna le imagem', supportsVision('openai', 'gpt-5.6-luna'));
 checkTrue('OpenAI gpt-4o-mini le imagem', supportsVision('openai', 'gpt-4o-mini'));
 checkTrue('OpenAI gpt-4o le imagem', supportsVision('openai', 'gpt-4o'));
-checkTrue('Anthropic claude-3-5-sonnet le imagem', supportsVision('anthropic', 'claude-3-5-sonnet-20241022'));
+checkTrue('Anthropic claude-sonnet-5 le imagem', supportsVision('anthropic', 'claude-sonnet-5'));
+checkTrue('Anthropic claude-3-5-sonnet legado ainda casa visao', supportsVision('anthropic', 'claude-3-5-sonnet-20241022'));
 checkTrue('Google gemini-1.5-flash le imagem', supportsVision('google', 'gemini-1.5-flash'));
 checkTrue('Mistral large NAO le imagem', !supportsVision('mistral', 'mistral-large-latest'));
 checkTrue('provider desconhecido NAO le imagem', !supportsVision('qualquer', 'modelo-x'));
@@ -161,7 +197,7 @@ check(
   'sem foto: nao troca de provedor',
   pickVisionTarget(
     { provider: 'deepseek', model: 'deepseek-v4-flash' },
-    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    { provider: 'anthropic', model: 'claude-sonnet-5' },
     false
   ),
   { canSee: false, viaFallback: false }
@@ -170,7 +206,7 @@ check(
   'DeepSeek + Claude + foto: usa o Claude',
   pickVisionTarget(
     { provider: 'deepseek', model: 'deepseek-v4-flash' },
-    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    { provider: 'anthropic', model: 'claude-sonnet-5' },
     true
   ),
   { canSee: true, viaFallback: true }
@@ -179,7 +215,7 @@ check(
   'OpenAI + foto: usa o principal (ja le imagem)',
   pickVisionTarget(
     { provider: 'openai', model: 'gpt-4o-mini' },
-    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    { provider: 'anthropic', model: 'claude-sonnet-5' },
     true
   ),
   { canSee: true, viaFallback: false }
@@ -358,6 +394,43 @@ check('titulo preservado', srcs[1].title, 'Tendência B');
 check('mensagem sem annotations retorna vazio', extractSources({ content: 'x' }), []);
 check('mensagem nula nao quebra', extractSources(null), []);
 
+console.log('\n─── Anthropic Sonnet 5: sem temperature, texto sem thinking ───');
+checkTrue('claude-sonnet-5 omite temperature', anthropicOmitsTemperature('claude-sonnet-5'));
+checkTrue('claude-opus-5 omite temperature', anthropicOmitsTemperature('claude-opus-5'));
+checkTrue(
+  'snapshot legado NAO omite (ja nem existe — 404)',
+  !anthropicOmitsTemperature('claude-3-5-sonnet-20241022')
+);
+checkTrue('haiku 4.5 aceita temperature', !anthropicOmitsTemperature('claude-haiku-4-5-20251001'));
+check(
+  'sonnet-5: omite temperature e eleva piso de tokens (thinking adaptativo)',
+  anthropicMessageParams('claude-sonnet-5', { maxTokens: 150, temperature: 0.6 }),
+  { max_tokens: 1200 }
+);
+check(
+  'sonnet-5: orcamento alto permanece',
+  anthropicMessageParams('claude-sonnet-5', { maxTokens: 1800 }),
+  { max_tokens: 1800 }
+);
+check(
+  'haiku: max_tokens + temperature',
+  anthropicMessageParams('claude-haiku-4-5-20251001', { maxTokens: 500, temperature: 0.7 }),
+  { max_tokens: 500, temperature: 0.7 }
+);
+check(
+  'pula bloco thinking e junta textos',
+  extractAnthropicText({
+    content: [
+      { type: 'thinking', thinking: 'rascunho interno' },
+      { type: 'text', text: 'legenda 1' },
+      { type: 'text', text: 'legenda 2' },
+    ],
+  }),
+  'legenda 1\nlegenda 2'
+);
+check('resposta vazia nao quebra', extractAnthropicText({ content: [] }), '');
+check('payload nulo nao quebra', extractAnthropicText(null), '');
+
 console.log('\n─── Copilot: Claude principal, DeepSeek fallback ───');
 {
   const env = {
@@ -370,6 +443,7 @@ console.log('\n─── Copilot: Claude principal, DeepSeek fallback ───'
   const fallback = resolveCopilotFallbackFromEnv(env, primary);
   check('principal é Claude', primary?.provider, 'anthropic');
   check('principal usa a chave Anthropic', primary?.apiKey, 'sk-ant-x');
+  check('modelo padrao e sonnet-5', primary?.model, 'claude-sonnet-5');
   check('fallback é DeepSeek', fallback?.provider, 'deepseek');
   check('fallback usa a chave do Content Studio', fallback?.apiKey, 'sk-ds-x');
 }
@@ -395,6 +469,19 @@ console.log('\n─── Copilot: Claude principal, DeepSeek fallback ───'
     resolveCopilotPrimaryFromEnv(env)?.apiKey,
     'sk-ant-dedicated'
   );
+}
+{
+  const env = {
+    ANTHROPIC_API_KEY: 'sk-ant-x',
+    COPILOT_AI_MODEL: 'claude-3-5-sonnet-20241022',
+  };
+  const primary = resolveCopilotPrimaryFromEnv(env);
+  check(
+    'env var antiga na Vercel e curada (nao 404)',
+    primary?.model,
+    'claude-sonnet-5'
+  );
+  check('sinaliza migracao do snapshot 20241022', primary?.migratedFrom, 'claude-3-5-sonnet-20241022');
 }
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);

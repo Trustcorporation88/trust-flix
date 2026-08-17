@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
-import { extrasForEndpoint, normalizeModel, buildSamplingParamsForEndpoint } from '@/lib/aiProviders';
+import { extrasForEndpoint, normalizeModel, buildSamplingParamsForEndpoint, anthropicMessageParams, extractAnthropicText } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,7 +81,7 @@ async function callAnthropic(apiKey: string, model: string, systemPrompt: string
       model,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
-      max_tokens: 500,
+      ...anthropicMessageParams(model, { maxTokens: 500 }),
     }),
   });
   if (!res.ok) {
@@ -89,7 +89,7 @@ async function callAnthropic(apiKey: string, model: string, systemPrompt: string
     throw new Error(`(${res.status}) ${errText}`);
   }
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  return extractAnthropicText(data);
 }
 
 async function callGoogle(apiKey: string, model: string, systemPrompt: string, userMessage: string) {
