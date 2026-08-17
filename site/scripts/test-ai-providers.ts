@@ -11,6 +11,7 @@ import {
   normalizeModel,
   resolveBaseUrl,
   supportsVision,
+  pickVisionTarget,
   requestShape,
   buildSamplingParams,
   buildSamplingParamsForEndpoint,
@@ -150,6 +151,49 @@ checkTrue('Google gemini-1.5-flash le imagem', supportsVision('google', 'gemini-
 checkTrue('Mistral large NAO le imagem', !supportsVision('mistral', 'mistral-large-latest'));
 checkTrue('provider desconhecido NAO le imagem', !supportsVision('qualquer', 'modelo-x'));
 checkTrue('deteccao é case-insensitive', supportsVision('openai', 'GPT-5.6-TERRA'));
+
+console.log('\n─── Foto: DeepSeek + fallback Anthropic ───');
+check(
+  'sem foto: nao troca de provedor',
+  pickVisionTarget(
+    { provider: 'deepseek', model: 'deepseek-v4-flash' },
+    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    false
+  ),
+  { canSee: false, viaFallback: false }
+);
+check(
+  'DeepSeek + Claude + foto: usa o Claude',
+  pickVisionTarget(
+    { provider: 'deepseek', model: 'deepseek-v4-flash' },
+    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    true
+  ),
+  { canSee: true, viaFallback: true }
+);
+check(
+  'OpenAI + foto: usa o principal (ja le imagem)',
+  pickVisionTarget(
+    { provider: 'openai', model: 'gpt-4o-mini' },
+    { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+    true
+  ),
+  { canSee: true, viaFallback: false }
+);
+check(
+  'DeepSeek sem fallback + foto: nao ve',
+  pickVisionTarget({ provider: 'deepseek', model: 'deepseek-v4-flash' }, null, true),
+  { canSee: false, viaFallback: false }
+);
+check(
+  'DeepSeek + fallback Groq (sem visao) + foto: nao ve',
+  pickVisionTarget(
+    { provider: 'deepseek', model: 'deepseek-v4-flash' },
+    { provider: 'groq', model: 'llama-3.1-70b-versatile' },
+    true
+  ),
+  { canSee: false, viaFallback: false }
+);
 
 console.log('\n─── Catálogo OpenAI atualizado (2026) ───');
 check('modelo padrão do OpenAI é gpt-5.6-terra', DEFAULT_MODEL.openai, 'gpt-5.6-terra');

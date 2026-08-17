@@ -104,6 +104,8 @@ interface CopilotStatus {
   model: string | null;
   modelMigratedFrom: string | null;
   vision: boolean;
+  /** true = o DeepSeek (principal) não lê foto; Claude (fallback) lê */
+  visionViaFallback: boolean;
   webSearch: boolean;
   /** true se o servidor tem ANTHROPIC_API_KEY / COPILOT_AI_FALLBACK_API_KEY */
   fallbackConfigured: boolean;
@@ -249,6 +251,7 @@ export default function CopilotPage() {
             model: data.model,
             modelMigratedFrom: data.modelMigratedFrom ?? null,
             vision: Boolean(data.vision),
+            visionViaFallback: Boolean(data.visionViaFallback),
             webSearch: Boolean(data.webSearch),
             fallbackConfigured: Boolean(data.fallbackConfigured),
             fallbackProvider: data.fallbackProvider ?? null,
@@ -524,25 +527,32 @@ export default function CopilotPage() {
    * visão é feita aqui no cliente, já que o servidor não conhece a chave BYOK.
    */
   const effective = byok
-    ? {
-        configured: true,
-        provider: byok.provider as string,
-        model: byok.model,
-        vision: supportsVision(byok.provider, byok.model),
-        webSearch: supportsWebSearch(byok.provider),
-        // Fallback é sempre server-side (env). BYOK não carrega a chave Anthropic no browser.
-        fallbackConfigured: Boolean(status?.fallbackConfigured),
-        fallbackProvider: status?.fallbackProvider ?? null,
-        fallbackModel: status?.fallbackModel ?? null,
-        modelMigratedFrom: null as string | null,
-        source: 'byok' as const,
-      }
+    ? (() => {
+        const byokVision = supportsVision(byok.provider, byok.model);
+        const fbVision =
+          Boolean(status?.fallbackConfigured) &&
+          supportsVision(status?.fallbackProvider || '', status?.fallbackModel || '');
+        return {
+          configured: true,
+          provider: byok.provider as string,
+          model: byok.model,
+          vision: byokVision || fbVision,
+          visionViaFallback: !byokVision && fbVision,
+          webSearch: supportsWebSearch(byok.provider),
+          fallbackConfigured: Boolean(status?.fallbackConfigured),
+          fallbackProvider: status?.fallbackProvider ?? null,
+          fallbackModel: status?.fallbackModel ?? null,
+          modelMigratedFrom: null as string | null,
+          source: 'byok' as const,
+        };
+      })()
     : status
       ? {
           configured: status.configured,
           provider: status.provider ?? '',
           model: status.model ?? '',
           vision: status.vision,
+          visionViaFallback: status.visionViaFallback,
           webSearch: status.webSearch,
           fallbackConfigured: status.fallbackConfigured,
           fallbackProvider: status.fallbackProvider,
@@ -884,6 +894,11 @@ export default function CopilotPage() {
                     melhor.
                   </p>
                 )}
+                {effective && effective.visionViaFallback && (
+                  <p className="mt-0.5 text-[11px] leading-snug text-violet-700">
+                    Foto será lida pelo {effective.fallbackProvider || 'Claude'} (fallback).
+                  </p>
+                )}
               </div>
               <button
                 onClick={removeAttachment}
@@ -1021,7 +1036,11 @@ export default function CopilotPage() {
                         {effective.vision ? (
                           <>
                             <FiEye size={12} className="text-flow-600" />
-                            <span className="text-flow-700">analisa fotos</span>
+                            <span className="text-flow-700">
+                              {effective.visionViaFallback
+                                ? `analisa fotos via ${effective.fallbackProvider || 'anthropic'}`
+                                : 'analisa fotos'}
+                            </span>
                           </>
                         ) : (
                           <>
