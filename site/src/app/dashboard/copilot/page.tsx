@@ -30,6 +30,7 @@ import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, PreparedImage } from '@/lib/imagePrep';
 import { MAX_COPILOT_IMAGES } from '@/lib/copilotImages';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '@/lib/textClean';
+import { PostPreview } from '@/components/dashboard/PostPreview';
 import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
 import { supportsVision, supportsWebSearch } from '@/lib/aiProviders';
 
@@ -473,7 +474,8 @@ export default function CopilotPage() {
             route: data.route,
             model: data.model,
             duration: data.duration,
-            media: sentMedia,
+            media: sentMedia.length ? sentMedia : undefined,
+            imagePreviews: userMsg.imagePreviews,
             visionUsed: data.hadImage ? Boolean(data.visionUsed) : undefined,
             sources: Array.isArray(data.sources) && data.sources.length ? data.sources : undefined,
             videoSources:
@@ -876,6 +878,30 @@ export default function CopilotPage() {
                         ))}
                       </ul>
                     </div>
+                  ) : null}
+
+                  {/* Prévia do post (fotos + legenda) — visível antes de publicar */}
+                  {m.role === 'assistant' &&
+                  !m.error &&
+                  (m.imagePreviews?.length ||
+                    m.media?.length ||
+                    m.pendingAction?.media?.length) ? (
+                    <PostPreview
+                      className="mt-2 max-w-sm"
+                      handle="cyntiarinaldidoces"
+                      images={
+                        m.imagePreviews?.length
+                          ? m.imagePreviews
+                          : m.pendingAction?.media?.length
+                            ? m.pendingAction.media.map((x) => x.path)
+                            : m.media?.map((x) => x.path) || []
+                      }
+                      caption={
+                        m.pendingAction?.content
+                          ? m.pendingAction.content
+                          : extractCaption(m.content)
+                      }
+                    />
                   ) : null}
 
                   {/* Ações da resposta */}
