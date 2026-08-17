@@ -39,7 +39,7 @@ export const DEFAULT_MODEL: Record<string, string> = {
   // gpt-3.5-turbo serao desligados em 2026-10-23.
   openai: 'gpt-5.6-terra',
   deepseek: 'deepseek-v4-flash',
-  anthropic: 'claude-3-5-sonnet-20241022',
+  anthropic: 'claude-sonnet-5',
   google: 'gemini-1.5-flash',
   groq: 'llama-3.1-70b-versatile',
   mistral: 'mistral-large-latest',
@@ -52,7 +52,7 @@ export const PROVIDER_MODELS: Record<string, string[]> = {
   // luna = otimizado para volume ($0.20/$1.20). Todos leem imagem.
   openai: ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-4o', 'gpt-4o-mini'],
   deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+  anthropic: ['claude-sonnet-5', 'claude-haiku-4-5-20251001'],
   google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
   groq: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant'],
   mistral: ['mistral-large-latest', 'mistral-small-latest'],
@@ -118,6 +118,13 @@ export const LEGACY_MODEL_MAP: Record<string, { model: string; thinking: boolean
   // Desligamento anunciado para 2026-08-10 — migrando desde já.
   'gpt-5.2-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
   'gpt-5.3-chat-latest': { model: 'gpt-5.6-sol', thinking: false },
+  // Anthropic: claude-3-5-sonnet-20241022 retorna 404 (descontinuado).
+  'claude-3-5-sonnet-20241022': { model: 'claude-sonnet-5', thinking: false },
+  'claude-3-5-sonnet-latest': { model: 'claude-sonnet-5', thinking: false },
+  'claude-3-5-sonnet': { model: 'claude-sonnet-5', thinking: false },
+  'claude-3-5-haiku-20241022': { model: 'claude-haiku-4-5-20251001', thinking: false },
+  'claude-3-5-haiku-latest': { model: 'claude-haiku-4-5-20251001', thinking: false },
+  'claude-3-5-haiku': { model: 'claude-haiku-4-5-20251001', thinking: false },
 };
 
 export interface NormalizedModel {
@@ -155,7 +162,7 @@ export function normalizeModel(model: string): NormalizedModel {
 export const VISION_MODEL_PATTERNS: Record<string, RegExp[]> = {
   // Toda a familia GPT-5.x aceita texto + imagem. GPT-4o e 4.1 tambem.
   openai: [/^gpt-5/, /^gpt-4o/, /^gpt-4\.1/, /^gpt-4-turbo/, /^o[1-9]/],
-  anthropic: [/^claude-3/, /^claude-4/, /^claude-sonnet/, /^claude-opus/, /^claude-haiku/],
+  anthropic: [/^claude-3/, /^claude-4/, /^claude-sonnet/, /^claude-opus/, /^claude-haiku/, /^claude-fable/],
   google: [/^gemini-/],
   // OpenRouter roteia para modelos de terceiros — depende do modelo escolhido.
   openrouter: [/gpt-5/, /gpt-4o/, /claude-3/, /claude-4/, /gemini/, /vision/],
@@ -232,6 +239,50 @@ export function requestShape(provider: string, model: string): RequestShape {
   return isReasoning
     ? { tokenParam: 'max_completion_tokens', supportsTemperature: false }
     : { tokenParam: 'max_tokens', supportsTemperature: true };
+}
+
+/**
+ * Claude Sonnet 5 / Opus 5 / Fable 5 rejeitam temperature/top_p/top_k ≠ default (HTTP 400).
+ * O snapshot antigo `claude-3-5-sonnet-20241022` já não existe (404).
+ */
+export function anthropicOmitsTemperature(model: string): boolean {
+  const m = (model || '').trim().toLowerCase();
+  return /^(claude-sonnet-5|claude-opus-5|claude-fable-5|claude-mythos-5|claude-sonnet-4-6|claude-opus-4-[6-8])/.test(
+    m
+  );
+}
+
+/**
+ * Adaptive thinking no Sonnet 5 / Opus 5 consome `max_tokens` antes do texto.
+ * Com orçamento baixo (roteador usa 150) a resposta volta vazia — mesmo 404
+ * já curado. O campo é teto: cobra-se o que foi usado.
+ */
+const ANTHROPIC_ADAPTIVE_MIN_TOKENS = 1200;
+
+export function anthropicMessageParams(
+  model: string,
+  opts: { maxTokens: number; temperature?: number }
+): Record<string, unknown> {
+  const maxTokens =
+    anthropicOmitsTemperature(model) && opts.maxTokens < ANTHROPIC_ADAPTIVE_MIN_TOKENS
+      ? ANTHROPIC_ADAPTIVE_MIN_TOKENS
+      : opts.maxTokens;
+  const params: Record<string, unknown> = { max_tokens: maxTokens };
+  if (opts.temperature !== undefined && !anthropicOmitsTemperature(model)) {
+    params.temperature = opts.temperature;
+  }
+  return params;
+}
+
+/** Junta blocos `text` da Messages API (pula thinking / adaptive thinking). */
+export function extractAnthropicText(data: unknown): string {
+  const content = (data as { content?: { type?: string; text?: string }[] })?.content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text as string)
+    .join('\n')
+    .trim();
 }
 
 /**

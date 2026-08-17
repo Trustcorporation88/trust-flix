@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthError, requireAuth } from '@/lib/auth/requireAuth';
-import { extrasForEndpoint, normalizeModel, buildSamplingParamsForEndpoint } from '@/lib/aiProviders';
+import { extrasForEndpoint, normalizeModel, buildSamplingParamsForEndpoint, anthropicMessageParams, extractAnthropicText } from '@/lib/aiProviders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -88,10 +88,12 @@ async function callAnthropic(body: ExecuteBody, messages: AgentMessage[]): Promi
     },
     body: JSON.stringify({
       model: body.model,
-      max_tokens: body.maxTokens ?? 2000,
       system: systemMessage,
       messages: otherMessages,
-      temperature: body.temperature ?? 0.7,
+      ...anthropicMessageParams(body.model, {
+        maxTokens: body.maxTokens ?? 2000,
+        temperature: body.temperature ?? 0.7,
+      }),
     }),
   });
 
@@ -101,7 +103,7 @@ async function callAnthropic(body: ExecuteBody, messages: AgentMessage[]): Promi
   }
 
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  return extractAnthropicText(data);
 }
 
 async function callGoogle(body: ExecuteBody, messages: AgentMessage[]): Promise<string> {
