@@ -130,8 +130,6 @@ diga que o agendamento não está disponível no momento e oriente configurar o 
       'dissecacao neural',
       'usar agentes',
       'com os agentes',
-      'modelo de post',
-      'modelos de post',
       'pack de conteudo',
       'pack de conteúdo',
       'conteudo completo de reels',
@@ -388,14 +386,13 @@ Regras:
     needsReelsContext: true,
     systemPrompt: `${BASE_VOICE}
 
-TAREFA: sugerir Reels usando os FORMATOS COMPROVADOS fornecidos no contexto.
+TAREFA: só ideias de Reels. Sem post de feed, sem carrossel, sem título de TikTok, sem hashtags soltas.
 
 Regras:
-- Escolha os 3 formatos mais adequados ao pedido do usuário (não liste todos).
-- Para cada um entregue: nome do formato, gancho ADAPTADO ao nicho do usuário (não genérico),
-  roteiro beat-a-beat com marcação de tempo, e uma linha "Por que funciona".
-- Adapte os ganchos ao nicho real citado pelo usuário. Nunca devolva o template com [colchetes].
-- Termine com 1 sugestão de qual gravar primeiro e por quê.`,
+- Escolha os 3 formatos mais adequados ao pedido (não liste todos).
+- Para cada um: nome do formato, gancho adaptado ao nicho, roteiro com tempo, 1 linha "Por que funciona".
+- Nunca devolva template com [colchetes].
+- Feche com qual gravar primeiro e por quê.`,
   },
   {
     id: 'hashtags',
@@ -405,13 +402,12 @@ Regras:
     keywords: ['hashtag', 'hashtags', '#', 'alcance', 'seo do instagram', 'palavra-chave'],
     systemPrompt: `${BASE_VOICE}
 
-TAREFA: montar estratégia de hashtags.
+TAREFA: só a lista de hashtags. Nada de legenda, Reels, TikTok ou plano da semana.
 
 Regras:
-- Organize em 3 camadas: Amplas (alto volume), Nicho (médio), Long-tail (baixo volume, alta intenção).
+- Organize em 3 camadas: Amplas, Nicho, Long-tail.
 - 8 a 12 hashtags no total, priorizando as de nicho.
-- Explique em 1 linha a lógica da combinação.
-- Adicione 2 sugestões de texto-alvo para a busca do Instagram (SEO de legenda).`,
+- Uma linha de lógica. Sem SEO extra, sem texto de post.`,
   },
   {
     id: 'improve',
@@ -439,7 +435,8 @@ Regras:
 - Comece com "Diagnóstico:" e liste no máximo 3 problemas concretos do texto original.
 - Depois entregue "Versão reescrita:" com o texto forte, pronto pra postar.
 - Depois "O que mudei e por quê:" em bullets curtos.
-- Não elogie sem motivo. Seja específico e honesto sobre o que está fraco.`,
+- Não elogie sem motivo. Seja específico e honesto sobre o que está fraco.
+- Não invente versão TikTok, Reels ou hashtags se o usuário não pediu.`,
   },
   {
     id: 'plan',
@@ -460,14 +457,13 @@ Regras:
     needsReelsContext: true,
     systemPrompt: `${BASE_VOICE}
 
-TAREFA: montar um plano de conteúdo executável.
+TAREFA: só o calendário da semana. Não escreva post completo, não escreva roteiro de Reels, não escreva título de TikTok.
 
 Regras:
 - Padrão: 7 dias. Ajuste se o usuário pedir outro período.
-- Para cada dia: formato (Reels/carrossel/story), tema, gancho pronto e objetivo (alcance/engajamento/venda).
-- Equilibre os objetivos ao longo da semana — não coloque venda todo dia.
-- Priorize formatos de esforço baixo nos dias úteis.
-- Termine com "Comece por:" indicando o post de maior impacto pra gravar primeiro.`,
+- Para cada dia: formato (Reels / carrossel / story), tema em 1 linha, gancho curto, objetivo.
+- Equilibre os objetivos. Sem venda todo dia.
+- Termine com "Comece por:" o item de maior impacto.`,
   },
 ];
 
@@ -708,7 +704,9 @@ export const ROUTER_SYSTEM_PROMPT = `Você é um classificador de intenção. Su
 Regras:
 - Responda APENAS com JSON válido, sem markdown: {"route":"skill:caption","reason":"..."}
 - O campo "route" deve ser exatamente um dos identificadores do catálogo.
-- Prefira uma SKILL quando o pedido é de execução de conteúdo (escrever legenda, ideia de Reels, hashtags, plano).
+- Escolha UMA skill. Cada skill entrega SÓ o que o nome diz — não misture (post ≠ Reels ≠ TikTok ≠ hashtag).
+- "monte um post" / foto anexada → skill:post (feed Instagram). NÃO use reels-pipeline nem trends.
+- Prefira uma SKILL quando o pedido é de execução de conteúdo (escrever post, ideia de Reels, hashtags, plano).
 - Prefira um AGENTE quando o pedido é de estratégia, oferta, preço, posicionamento, público ou copy de vendas.
 - "reason" deve ter no máximo 12 palavras.`;
 
@@ -774,13 +772,50 @@ export function fallbackRoute(): RouteDecision {
   };
 }
 
+/**
+ * Cada skill entrega SÓ o pedido dela. Nada de pacote misto.
+ * Injetado em toda resposta para o modelo não "completar" com TikTok/Reels/etc.
+ */
+export const SKILL_SCOPE: Record<string, string> = {
+  post:
+    'ESCOPO: só o post de feed do Instagram (legenda + hashtags). Nada de TikTok, Reels, vídeo, Story, roteiro.',
+  caption:
+    'ESCOPO: só 3 legendas de feed do Instagram. Nada de TikTok, Reels, vídeo, plano da semana.',
+  reels:
+    'ESCOPO: só ideias de Reels (gancho + roteiro). Nada de post de feed, carrossel, título de TikTok.',
+  trends:
+    'ESCOPO: só links de Reels/vídeos reais para copiar. Nada de post de feed, nada de título de TikTok.',
+  hashtags:
+    'ESCOPO: só a lista de hashtags. Nada de legenda, Reels, TikTok ou calendário.',
+  plan:
+    'ESCOPO: só o calendário (tema + formato por dia). Não escreva o post nem o roteiro completo.',
+  improve:
+    'ESCOPO: só diagnóstico + versão reescrita do texto enviado. Não invente Reels/TikTok.',
+  'profile-ideas':
+    'ESCOPO: só ideias no tom do perfil. Não monte o post final nem título de TikTok.',
+  'reels-pipeline':
+    'ESCOPO: só o pacote Reels (referência + roteiro + legenda do Reels + DM). Não misture post de carrossel de feed.',
+  agendar:
+    'ESCOPO: só agendar/publicar/listar. Não escreva um post novo se o usuário só pediu para agendar.',
+};
+
+export function skillScopeLock(skillId: string): string {
+  const scope = SKILL_SCOPE[skillId];
+  if (!scope) {
+    return 'ESCOPO: entregue somente o que o usuário pediu. Nada a mais.';
+  }
+  return `${scope} O usuário vê um TESTE visual desta entrega — mantenha o formato pedido. Se faltar informação, pergunte em 1 linha — não complete com outro formato.`;
+}
+
 /** Monta o system prompt final, injetando contexto extra quando a skill pede. */
 export function buildFinalSystemPrompt(decision: RouteDecision): string {
+  let prompt = decision.systemPrompt;
   if (decision.kind === 'skill') {
+    prompt += `\n\n${skillScopeLock(decision.id)}`;
     const skill = getSkillById(decision.id);
     if (skill?.needsReelsContext) {
-      return `${decision.systemPrompt}\n\n--- CONTEXTO DE REFERÊNCIA ---\n${buildReelsContext()}`;
+      prompt += `\n\n--- CONTEXTO DE REFERÊNCIA ---\n${buildReelsContext()}`;
     }
   }
-  return decision.systemPrompt;
+  return prompt;
 }

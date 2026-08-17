@@ -9,7 +9,7 @@ import {
   describeImagesMetadata,
   visionCanSeeHint,
 } from '../src/lib/copilotImages';
-import { COPILOT_SKILLS } from '../src/lib/copilotRouter';
+import { COPILOT_SKILLS, SKILL_SCOPE, skillScopeLock } from '../src/lib/copilotRouter';
 import { extractCaption } from '../src/lib/textClean';
 
 let pass = 0;
@@ -79,6 +79,16 @@ const capNovo = extractCaption(
 );
 checkTrue('legenda sem secoes passa inteira', capNovo.includes('não se divide'));
 checkTrue('hashtags ficam na legenda', capNovo.includes('#BrigadeiroGourmet'));
+checkTrue('escopo do post veta TikTok', skillScopeLock('post').includes('TikTok'));
+checkTrue('escopo promete TESTE visual', skillScopeLock('post').includes('TESTE'));
+checkTrue('escopo de hashtags veta legenda', skillScopeLock('hashtags').includes('legenda'));
+checkTrue('escopo de reels veta post de feed', skillScopeLock('reels').includes('post de feed'));
+checkTrue(
+  'toda skill de conteudo tem escopo',
+  ['post', 'caption', 'reels', 'trends', 'hashtags', 'plan', 'improve'].every((id) =>
+    Boolean(SKILL_SCOPE[id])
+  )
+);
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

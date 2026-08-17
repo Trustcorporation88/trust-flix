@@ -30,7 +30,7 @@ import { saveContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { prepareImageForVision, PreparedImage } from '@/lib/imagePrep';
 import { MAX_COPILOT_IMAGES } from '@/lib/copilotImages';
 import { stripMarkdown, extractCaption, extractTikTokTitle } from '@/lib/textClean';
-import { PostPreview } from '@/components/dashboard/PostPreview';
+import { SkillPreview } from '@/components/dashboard/SkillPreview';
 import { aiExecutor, AIExecutorConfig } from '@/services/aiExecutor';
 import { supportsVision, supportsWebSearch } from '@/lib/aiProviders';
 
@@ -881,15 +881,14 @@ export default function CopilotPage() {
                     </div>
                   ) : null}
 
-                  {/* Prévia do post (fotos + legenda) — visível antes de publicar */}
-                  {m.role === 'assistant' &&
-                  !m.error &&
-                  (m.imagePreviews?.length ||
-                    m.media?.length ||
-                    m.pendingAction?.media?.length) ? (
-                    <PostPreview
+                  {/* TESTE visual de cada skill — o usuário precisa ver o resultado */}
+                  {m.role === 'assistant' && !m.error ? (
+                    <SkillPreview
                       className="mt-2 max-w-sm"
-                      handle="cyntiarinaldidoces"
+                      routeKind={m.route?.kind}
+                      skillId={m.route?.id}
+                      handle={m.profile?.handle || 'cyntiarinaldidoces'}
+                      content={m.pendingAction?.content || m.content}
                       images={
                         m.imagePreviews?.length
                           ? m.imagePreviews
@@ -897,11 +896,8 @@ export default function CopilotPage() {
                             ? m.pendingAction.media.map((x) => x.path)
                             : m.media?.map((x) => x.path) || []
                       }
-                      caption={
-                        m.pendingAction?.content
-                          ? m.pendingAction.content
-                          : extractCaption(m.content)
-                      }
+                      videoSources={m.videoSources}
+                      pendingAction={m.pendingAction}
                     />
                   ) : null}
 
@@ -1260,24 +1256,23 @@ export default function CopilotPage() {
             </div>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-950/60">
               <li>
-                <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — pipeline
-                StoryAds → Dissecação → doug.tensão/Ugly Copy com busca de referências.
+                <span className="font-semibold text-ink-950">Cada atalho entrega só o pedido</span> —
+                post ≠ Reels ≠ TikTok ≠ hashtag. Nada de pacote misturado.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">📸 Ideias do meu IG</span> — lê
-                Reels, Stories, Feed e mídias do Instagram autorizado (@cyntiarinaldidoces).
+                <span className="font-semibold text-ink-950">🖼️ Post Instagram</span> — só feed/carrossel
+                + legenda. Sem vídeo.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na
-                web o que está performando agora, com links das fontes.
+                <span className="font-semibold text-ink-950">🎬 Ideias de Reels</span> — só roteiro de
+                Reels.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">Com foto anexada</span> — monta só o
-                post de Instagram (legenda + hashtags). Reels e TikTok são atalhos separados.
+                <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — só quando
+                você pedir o pacote de Reels (referência + roteiro + DM).
               </li>
               <li>
-                <span className="font-semibold text-ink-950">Skills de conteúdo</span> — legenda,
-                Reels, hashtags, plano semanal.
+                <span className="font-semibold text-ink-950">#️⃣ Hashtags</span> — só a lista.
               </li>
               <li>
                 <span className="font-semibold text-ink-950">
