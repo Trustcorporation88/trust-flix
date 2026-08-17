@@ -20,6 +20,10 @@ import {
   buildWebSearchOptions,
   extractSources,
 } from '../src/lib/aiProviders';
+import {
+  resolveCopilotPrimaryFromEnv,
+  resolveCopilotFallbackFromEnv,
+} from '../src/lib/copilotAiConfig';
 
 let pass = 0;
 let fail = 0;
@@ -353,6 +357,45 @@ check('url preservada', srcs[0].url, 'https://a.com/1');
 check('titulo preservado', srcs[1].title, 'Tendência B');
 check('mensagem sem annotations retorna vazio', extractSources({ content: 'x' }), []);
 check('mensagem nula nao quebra', extractSources(null), []);
+
+console.log('\n─── Copilot: Claude principal, DeepSeek fallback ───');
+{
+  const env = {
+    ANTHROPIC_API_KEY: 'sk-ant-x',
+    CONTENT_STUDIO_AI_API_KEY: 'sk-ds-x',
+    CONTENT_STUDIO_AI_PROVIDER: 'deepseek',
+    CONTENT_STUDIO_AI_MODEL: 'deepseek-v4-flash',
+  };
+  const primary = resolveCopilotPrimaryFromEnv(env);
+  const fallback = resolveCopilotFallbackFromEnv(env, primary);
+  check('principal é Claude', primary?.provider, 'anthropic');
+  check('principal usa a chave Anthropic', primary?.apiKey, 'sk-ant-x');
+  check('fallback é DeepSeek', fallback?.provider, 'deepseek');
+  check('fallback usa a chave do Content Studio', fallback?.apiKey, 'sk-ds-x');
+}
+{
+  const env = { CONTENT_STUDIO_AI_API_KEY: 'sk-ds-x', CONTENT_STUDIO_AI_PROVIDER: 'deepseek' };
+  const primary = resolveCopilotPrimaryFromEnv(env);
+  check('sem Claude: cai no DeepSeek', primary?.provider, 'deepseek');
+  check('sem Claude: fallback nulo (mesmo alvo)', resolveCopilotFallbackFromEnv(env, primary), null);
+}
+{
+  const env = {
+    COPILOT_AI_API_KEY: 'sk-ant-dedicated',
+    ANTHROPIC_API_KEY: 'sk-ant-x',
+    CONTENT_STUDIO_AI_API_KEY: 'sk-ds-x',
+  };
+  check(
+    'COPILOT_AI_API_KEY vence e default é anthropic',
+    resolveCopilotPrimaryFromEnv(env)?.provider,
+    'anthropic'
+  );
+  check(
+    'COPILOT_AI_API_KEY vence a ANTHROPIC_API_KEY',
+    resolveCopilotPrimaryFromEnv(env)?.apiKey,
+    'sk-ant-dedicated'
+  );
+}
 
 console.log(`\n═══ RESULTADO: ${pass} passou / ${fail} falhou ═══`);
 if (fail > 0) process.exit(1);

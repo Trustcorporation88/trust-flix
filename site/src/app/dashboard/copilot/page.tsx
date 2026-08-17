@@ -104,10 +104,10 @@ interface CopilotStatus {
   model: string | null;
   modelMigratedFrom: string | null;
   vision: boolean;
-  /** true = o DeepSeek (principal) não lê foto; Claude (fallback) lê */
+  /** true = o principal é text-only; fotos vão para o fallback */
   visionViaFallback: boolean;
   webSearch: boolean;
-  /** true se o servidor tem ANTHROPIC_API_KEY / COPILOT_AI_FALLBACK_API_KEY */
+  /** true se o servidor tem fallback (em geral DeepSeek) */
   fallbackConfigured: boolean;
   fallbackProvider: string | null;
   fallbackModel: string | null;
@@ -679,7 +679,7 @@ export default function CopilotPage() {
                       )}
                       {m.fallbackUsed && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">
-                          <FiServer size={11} /> fallback {m.fallback?.provider || 'anthropic'}
+                          <FiServer size={11} /> fallback {m.fallback?.provider || 'deepseek'}
                         </span>
                       )}
                       {m.profile?.handle && (
@@ -1038,7 +1038,7 @@ export default function CopilotPage() {
                             <FiEye size={12} className="text-flow-600" />
                             <span className="text-flow-700">
                               {effective.visionViaFallback
-                                ? `analisa fotos via ${effective.fallbackProvider || 'anthropic'}`
+                                ? `analisa fotos via ${effective.fallbackProvider || 'deepseek'}`
                                 : 'analisa fotos'}
                             </span>
                           </>
@@ -1067,14 +1067,14 @@ export default function CopilotPage() {
                           <>
                             <FiServer size={12} className="text-violet-600" />
                             <span className="text-violet-700">
-                              fallback {effective.fallbackProvider || 'anthropic'}
+                              fallback {effective.fallbackProvider || 'deepseek'}
                               {effective.fallbackModel ? ` · ${effective.fallbackModel}` : ''}
                             </span>
                           </>
                         ) : (
                           <>
                             <FiServer size={12} className="text-ink-950/35" />
-                            <span className="text-ink-950/45">sem fallback Anthropic</span>
+                            <span className="text-ink-950/45">sem fallback DeepSeek</span>
                           </>
                         )}
                       </p>
