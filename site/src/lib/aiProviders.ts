@@ -170,6 +170,35 @@ export function supportsVision(provider: string, model: string): boolean {
   return patterns.some((re) => re.test(m));
 }
 
+export interface VisionTarget {
+  /** true = a foto será enviada de fato ao modelo escolhido */
+  canSee: boolean;
+  /** true = o principal é text-only e vamos usar o fallback (Anthropic/etc.) */
+  viaFallback: boolean;
+}
+
+/**
+ * Escolhe quem lê a foto.
+ *
+ * DeepSeek V4 é text-only. Sem isso, o Copilot mandava só metadados ao DeepSeek
+ * e ele alucinava ("ChatGPT não lê imagens") mesmo com Claude configurado como
+ * fallback — porque o fallback só disparava em 429/5xx, não em falta de visão.
+ */
+export function pickVisionTarget(
+  primary: { provider: string; model: string },
+  fallback: { provider: string; model: string } | null,
+  hasImage: boolean
+): VisionTarget {
+  if (!hasImage) return { canSee: false, viaFallback: false };
+  if (supportsVision(primary.provider, primary.model)) {
+    return { canSee: true, viaFallback: false };
+  }
+  if (fallback && supportsVision(fallback.provider, fallback.model)) {
+    return { canSee: true, viaFallback: true };
+  }
+  return { canSee: false, viaFallback: false };
+}
+
 /** Provedores que têm ao menos um modelo com visão — usado nas mensagens de UI. */
 export const VISION_CAPABLE_PROVIDERS = Object.keys(VISION_MODEL_PATTERNS);
 

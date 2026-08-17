@@ -46,7 +46,12 @@ import {
   supportsVision,
   supportsWebSearch,
   isRetryableProviderError,
+  pickVisionTarget,
 } from '@/lib/aiProviders';
+import {
+  resolveCopilotFallbackFromEnv,
+  resolveCopilotPrimaryFromEnv,
+} from '@/lib/copilotAiConfig';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,14 +62,12 @@ export const dynamic = 'force-dynamic';
  *
  * Chave de IA (ordem de precedência):
  *  1. BYOK — { apiKey, provider, model } no corpo da requisição (chave do próprio cliente).
- *  2. COPILOT_AI_API_KEY / COPILOT_AI_PROVIDER / COPILOT_AI_MODEL (chave dedicada do Copilot).
- *  3. CONTENT_STUDIO_AI_API_KEY / _PROVIDER / _MODEL (reaproveita a chave compartilhada).
+ *  2. Claude (ANTHROPIC_API_KEY / COPILOT_AI_API_KEY) — motor principal.
+ *  3. DeepSeek (CONTENT_STUDIO_AI_API_KEY) — fallback e último recurso.
  *
- * VISÃO: quando uma foto é anexada, ela só é enviada ao modelo se o provedor
- * suportar imagem (ver supportsVision). DeepSeek V4 é text-only, então nesse
- * caso enviamos apenas os METADADOS da foto (dimensões, proporção) e instruímos
- * o modelo a não inventar detalhes visuais. Assim o recurso degrada de forma
- * controlada em vez de estourar erro de schema.
+ * VISÃO: Claude lê foto. Se o principal for text-only (DeepSeek), a foto vai
+ * para um fallback com visão (ver pickVisionTarget). Sem nenhum modelo de visão,
+ * enviamos só metadados e pedimos para não inventar o que está na foto.
  */
 
 type Provider =
@@ -169,69 +172,34 @@ function resolveConfig(body: RequestBody): AIConfig | null {
     });
   }
 
-  // 2. Chave dedicada do Copilot
-  if (process.env.COPILOT_AI_API_KEY) {
-    const provider = (process.env.COPILOT_AI_PROVIDER || 'deepseek') as Provider;
-    return finalize({
-      provider,
-      apiKey: process.env.COPILOT_AI_API_KEY,
-      model: process.env.COPILOT_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
-      baseUrl: process.env.COPILOT_AI_BASE_URL,
-      byok: false,
-    });
-  }
-
-  // 3. Reaproveita a chave do Content Studio
-  if (process.env.CONTENT_STUDIO_AI_API_KEY) {
-    const provider = (process.env.CONTENT_STUDIO_AI_PROVIDER || 'deepseek') as Provider;
-    return finalize({
-      provider,
-      apiKey: process.env.CONTENT_STUDIO_AI_API_KEY,
-      model:
-        process.env.CONTENT_STUDIO_AI_MODEL || DEFAULT_MODEL[provider] || DEFAULT_MODEL.deepseek,
-      baseUrl: process.env.CONTENT_STUDIO_AI_BASE_URL,
-      byok: false,
-    });
-  }
-
-  return null;
+  const fromEnv = resolveCopilotPrimaryFromEnv(process.env);
+  if (!fromEnv) return null;
+  return finalize({
+    provider: fromEnv.provider as Provider,
+    apiKey: fromEnv.apiKey,
+    model: fromEnv.model,
+    baseUrl: fromEnv.baseUrl,
+    byok: false,
+    migratedFrom: fromEnv.migratedFrom,
+    thinking: fromEnv.thinking,
+  });
 }
 
 /**
- * Fallback Anthropic (ou outro provedor) quando a chave principal estoura
- * rate limit / fica indisponível.
- *
- * Ordem:
- *  1. COPILOT_AI_FALLBACK_API_KEY (+ PROVIDER/MODEL opcionais)
- *  2. ANTHROPIC_API_KEY / COPILOT_ANTHROPIC_API_KEY
+ * Fallback DeepSeek quando o Claude estoura rate limit / fica indisponível.
+ * Também usado por pickVisionTarget se o principal for text-only.
  */
 function resolveFallbackConfig(primary?: AIConfig | null): AIConfig | null {
-  const fallbackKey =
-    process.env.COPILOT_AI_FALLBACK_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.COPILOT_ANTHROPIC_API_KEY;
-  if (!fallbackKey) return null;
-
-  const provider = (process.env.COPILOT_AI_FALLBACK_PROVIDER || 'anthropic') as Provider;
-  const model =
-    process.env.COPILOT_AI_FALLBACK_MODEL ||
-    DEFAULT_MODEL[provider] ||
-    DEFAULT_MODEL.anthropic;
-
-  // Não "fallbacka" para o mesmo provedor+chave — seria loop inútil.
-  if (
-    primary &&
-    primary.provider === provider &&
-    primary.apiKey === fallbackKey
-  ) {
-    return null;
-  }
-
+  const fromEnv = resolveCopilotFallbackFromEnv(process.env, primary);
+  if (!fromEnv) return null;
   return finalize({
-    provider,
-    apiKey: fallbackKey,
-    model,
+    provider: fromEnv.provider as Provider,
+    apiKey: fromEnv.apiKey,
+    model: fromEnv.model,
+    baseUrl: fromEnv.baseUrl,
     byok: false,
+    migratedFrom: fromEnv.migratedFrom,
+    thinking: fromEnv.thinking,
   });
 }
 
@@ -245,7 +213,7 @@ interface LLMMessage {
 interface LLMResult {
   content: string;
   sources: WebSource[];
-  /** Preenchido quando a chamada principal falhou e o fallback Anthropic atendeu. */
+  /** Preenchido quando a chamada principal falhou e o fallback atendeu. */
   usedFallback?: { provider: string; model: string; reason: string };
 }
 
@@ -515,14 +483,14 @@ async function callLLM(
     thinking?: boolean;
     image?: ImageInput;
     webSearch?: { model: string; options: Record<string, unknown> };
-    /** Desliga fallback Anthropic nesta chamada (ex.: classificador). */
+    /** Desliga fallback DeepSeek nesta chamada (ex.: classificador). */
     disableFallback?: boolean;
   } = {}
 ): Promise<LLMResult> {
   try {
     return await callLLMPrimary(cfg, messages, opts);
   } catch (err) {
-    // Busca web é exclusiva da OpenAI neste stack — fallback Anthropic não
+    // Busca web é exclusiva da OpenAI neste stack — fallback DeepSeek não
     // substitui gpt-5-search-api. O caller (hunt/trends) trata a falha.
     if (opts.webSearch || opts.disableFallback || !isRetryableProviderError(err)) {
       throw err;
@@ -806,8 +774,12 @@ export async function POST(request: NextRequest) {
   }
 
   const startedAt = Date.now();
-  // Só manda a imagem ao modelo se o provedor souber ler imagem.
-  const canSeeImage = Boolean(image) && supportsVision(cfg.provider, cfg.model);
+  // Se o principal for text-only e o fallback ler foto, a imagem vai para o
+  // fallback. Com Claude no principal, a foto já é lida aqui.
+  const fallbackCfg = resolveFallbackConfig(cfg);
+  const visionPick = pickVisionTarget(cfg, fallbackCfg, Boolean(image));
+  const visionCfg = visionPick.viaFallback && fallbackCfg ? fallbackCfg : cfg;
+  const canSeeImage = visionPick.canSee;
 
   try {
     // ── Roteamento ────────────────────────────────────────────────
@@ -965,13 +937,17 @@ export async function POST(request: NextRequest) {
         systemPrompt +=
           '\n\nO usuário anexou uma FOTO e você a está recebendo. Baseie a legenda no que ' +
           'realmente aparece nela — objeto, cenário, cores, texto visível e clima da cena. ' +
-          'Seja concreto: mencione elementos que você vê, não generalidades.';
+          'Seja concreto: mencione elementos que você vê, não generalidades. ' +
+          'Não fale de ChatGPT, DeepSeek nem de limites de outros modelos.';
       } else {
         systemPrompt +=
-          '\n\nO usuário anexou uma FOTO, mas seu modelo não consegue vê-la. ' +
+          `\n\nO usuário anexou uma FOTO, mas você (${cfg.provider}) é um modelo só de texto ` +
+          'e NÃO recebeu os pixels da imagem. ' +
           `Metadados disponíveis: ${describeImageMetadata(image)}. ` +
           'Escreva a legenda a partir do texto do usuário e do nicho. ' +
           'NÃO invente nem descreva detalhes visuais da foto. ' +
+          'NÃO mencione ChatGPT, GPT, Claude ou qualquer outro produto. ' +
+          'NÃO diga que "não consegue ler imagens" como se fosse um limite do ChatGPT. ' +
           'Use a proporção da imagem apenas para sugerir o formato de publicação. ' +
           'Se o texto do usuário não disser o que a foto mostra, peça em UMA linha curta ' +
           'no fim que ele descreva a cena para você refinar a legenda.';
@@ -1038,15 +1014,24 @@ export async function POST(request: NextRequest) {
     }
 
     const llmResult = await callLLM(
-      cfg,
+      // Foto: se o principal não lê imagem, usa o fallback com visão.
+      canSeeImage && visionPick.viaFallback ? visionCfg : cfg,
       [{ role: 'system', content: finalSystemPrompt }, ...history, { role: 'user', content: userText }],
       {
         image: canSeeImage ? image : undefined,
-        webSearch,
+        webSearch: visionPick.viaFallback ? undefined : webSearch,
         // Saída curta = menos tokens de saída = menos TPM.
-        ...(canWebSearch ? { maxTokens: 1200 } : {}),
+        ...(canWebSearch && !visionPick.viaFallback ? { maxTokens: 1200 } : {}),
       }
     );
+    const visionFallbackMeta = visionPick.viaFallback
+      ? {
+          provider: visionCfg.provider,
+          model: visionCfg.model,
+          reason: `${cfg.provider} não lê imagens — foto enviada ao ${visionCfg.provider}`,
+        }
+      : null;
+    const usedFallback = llmResult.usedFallback || visionFallbackMeta;
     const reply = llmResult.content;
     const sources = llmResult.sources;
 
@@ -1076,13 +1061,13 @@ export async function POST(request: NextRequest) {
         emoji: decision.emoji,
         via: decision.via,
       },
-      provider: llmResult.usedFallback?.provider || cfg.provider,
-      model: llmResult.usedFallback?.model
-        || (canWebSearch ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model),
+      provider: usedFallback?.provider || cfg.provider,
+      model: usedFallback?.model
+        || (canWebSearch && !visionPick.viaFallback ? WEB_SEARCH_MODEL[cfg.provider] : cfg.model),
       modelMigratedFrom: cfg.migratedFrom,
       byok: cfg.byok,
-      fallbackUsed: Boolean(llmResult.usedFallback),
-      fallback: llmResult.usedFallback || null,
+      fallbackUsed: Boolean(usedFallback),
+      fallback: usedFallback || null,
       profile: profileCtx
         ? {
             handle: profileCtx.handle,
@@ -1114,17 +1099,21 @@ export async function GET(request: NextRequest) {
 
   const cfg = resolveConfig({ message: '' });
   const fallback = resolveFallbackConfig(cfg);
+  const visionPrimary = cfg ? supportsVision(cfg.provider, cfg.model) : false;
+  const visionFallback = fallback ? supportsVision(fallback.provider, fallback.model) : false;
   return NextResponse.json({
     success: true,
     configured: Boolean(cfg),
     provider: cfg?.provider ?? null,
     model: cfg?.model ?? null,
     modelMigratedFrom: cfg?.migratedFrom ?? null,
-    /** false → o provedor atual não lê imagens (ex: DeepSeek V4) */
-    vision: cfg ? supportsVision(cfg.provider, cfg.model) : false,
+    /** true se o principal OU o fallback lê imagens */
+    vision: visionPrimary || visionFallback,
+    /** true = o principal é text-only; fotos vão para o fallback */
+    visionViaFallback: !visionPrimary && visionFallback,
     /** false → o provedor atual não pesquisa na web pelo Chat Completions */
     webSearch: cfg ? supportsWebSearch(cfg.provider) : false,
-    /** true se ANTHROPIC_API_KEY / COPILOT_AI_FALLBACK_API_KEY está no servidor */
+    /** true se há chave de fallback (em geral DeepSeek do Content Studio) */
     fallbackConfigured: Boolean(fallback),
     fallbackProvider: fallback?.provider ?? null,
     fallbackModel: fallback?.model ?? null,
