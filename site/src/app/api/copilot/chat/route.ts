@@ -54,6 +54,14 @@ import {
   resolveCopilotFallbackFromEnv,
   resolveCopilotPrimaryFromEnv,
 } from '@/lib/copilotAiConfig';
+import {
+  collectVisionImages,
+  defaultPostPrompt,
+  describeImagesMetadata,
+  visionCanSeeHint,
+  visionCannotSeeHint,
+  type CopilotImageInput,
+} from '@/lib/copilotImages';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,9 +75,9 @@ export const dynamic = 'force-dynamic';
  *  2. Claude (ANTHROPIC_API_KEY / COPILOT_AI_API_KEY) — motor principal.
  *  3. DeepSeek (CONTENT_STUDIO_AI_API_KEY) — fallback e último recurso.
  *
- * VISÃO: Claude lê foto. Se o principal for text-only (DeepSeek), a foto vai
+ * VISÃO: Claude lê foto(s). Se o principal for text-only (DeepSeek), as fotos vão
  * para um fallback com visão (ver pickVisionTarget). Sem nenhum modelo de visão,
- * enviamos só metadados e pedimos para não inventar o que está na foto.
+ * enviamos só metadados e pedimos para não inventar o que está nas fotos.
  */
 
 type Provider =
@@ -88,13 +96,7 @@ interface ChatMessage {
 }
 
 /** Foto anexada pelo usuário no composer do Copilot. */
-interface ImageInput {
-  /** data URL completa: data:image/jpeg;base64,XXXX */
-  dataUrl: string;
-  name?: string;
-  width?: number;
-  height?: number;
-}
+type ImageInput = CopilotImageInput;
 
 interface RequestBody {
   message: string;
@@ -106,8 +108,10 @@ interface RequestBody {
    * mesmo especialista quando a mensagem é só um ajuste do resultado.
    */
   lastRoute?: string;
-  /** Foto anexada — usada para montar o post. */
+  /** Foto única (legado). Preferir `images`. */
   image?: ImageInput;
+  /** Fotos anexadas — carrossel de até 10. */
+  images?: ImageInput[];
   /**
    * Referência(s) de mídia já enviadas ao Postiz (id/path) — usadas pela skill
    * de ação para agendar/publicar o post com a foto anexada.
@@ -248,6 +252,17 @@ function formatRateLimitError(raw: string): string {
   );
 }
 
+function parsedVision(images?: ImageInput[]) {
+  return (images || [])
+    .map((img) => {
+      const parsed = parseDataUrl(img.dataUrl);
+      return parsed ? { img, parsed } : null;
+    })
+    .filter((x): x is { img: ImageInput; parsed: { mediaType: string; base64: string } } =>
+      Boolean(x)
+    );
+}
+
 async function callOpenAICompatible(
   base: string,
   cfg: AIConfig,
@@ -255,26 +270,27 @@ async function callOpenAICompatible(
   maxTokens: number,
   temperature: number,
   thinking: boolean,
-  image?: ImageInput,
+  images?: ImageInput[],
   webSearch?: { model: string; options: Record<string, unknown> }
 ): Promise<LLMResult> {
   // Formato OpenAI: a última mensagem do usuário passa a ser um array de partes.
   let payloadMessages: unknown[] = messages;
-  if (image) {
-    const parsed = parseDataUrl(image.dataUrl);
-    if (parsed) {
-      payloadMessages = messages.map((m, i) =>
-        i === messages.length - 1 && m.role === 'user'
-          ? {
-              role: 'user',
-              content: [
-                { type: 'text', text: m.content },
-                { type: 'image_url', image_url: { url: image.dataUrl } },
-              ],
-            }
-          : m
-      );
-    }
+  const vision = parsedVision(images);
+  if (vision.length) {
+    payloadMessages = messages.map((m, i) =>
+      i === messages.length - 1 && m.role === 'user'
+        ? {
+            role: 'user',
+            content: [
+              ...vision.map(({ img }) => ({
+                type: 'image_url',
+                image_url: { url: img.dataUrl },
+              })),
+              { type: 'text', text: m.content },
+            ],
+          }
+        : m
+    );
   }
 
   // Busca na web usa um MODELO dedicado (o tool `web_search` é exclusivo da
@@ -336,7 +352,7 @@ async function callAnthropic(
   messages: LLMMessage[],
   maxTokens: number,
   temperature: number,
-  image?: ImageInput
+  images?: ImageInput[]
 ): Promise<LLMResult> {
   const system = messages
     .filter((m) => m.role === 'system')
@@ -346,24 +362,22 @@ async function callAnthropic(
 
   // Formato Anthropic: bloco { type: 'image', source: { type: 'base64', ... } }
   let payloadMessages: unknown[] = rest;
-  if (image) {
-    const parsed = parseDataUrl(image.dataUrl);
-    if (parsed) {
-      payloadMessages = rest.map((m, i) =>
-        i === rest.length - 1 && m.role === 'user'
-          ? {
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: parsed.mediaType, data: parsed.base64 },
-                },
-                { type: 'text', text: m.content },
-              ],
-            }
-          : m
-      );
-    }
+  const vision = parsedVision(images);
+  if (vision.length) {
+    payloadMessages = rest.map((m, i) =>
+      i === rest.length - 1 && m.role === 'user'
+        ? {
+            role: 'user',
+            content: [
+              ...vision.map(({ parsed }) => ({
+                type: 'image',
+                source: { type: 'base64', media_type: parsed.mediaType, data: parsed.base64 },
+              })),
+              { type: 'text', text: m.content },
+            ],
+          }
+        : m
+    );
   }
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -390,24 +404,26 @@ async function callGoogle(
   messages: LLMMessage[],
   maxTokens: number,
   temperature: number,
-  image?: ImageInput
+  images?: ImageInput[]
 ): Promise<LLMResult> {
   const system = messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
     .join('\n\n');
   const rest = messages.filter((m) => m.role !== 'system');
-  const parsedImage = image ? parseDataUrl(image.dataUrl) : null;
+  const vision = parsedVision(images);
 
   const contents = rest.map((m, i) => {
     const role = m.role === 'assistant' ? 'model' : 'user';
     // Formato Google: parts com inline_data
-    if (parsedImage && i === rest.length - 1 && m.role === 'user') {
+    if (vision.length && i === rest.length - 1 && m.role === 'user') {
       return {
         role,
         parts: [
+          ...vision.map(({ parsed }) => ({
+            inline_data: { mime_type: parsed.mediaType, data: parsed.base64 },
+          })),
           { text: m.content },
-          { inline_data: { mime_type: parsedImage.mediaType, data: parsedImage.base64 } },
         ],
       };
     }
@@ -441,7 +457,7 @@ async function callLLMPrimary(
     maxTokens?: number;
     temperature?: number;
     thinking?: boolean;
-    image?: ImageInput;
+    images?: ImageInput[];
     webSearch?: { model: string; options: Record<string, unknown> };
   }
 ): Promise<LLMResult> {
@@ -451,11 +467,11 @@ async function callLLMPrimary(
   // 'deepseek-reasoner'). O roteador passa thinking:false para garantir
   // classificação determinística dentro de um orçamento pequeno de tokens.
   const thinking = (opts.thinking ?? true) && Boolean(cfg.thinking);
-  const image = opts.image;
+  const images = opts.images;
 
   if (cfg.provider === 'anthropic')
-    return callAnthropic(cfg, messages, maxTokens, temperature, image);
-  if (cfg.provider === 'google') return callGoogle(cfg, messages, maxTokens, temperature, image);
+    return callAnthropic(cfg, messages, maxTokens, temperature, images);
+  if (cfg.provider === 'google') return callGoogle(cfg, messages, maxTokens, temperature, images);
 
   const base = cfg.provider === 'custom' ? cfg.baseUrl : OPENAI_COMPATIBLE_BASE[cfg.provider];
   if (!base) {
@@ -470,7 +486,7 @@ async function callLLMPrimary(
     maxTokens,
     temperature,
     thinking,
-    image,
+    images,
     opts.webSearch
   );
 }
@@ -482,7 +498,7 @@ async function callLLM(
     maxTokens?: number;
     temperature?: number;
     thinking?: boolean;
-    image?: ImageInput;
+    images?: ImageInput[];
     webSearch?: { model: string; options: Record<string, unknown> };
     /** Desliga fallback DeepSeek nesta chamada (ex.: classificador). */
     disableFallback?: boolean;
@@ -505,7 +521,7 @@ async function callLLM(
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
       thinking: false,
-      image: opts.image,
+      images: opts.images,
       // sem webSearch no fallback
     });
     return {
@@ -726,22 +742,6 @@ async function routeByLLM(cfg: AIConfig, message: string): Promise<RouteDecision
   }
 }
 
-/** Descreve a foto em texto — usado quando o provedor não tem visão. */
-function describeImageMetadata(image: ImageInput): string {
-  const bits: string[] = [];
-  if (image.name) bits.push(`arquivo "${image.name}"`);
-  if (image.width && image.height) {
-    bits.push(`${image.width}x${image.height}px`);
-    const ratio = image.width / image.height;
-    let orientation = 'quadrada (1:1)';
-    if (ratio > 1.2) orientation = 'horizontal (paisagem)';
-    else if (ratio < 0.7) orientation = 'vertical alta (9:16 — ideal para Reels/Story)';
-    else if (ratio < 0.95) orientation = 'vertical (4:5 — ideal para feed)';
-    bits.push(orientation);
-  }
-  return bits.join(', ');
-}
-
 export async function POST(request: NextRequest) {
   const auth = requireAuth(request);
   if (isAuthError(auth)) return auth;
@@ -754,9 +754,10 @@ export async function POST(request: NextRequest) {
   }
 
   const message = (body.message || '').trim();
-  const image = body.image?.dataUrl ? body.image : undefined;
+  const images = collectVisionImages(body);
+  const hasImage = images.length > 0;
 
-  if (!message && !image) {
+  if (!message && !hasImage) {
     return NextResponse.json({ success: false, error: 'Mensagem vazia.' }, { status: 400 });
   }
 
@@ -778,7 +779,7 @@ export async function POST(request: NextRequest) {
   // Se o principal for text-only e o fallback ler foto, a imagem vai para o
   // fallback. Com Claude no principal, a foto já é lida aqui.
   const fallbackCfg = resolveFallbackConfig(cfg);
-  const visionPick = pickVisionTarget(cfg, fallbackCfg, Boolean(image));
+  const visionPick = pickVisionTarget(cfg, fallbackCfg, hasImage);
   const visionCfg = visionPick.viaFallback && fallbackCfg ? fallbackCfg : cfg;
   const canSeeImage = visionPick.canSee;
 
@@ -787,7 +788,7 @@ export async function POST(request: NextRequest) {
     let decision: RouteDecision | null = null;
 
     if (body.forceRoute) decision = resolveForcedRoute(body.forceRoute);
-    if (!decision) decision = routeByKeyword(message, Boolean(image), body.lastRoute);
+    if (!decision) decision = routeByKeyword(message, hasImage, body.lastRoute);
     if (!decision && message) decision = await routeByLLM(cfg, message);
     if (!decision) decision = fallbackRoute();
 
@@ -846,7 +847,7 @@ export async function POST(request: NextRequest) {
         model: cfg.model,
         modelMigratedFrom: cfg.migratedFrom,
         byok: cfg.byok,
-        hadImage: Boolean(image),
+        hadImage: hasImage,
         duration: Date.now() - startedAt,
       });
     }
@@ -864,7 +865,12 @@ export async function POST(request: NextRequest) {
     if (skillNeedsPipeline(decision)) {
       const canWebSearch = supportsWebSearch(cfg.provider);
       const baseMsg =
-        message || (image ? 'Monta um Reels completo com esta foto.' : 'Reels + post pronto pro meu nicho');
+        message ||
+        (hasImage
+          ? images.length > 1
+            ? `Monta um Reels completo com estas ${images.length} fotos.`
+            : 'Monta um Reels completo com esta foto.'
+          : 'Reels + post pronto pro meu nicho');
       const profilePrefix = profileCtx?.promptBlock
         ? `[CONTEXTO DO INSTAGRAM AUTORIZADO]\n${profileCtx.promptBlock}\n\n`
         : profileCtx?.notice
@@ -917,7 +923,7 @@ export async function POST(request: NextRequest) {
             }
           : null,
         visionUsed: false,
-        hadImage: Boolean(image),
+        hadImage: hasImage,
         duration: Date.now() - startedAt,
       });
     }
@@ -933,29 +939,19 @@ export async function POST(request: NextRequest) {
       systemPrompt += `\n\nAVISO SOBRE O PERFIL: ${profileCtx.notice}`;
     }
 
-    if (image) {
+    if (hasImage) {
       if (canSeeImage) {
-        systemPrompt +=
-          '\n\nO usuário anexou uma FOTO e você a está recebendo. Baseie a legenda no que ' +
-          'realmente aparece nela — objeto, cenário, cores, texto visível e clima da cena. ' +
-          'Seja concreto: mencione elementos que você vê, não generalidades. ' +
-          'Não fale de ChatGPT, DeepSeek nem de limites de outros modelos.';
+        systemPrompt += `\n\n${visionCanSeeHint(images.length)}`;
       } else {
-        systemPrompt +=
-          `\n\nO usuário anexou uma FOTO, mas você (${cfg.provider}) é um modelo só de texto ` +
-          'e NÃO recebeu os pixels da imagem. ' +
-          `Metadados disponíveis: ${describeImageMetadata(image)}. ` +
-          'Escreva a legenda a partir do texto do usuário e do nicho. ' +
-          'NÃO invente nem descreva detalhes visuais da foto. ' +
-          'NÃO mencione ChatGPT, GPT, Claude ou qualquer outro produto. ' +
-          'NÃO diga que "não consegue ler imagens" como se fosse um limite do ChatGPT. ' +
-          'Use a proporção da imagem apenas para sugerir o formato de publicação. ' +
-          'Se o texto do usuário não disser o que a foto mostra, peça em UMA linha curta ' +
-          'no fim que ele descreva a cena para você refinar a legenda.';
+        systemPrompt += `\n\n${visionCannotSeeHint(
+          images.length,
+          describeImagesMetadata(images),
+          cfg.provider
+        )}`;
       }
     }
 
-    const userText = message || (image ? 'Monta um post completo com esta foto.' : '');
+    const userText = message || (hasImage ? defaultPostPrompt(images.length) : '');
 
     // ── Busca na web ──────────────────────────────────────────────
     // A skill "trends" precisa de dados reais e recentes. Se o provedor não
@@ -1019,7 +1015,7 @@ export async function POST(request: NextRequest) {
       canSeeImage && visionPick.viaFallback ? visionCfg : cfg,
       [{ role: 'system', content: finalSystemPrompt }, ...history, { role: 'user', content: userText }],
       {
-        image: canSeeImage ? image : undefined,
+        images: canSeeImage ? images : undefined,
         webSearch: visionPick.viaFallback ? undefined : webSearch,
         // Saída curta = menos tokens de saída = menos TPM.
         ...(canWebSearch && !visionPick.viaFallback ? { maxTokens: 1200 } : {}),
@@ -1084,7 +1080,7 @@ export async function POST(request: NextRequest) {
         : null,
       /** true = a foto foi realmente analisada; false com imagem = provedor sem visão */
       visionUsed: canSeeImage,
-      hadImage: Boolean(image),
+      hadImage: hasImage,
       duration: Date.now() - startedAt,
     });
   } catch (error) {
