@@ -1260,24 +1260,23 @@ export default function CopilotPage() {
             </div>
             <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-950/60">
               <li>
-                <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — pipeline
-                StoryAds → Dissecação → doug.tensão/Ugly Copy com busca de referências.
+                <span className="font-semibold text-ink-950">Cada atalho entrega só o pedido</span> —
+                post ≠ Reels ≠ TikTok ≠ hashtag. Nada de pacote misturado.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">📸 Ideias do meu IG</span> — lê
-                Reels, Stories, Feed e mídias do Instagram autorizado (@cyntiarinaldidoces).
+                <span className="font-semibold text-ink-950">🖼️ Post Instagram</span> — só feed/carrossel
+                + legenda. Sem vídeo.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">🔥 Reels em alta</span> — pesquisa na
-                web o que está performando agora, com links das fontes.
+                <span className="font-semibold text-ink-950">🎬 Ideias de Reels</span> — só roteiro de
+                Reels.
               </li>
               <li>
-                <span className="font-semibold text-ink-950">Com foto anexada</span> — monta só o
-                post de Instagram (legenda + hashtags). Reels e TikTok são atalhos separados.
+                <span className="font-semibold text-ink-950">🚀 Reels + Post pronto</span> — só quando
+                você pedir o pacote de Reels (referência + roteiro + DM).
               </li>
               <li>
-                <span className="font-semibold text-ink-950">Skills de conteúdo</span> — legenda,
-                Reels, hashtags, plano semanal.
+                <span className="font-semibold text-ink-950">#️⃣ Hashtags</span> — só a lista.
               </li>
               <li>
                 <span className="font-semibold text-ink-950">
