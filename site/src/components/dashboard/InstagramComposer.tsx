@@ -7,6 +7,8 @@ import {
   FiAlertCircle,
   FiAlertTriangle,
   FiArrowLeft,
+  FiCamera,
+  FiEye,
   FiArrowRight,
   FiCheck,
   FiCheckCircle,
@@ -18,7 +20,9 @@ import {
   FiInstagram,
   FiLink,
   FiLoader,
+  FiMusic,
   FiSave,
+  FiVideo,
   FiSend,
   FiUpload,
   FiX,
@@ -26,6 +30,7 @@ import {
 } from 'react-icons/fi';
 import { authFetch } from '@/lib/auth/clientFetch';
 import { PostPreview } from '@/components/dashboard/PostPreview';
+import { ReelMusicPicker, type ReelAudioChoice } from '@/components/dashboard/ReelMusicPicker';
 import { fitImageToFeed, prepareMedia, type PreparedMedia } from '@/lib/igMediaPrep';
 import {
   IG_LIMITS,
@@ -126,6 +131,8 @@ export function InstagramComposer({
   const [showComment, setShowComment] = useState(false);
   const [collaboratorsRaw, setCollaboratorsRaw] = useState('');
   const [when, setWhen] = useState<When>('schedule');
+  const [audio, setAudio] = useState<ReelAudioChoice | null>(null);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [scheduledLocal, setScheduledLocal] = useState(defaultScheduleLocal);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkLoading, setLinkLoading] = useState(false);
@@ -159,6 +166,7 @@ export function InstagramComposer({
           format?: IgFormat;
           when?: When;
           scheduledLocal?: string;
+          audio?: ReelAudioChoice | null;
           media?: { kind: 'image' | 'video'; width: number; height: number; uploaded: UploadedRef }[];
         };
         if (saved.caption) setCaption(saved.caption);
@@ -172,6 +180,7 @@ export function InstagramComposer({
           setFormatTouched(true);
         }
         if (saved.when) setWhen(saved.when);
+        if (saved.audio?.id) setAudio(saved.audio);
         if (saved.scheduledLocal && new Date(saved.scheduledLocal).getTime() > Date.now() + 60_000) {
           setScheduledLocal(saved.scheduledLocal);
         }
@@ -215,18 +224,23 @@ export function InstagramComposer({
             format: formatTouched ? format : undefined,
             when,
             scheduledLocal,
+            audio,
             media,
           })
         );
     } catch {
       // cota do localStorage — ignora
     }
-  }, [hydrated, caption, firstComment, collaboratorsRaw, format, formatTouched, when, scheduledLocal, items]);
+  }, [hydrated, caption, firstComment, collaboratorsRaw, format, formatTouched, when, scheduledLocal, audio, items]);
 
   useEffect(() => {
     if (formatTouched || items.length === 0) return;
     setFormat(suggestFormat(items));
   }, [items, formatTouched]);
+
+  useEffect(() => {
+    if (format !== 'reel') setAudio(null);
+  }, [format]);
 
   const patchItem = useCallback((key: string, patch: Partial<MediaItem>) => {
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -421,6 +435,8 @@ export function InstagramComposer({
   const handle =
     selectedAccounts[0]?.profile?.replace(/^@/, '') || selectedAccounts[0]?.name || 'seu_perfil';
   const slots = useMemo(() => quickSlots(), []);
+  const fbLinkedAccounts = selectedAccounts.filter((a) => a.identifier.toLowerCase() === 'instagram');
+  const musicAccount = fbLinkedAccounts[0];
 
   const canSubmit =
     !publishing && !pending && !failed && !blocking && items.length > 0 && selectedAccounts.length > 0;
@@ -494,6 +510,7 @@ export function InstagramComposer({
     setFormatTouched(false);
     setFormat('feed');
     setAiTopic('');
+    setAudio(null);
     setScheduledLocal(defaultScheduleLocal());
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -539,6 +556,7 @@ export function InstagramComposer({
               draft: when === 'draft',
               firstComment: showComment ? firstComment : undefined,
               collaborators: format === 'story' ? undefined : collaborators,
+              audio: format === 'reel' && audio ? audio : undefined,
             }),
           });
           const json = await res.json().catch(() => ({}));
@@ -575,6 +593,30 @@ export function InstagramComposer({
         : 'Publicar agora';
 
   const previewItems = items.filter((i) => i.previewUrl);
+
+  const statusHint =
+    selectedAccounts.length === 0
+      ? 'Selecione uma conta.'
+      : pending
+        ? 'Aguardando o envio da mídia…'
+        : failed
+          ? 'Resolva os itens com erro.'
+          : blocking
+            ? 'Corrija os pontos em vermelho.'
+            : 'Rascunho salvo automaticamente neste navegador.';
+
+  const preview = (
+    <PostPreview
+      images={previewItems.map((i) => i.previewUrl)}
+      kinds={previewItems.map((i) => i.kind)}
+      caption={format === 'story' ? '' : caption}
+      firstComment={format !== 'story' && showComment ? firstComment : ''}
+      audioLabel={format === 'reel' && audio ? `${audio.title}${audio.artist ? ` · ${audio.artist}` : ''}` : ''}
+      handle={handle}
+      variant={format === 'story' ? 'story' : 'feed'}
+      showBadge={false}
+    />
+  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start" onPaste={onPaste}>
@@ -671,7 +713,7 @@ export function InstagramComposer({
                   onChange={(e) => setLinkUrl(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addFromLink()}
                   placeholder="https://drive.google.com/file/d/... ou link direto .mp4"
-                  className="input-dark !py-2 text-sm"
+                  className="input-dark !py-2 text-base sm:text-sm"
                 />
                 <button
                   type="button"
@@ -722,7 +764,7 @@ export function InstagramComposer({
                       <button
                         type="button"
                         onClick={() => removeItem(item.key)}
-                        className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                        className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 sm:p-1"
                         aria-label="Remover"
                       >
                         <FiX size={12} />
@@ -753,7 +795,7 @@ export function InstagramComposer({
                               type="button"
                               onClick={() => moveItem(item.key, -1)}
                               disabled={idx === 0}
-                              className="rounded p-0.5 hover:bg-stone-200 disabled:opacity-30"
+                              className="rounded p-1.5 hover:bg-stone-200 disabled:opacity-30 sm:p-0.5"
                               aria-label="Mover para a esquerda"
                             >
                               <FiArrowLeft size={12} />
@@ -762,7 +804,7 @@ export function InstagramComposer({
                               type="button"
                               onClick={() => moveItem(item.key, 1)}
                               disabled={idx === items.length - 1}
-                              className="rounded p-0.5 hover:bg-stone-200 disabled:opacity-30"
+                              className="rounded p-1.5 hover:bg-stone-200 disabled:opacity-30 sm:p-0.5"
                               aria-label="Mover para a direita"
                             >
                               <FiArrowRight size={12} />
@@ -797,9 +839,40 @@ export function InstagramComposer({
           )}
 
           {items.length < IG_LIMITS.carouselMax && (
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:hidden">
+              {(
+                [
+                  { label: 'Galeria', icon: FiImage, accept: 'image/*,video/*', capture: undefined, multiple: true },
+                  { label: 'Tirar foto', icon: FiCamera, accept: 'image/*', capture: 'environment', multiple: false },
+                  { label: 'Gravar vídeo', icon: FiVideo, accept: 'video/*', capture: 'environment', multiple: false },
+                ] as const
+              ).map((opt) => (
+                <label
+                  key={opt.label}
+                  className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-ink-950/15 bg-white py-3 text-xs font-semibold text-ink-950/80 active:bg-stone-100"
+                >
+                  <opt.icon size={20} className="text-signal-600" />
+                  {opt.label}
+                  <input
+                    type="file"
+                    accept={opt.accept}
+                    capture={opt.capture}
+                    multiple={opt.multiple}
+                    className="hidden"
+                    onChange={(e) => {
+                      void addFiles(Array.from(e.target.files || []));
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          {items.length < IG_LIMITS.carouselMax && (
             <label
               className={clsx(
-                'mt-3 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 text-center text-sm transition-colors',
+                'mt-3 hidden cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 text-center text-sm transition-colors sm:flex',
                 items.length ? 'py-5' : 'py-10',
                 dragOver
                   ? 'border-signal-500 bg-signal-50 text-signal-700'
@@ -837,6 +910,33 @@ export function InstagramComposer({
           )}
         </section>
 
+        {format === 'reel' && (
+          <section className="card-surface p-5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-950">
+              <FiMusic className="text-signal-600" /> Música do Reel{' '}
+              <span className="font-normal text-ink-950/45">(opcional)</span>
+            </h3>
+            <div className="mt-3">
+              {musicAccount ? (
+                <>
+                  {selectedAccounts.length > 1 && (
+                    <p className="mb-2 text-xs text-ink-950/55">
+                      A música entra nas contas ligadas ao Facebook: {fbLinkedAccounts.map((a) => a.name).join(', ')}.
+                    </p>
+                  )}
+                  <ReelMusicPicker integrationId={musicAccount.id} value={audio} onChange={setAudio} />
+                </>
+              ) : (
+                <p className="rounded-lg bg-stone-100 px-3 py-2 text-xs text-ink-950/65">
+                  Música pelo site só funciona em conta do Instagram ligada a uma Página do Facebook (no Postiz
+                  aparece como &quot;Instagram&quot;, não &quot;Instagram Standalone&quot;). Para esta conta, adicione a
+                  música pelo app depois de publicar.
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
         {format !== 'story' && (
           <section className="card-surface p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -858,7 +958,7 @@ export function InstagramComposer({
                 onChange={(e) => setAiTopic(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && generateCaption()}
                 placeholder="Sobre o que é o post? (ex: bolo de pote de ninho, promoção de sexta)"
-                className="input-dark !py-2 text-sm"
+                className="input-dark !py-2 text-base sm:text-sm"
               />
               <button
                 type="button"
@@ -875,7 +975,7 @@ export function InstagramComposer({
               onChange={(e) => setCaption(e.target.value)}
               rows={7}
               placeholder="Escreva a legenda. A 1ª linha é o gancho — é o que aparece antes do “mais”."
-              className="input-dark mt-3 resize-y text-sm"
+              className="input-dark mt-3 resize-y text-base sm:text-sm"
             />
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -925,7 +1025,7 @@ export function InstagramComposer({
                   onChange={(e) => setFirstComment(e.target.value)}
                   rows={2}
                   placeholder="#hashtags ou link/CTA extra"
-                  className="input-dark mt-1.5 resize-y text-sm"
+                  className="input-dark mt-1.5 resize-y text-base sm:text-sm"
                 />
               </div>
             )}
@@ -937,7 +1037,7 @@ export function InstagramComposer({
                 value={collaboratorsRaw}
                 onChange={(e) => setCollaboratorsRaw(e.target.value)}
                 placeholder="@parceiro, @fornecedor"
-                className="input-dark mt-1.5 !py-2 text-sm"
+                className="input-dark mt-1.5 !py-2 text-base sm:text-sm"
               />
               <p className="mt-1 text-[11px] text-ink-950/45">
                 O post aparece também no perfil de quem aceitar o convite.
@@ -1008,7 +1108,7 @@ export function InstagramComposer({
                 value={scheduledLocal}
                 min={toLocalInputValue(new Date())}
                 onChange={(e) => setScheduledLocal(e.target.value)}
-                className="input-dark max-w-xs !py-2 text-sm"
+                className="input-dark max-w-xs !py-2 text-base sm:text-sm"
               />
             </div>
           )}
@@ -1053,7 +1153,7 @@ export function InstagramComposer({
           </ul>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center">
           <button type="button" onClick={submit} disabled={!canSubmit} className="btn-primary disabled:opacity-50">
             {publishing ? <FiLoader className="animate-spin" /> : when === 'now' ? <FiSend /> : when === 'draft' ? <FiSave /> : <FiClock />}
             {publishing ? 'Enviando…' : submitLabel}
@@ -1069,30 +1169,70 @@ export function InstagramComposer({
               Limpar
             </button>
           )}
-          <p className="text-xs text-ink-950/50">
-            {selectedAccounts.length === 0
-              ? 'Selecione uma conta.'
-              : pending
-                ? 'Aguardando o envio da mídia…'
-                : failed
-                  ? 'Resolva os itens com erro.'
-                  : blocking
-                    ? 'Corrija os pontos em vermelho.'
-                    : 'Rascunho salvo automaticamente neste navegador.'}
-          </p>
+          <p className="text-xs text-ink-950/50">{statusHint}</p>
         </div>
       </div>
 
-      <PostPreview
-        className="lg:sticky lg:top-4"
-        images={previewItems.map((i) => i.previewUrl)}
-        kinds={previewItems.map((i) => i.kind)}
-        caption={format === 'story' ? '' : caption}
-        firstComment={format !== 'story' && showComment ? firstComment : ''}
-        handle={handle}
-        variant={format === 'story' ? 'story' : 'feed'}
-        showBadge={false}
-      />
+      <div className="hidden lg:sticky lg:top-4 lg:block">{preview}</div>
+
+      <div className="h-28 sm:hidden" aria-hidden />
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ink-950/10 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur sm:hidden">
+        <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+          <p className="truncate text-ink-950/55">{statusHint}</p>
+          {(items.length > 0 || caption) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Limpar o post atual?')) resetComposer();
+              }}
+              className="shrink-0 font-semibold text-ink-950/60 underline"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowMobilePreview(true)}
+            className="btn-secondary !px-4 !py-3 text-sm"
+            aria-label="Ver prévia"
+          >
+            <FiEye />
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit}
+            className="btn-primary flex-1 !px-3 !py-3 text-sm disabled:opacity-50"
+          >
+            {publishing ? <FiLoader className="animate-spin" /> : when === 'now' ? <FiSend /> : when === 'draft' ? <FiSave /> : <FiClock />}
+            <span className="truncate">{publishing ? 'Enviando…' : submitLabel}</span>
+          </button>
+        </div>
+      </div>
+
+      {showMobilePreview && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/70 p-4 lg:hidden" onClick={() => setShowMobilePreview(false)}>
+          <div className="mx-auto w-full max-w-sm flex-1 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowMobilePreview(false)}
+                className="rounded-full bg-white p-2 text-ink-950"
+                aria-label="Fechar prévia"
+              >
+                <FiX />
+              </button>
+            </div>
+            {preview || (
+              <p className="rounded-xl bg-white p-6 text-center text-sm text-ink-950/55">
+                Adicione mídia ou legenda para ver a prévia.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

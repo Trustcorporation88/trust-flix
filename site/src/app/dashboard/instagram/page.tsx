@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { InstagramComposer } from '@/components/dashboard/InstagramComposer';
+import { InstallAppHint } from '@/components/dashboard/InstallAppHint';
 import { authFetch } from '@/lib/auth/clientFetch';
 import type { PostizPost } from '@/services/postizService';
 
@@ -279,7 +280,7 @@ export default function InstagramPage() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-ink-950/10 pb-3">
+      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto border-b border-ink-950/10 px-4 pb-3 sm:mx-0 sm:flex-wrap sm:px-0">
         {(
           [
             { id: 'publish', label: 'Publicar', icon: FiSend },
@@ -293,7 +294,7 @@ export default function InstagramPage() {
             type="button"
             onClick={() => setTab(t.id)}
             className={clsx(
-              'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors',
+              'inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors',
               tab === t.id
                 ? 'bg-signal-500 text-white'
                 : 'bg-stone-100 text-ink-950/70 hover:bg-stone-200'
@@ -307,6 +308,7 @@ export default function InstagramPage() {
 
       {tab === 'publish' && (
         <div>
+          <InstallAppHint />
           {loadingAccounts ? (
             <div className="flex items-center gap-2 text-ink-950/50">
               <FiLoader className="animate-spin" /> Carregando contas...
