@@ -10,17 +10,24 @@ import clsx from 'clsx';
  */
 export function PostPreview({
   images,
+  kinds,
   caption,
+  firstComment,
   handle = 'cyntiarinaldidoces',
   className,
   showBadge = true,
+  variant = 'feed',
 }: {
   images: string[];
+  /** Tipo de cada item de `images` (padrão: imagem). */
+  kinds?: ('image' | 'video')[];
   caption: string;
+  firstComment?: string;
   handle?: string;
   className?: string;
   /** Selo TESTE no topo — desligar quando o card já está dentro de outro TESTE */
   showBadge?: boolean;
+  variant?: 'feed' | 'story';
 }) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -28,6 +35,33 @@ export function PostPreview({
   const i = n ? Math.min(index, n - 1) : 0;
   const long = caption.length > 220;
   const shown = long && !expanded ? `${caption.slice(0, 220).trim()}…` : caption;
+  const isVideo = (idx: number) => kinds?.[idx] === 'video';
+
+  if (variant === 'story') {
+    return (
+      <div className={clsx('mx-auto w-full max-w-[280px]', className)}>
+        <div className="relative aspect-[9/16] overflow-hidden rounded-2xl bg-ink-950 shadow-sm">
+          {n > 0 ? (
+            isVideo(0) ? (
+              <video src={images[0]} muted autoPlay loop playsInline className="h-full w-full object-cover" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={images[0]} alt="story" className="h-full w-full object-cover" />
+            )
+          ) : (
+            <p className="flex h-full items-center justify-center text-sm text-white/50">Prévia do Story</p>
+          )}
+          <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent p-3">
+            <div className="h-0.5 rounded-full bg-white/80" />
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-300 via-pink-400 to-violet-500" />
+              <p className="text-xs font-semibold text-white">{handle}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!n && !caption.trim()) return null;
 
@@ -63,12 +97,24 @@ export function PostPreview({
 
       {n > 0 ? (
         <div className="relative bg-stone-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={images[i]}
-            alt={`slide ${i + 1}`}
-            className="max-h-[420px] w-full object-contain"
-          />
+          {isVideo(i) ? (
+            <video
+              key={images[i]}
+              src={images[i]}
+              muted
+              autoPlay
+              loop
+              playsInline
+              className="max-h-[420px] w-full object-contain"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={images[i]}
+              alt={`slide ${i + 1}`}
+              className="max-h-[420px] w-full object-contain"
+            />
+          )}
           {n > 1 ? (
             <>
               <button
@@ -127,6 +173,15 @@ export function PostPreview({
       ) : (
         <p className="px-3 pb-3 text-sm text-ink-950/45">Sem legenda ainda.</p>
       )}
+
+      {firstComment?.trim() ? (
+        <div className="border-t border-ink-950/8 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-950/40">1º comentário</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink-950/80">
+            <span className="font-semibold">@{handle}</span> {firstComment}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

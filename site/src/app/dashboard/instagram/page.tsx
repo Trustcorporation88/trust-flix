@@ -2,10 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FiInstagram, FiBarChart2, FiCalendar, FiLoader, FiRefreshCw, FiUsers } from 'react-icons/fi';
+import {
+  FiInstagram,
+  FiBarChart2,
+  FiCalendar,
+  FiChevronLeft,
+  FiChevronRight,
+  FiExternalLink,
+  FiLoader,
+  FiRefreshCw,
+  FiSend,
+  FiTrash2,
+  FiUsers,
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { InstagramComposer } from '@/components/dashboard/InstagramComposer';
 import { authFetch } from '@/lib/auth/clientFetch';
 import type { PostizPost } from '@/services/postizService';
 
@@ -53,6 +66,19 @@ function postLabel(post: PostizPost): string {
   return post.integration?.name || 'Publicação';
 }
 
+const STATE_LABELS: Record<string, { label: string; className: string }> = {
+  QUEUE: { label: 'Agendado', className: 'bg-signal-50 text-signal-700' },
+  PUBLISHED: { label: 'Publicado', className: 'bg-flow-50 text-flow-700' },
+  ERROR: { label: 'Erro', className: 'bg-danger-50 text-danger-700' },
+  DRAFT: { label: 'Rascunho', className: 'bg-stone-100 text-ink-950/60' },
+};
+
+function postState(post: PostizPost): { key: string; label: string; className: string } {
+  const key = String(post.state || post.status || 'QUEUE').toUpperCase();
+  const known = STATE_LABELS[key];
+  return { key, ...(known || { label: key.toLowerCase(), className: 'bg-stone-100 text-ink-950/60' }) };
+}
+
 function flattenMetrics(data: unknown): { key: string; value: string }[] {
   if (data == null) return [];
   if (typeof data !== 'object') return [{ key: 'valor', value: String(data) }];
@@ -79,10 +105,13 @@ function flattenMetrics(data: unknown): { key: string; value: string }[] {
   return rows.slice(0, 24);
 }
 
-type Tab = 'accounts' | 'agenda' | 'analytics';
+type Tab = 'publish' | 'accounts' | 'agenda' | 'analytics';
+const TABS: Tab[] = ['publish', 'accounts', 'agenda', 'analytics'];
 
 export default function InstagramPage() {
-  const [tab, setTab] = useState<Tab>('accounts');
+  const [tab, setTab] = useState<Tab>('publish');
+  const [weekAnchor, setWeekAnchor] = useState(() => startOfWeek(new Date()));
+  const [deletingId, setDeletingId] = useState('');
   const [configured, setConfigured] = useState(true);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [meta, setMeta] = useState<{ total: number; identifiers: string[]; names: string[] } | null>(null);
@@ -139,7 +168,7 @@ export default function InstagramPage() {
   const loadPosts = useCallback(async () => {
     setLoadingPosts(true);
     try {
-      const start = startOfWeek(new Date());
+      const start = weekAnchor;
       const end = addDays(start, 6);
       end.setHours(23, 59, 59, 999);
       const params = new URLSearchParams({
@@ -162,7 +191,26 @@ export default function InstagramPage() {
     } finally {
       setLoadingPosts(false);
     }
-  }, [selectedId]);
+  }, [selectedId, weekAnchor]);
+
+  const cancelPost = async (post: PostizPost) => {
+    if (!post.id) return;
+    if (!window.confirm('Cancelar este post? Ele sai da fila do Postiz.')) return;
+    setDeletingId(String(post.id));
+    try {
+      const res = await authFetch(`/api/content-studio/posts/${encodeURIComponent(String(post.id))}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json?.error || 'Falha ao cancelar');
+      toast.success('Post cancelado');
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao cancelar');
+    } finally {
+      setDeletingId('');
+    }
+  };
 
   const loadAnalytics = useCallback(async () => {
     if (!selectedId) {
@@ -199,6 +247,11 @@ export default function InstagramPage() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('tab') as Tab | null;
+    if (fromUrl && TABS.includes(fromUrl)) setTab(fromUrl);
+  }, []);
+
+  useEffect(() => {
     if (tab === 'agenda') loadPosts();
   }, [tab, loadPosts]);
 
@@ -207,16 +260,15 @@ export default function InstagramPage() {
   }, [tab, loadAnalytics]);
 
   const metricRows = flattenMetrics(analytics);
-  const weekStart = startOfWeek(new Date());
-  const weekLabel = `${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+  const weekLabel = `${weekAnchor.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${addDays(weekAnchor, 6).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
 
   return (
     <DashboardShell
       title="Instagram"
-      subtitle="Contas, agenda e métricas via Postiz"
+      subtitle="Publique, agende e acompanhe — motor Postiz"
       actions={
-        <Link href="/dashboard/content-studio" className="btn-primary !py-2 !text-sm">
-          Criar no Content Studio
+        <Link href="/dashboard/content-studio" className="btn-secondary !py-2 !text-sm">
+          Modelos no Content Studio
         </Link>
       }
     >
@@ -230,6 +282,7 @@ export default function InstagramPage() {
       <div className="mb-6 flex flex-wrap gap-2 border-b border-ink-950/10 pb-3">
         {(
           [
+            { id: 'publish', label: 'Publicar', icon: FiSend },
             { id: 'accounts', label: 'Contas', icon: FiUsers },
             { id: 'agenda', label: 'Agenda', icon: FiCalendar },
             { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
@@ -251,6 +304,29 @@ export default function InstagramPage() {
           </button>
         ))}
       </div>
+
+      {tab === 'publish' && (
+        <div>
+          {loadingAccounts ? (
+            <div className="flex items-center gap-2 text-ink-950/50">
+              <FiLoader className="animate-spin" /> Carregando contas...
+            </div>
+          ) : igAccounts.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
+              <FiInstagram className="mx-auto text-ink-950/30" size={32} />
+              <p className="mt-3 font-semibold text-ink-950">Nenhuma conta Instagram disponível para publicar</p>
+              <p className="mt-2 text-sm text-ink-950/55">
+                {accountsError || 'Conecte a conta no Postiz e confira a aba Contas.'}
+              </p>
+              <button type="button" onClick={() => setTab('accounts')} className="btn-secondary mt-4 !py-2 text-sm">
+                Ver contas
+              </button>
+            </div>
+          ) : (
+            <InstagramComposer accounts={igAccounts} defaultAccountId={selectedId} />
+          )}
+        </div>
+      )}
 
       {tab === 'accounts' && (
         <div>
@@ -348,11 +424,11 @@ export default function InstagramPage() {
           <div className="mt-8 rounded-xl border border-ink-950/10 bg-white p-6">
             <h3 className="font-display text-lg font-bold text-ink-950">Publicar conteúdo</h3>
             <p className="mt-2 text-sm text-ink-950/60">
-              Legenda, mídia, Stories/Reels e agendamento ficam no Content Studio — motor Postiz.
+              Feed, carrossel, Reels e Stories com prévia, validação e agendamento.
             </p>
-            <Link href="/dashboard/content-studio" className="btn-primary mt-4 inline-flex">
-              Abrir Content Studio
-            </Link>
+            <button type="button" onClick={() => setTab('publish')} className="btn-primary mt-4 inline-flex">
+              <FiSend /> Criar post
+            </button>
           </div>
         </div>
       )}
@@ -366,7 +442,30 @@ export default function InstagramPage() {
                 {selected ? `Filtrado: ${selected.name}` : 'Todas as contas'}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setWeekAnchor((w) => addDays(w, -7))}
+                className="rounded-md border border-ink-950/10 p-2 hover:bg-stone-100"
+                aria-label="Semana anterior"
+              >
+                <FiChevronLeft />
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekAnchor(startOfWeek(new Date()))}
+                className="rounded-md border border-ink-950/10 px-3 py-2 text-sm hover:bg-stone-100"
+              >
+                Hoje
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekAnchor((w) => addDays(w, 7))}
+                className="rounded-md border border-ink-950/10 p-2 hover:bg-stone-100"
+                aria-label="Próxima semana"
+              >
+                <FiChevronRight />
+              </button>
               {igAccounts.length > 0 && (
                 <select
                   value={selectedId}
@@ -397,10 +496,10 @@ export default function InstagramPage() {
           ) : posts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-ink-950/15 bg-white p-8 text-center">
               <p className="font-semibold text-ink-950">Nenhum post nesta semana</p>
-              <p className="mt-2 text-sm text-ink-950/55">Agende o próximo no Content Studio.</p>
-              <Link href="/dashboard/content-studio" className="btn-primary mt-4 inline-flex">
-                Agendar agora
-              </Link>
+              <p className="mt-2 text-sm text-ink-950/55">Agende o próximo em poucos cliques.</p>
+              <button type="button" onClick={() => setTab('publish')} className="btn-primary mt-4 inline-flex">
+                <FiSend /> Criar post
+              </button>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -413,6 +512,9 @@ export default function InstagramPage() {
                 })
                 .map((post, idx) => {
                   const when = postDate(post);
+                  const state = postState(post);
+                  const link = typeof post.releaseURL === 'string' && post.releaseURL.startsWith('http') ? post.releaseURL : '';
+                  const cancellable = state.key !== 'PUBLISHED' && Boolean(post.id);
                   return (
                     <li
                       key={String(post.id || idx)}
@@ -433,10 +535,49 @@ export default function InstagramPage() {
                             {post.integration?.name ? ` · ${post.integration.name}` : ''}
                           </p>
                         </div>
-                        <span className="rounded-md bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-950/60">
-                          {String(post.state || post.status || 'scheduled')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={clsx(
+                              'rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wide',
+                              state.className
+                            )}
+                          >
+                            {state.label}
+                          </span>
+                          {link && (
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-md border border-ink-950/10 p-1.5 text-ink-950/60 hover:bg-stone-100"
+                              title="Abrir no Instagram"
+                            >
+                              <FiExternalLink size={14} />
+                            </a>
+                          )}
+                          {cancellable && (
+                            <button
+                              type="button"
+                              onClick={() => cancelPost(post)}
+                              disabled={deletingId === String(post.id)}
+                              className="rounded-md border border-ink-950/10 p-1.5 text-ink-950/60 hover:border-danger-500/40 hover:text-danger-700 disabled:opacity-50"
+                              title="Cancelar post"
+                            >
+                              {deletingId === String(post.id) ? (
+                                <FiLoader className="animate-spin" size={14} />
+                              ) : (
+                                <FiTrash2 size={14} />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
+                      {state.key === 'ERROR' && (
+                        <p className="mt-2 text-xs text-danger-700">
+                          O Instagram recusou este post. Confira formato/proporção da mídia e tente de novo pela aba
+                          Publicar.
+                        </p>
+                      )}
                     </li>
                   );
                 })}

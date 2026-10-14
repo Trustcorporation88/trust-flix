@@ -27,6 +27,7 @@ import DailyContentGenerator from '@/components/dashboard/DailyContentGenerator'
 import { authFetch } from '@/lib/auth/clientFetch';
 import { loadContentDraft, clearContentDraft, DraftMedia } from '@/lib/contentDraft';
 import { PostPreview } from '@/components/dashboard/PostPreview';
+import { prepareMedia } from '@/lib/igMediaPrep';
 import {
   deleteCustomTemplate,
   downloadCustomTemplates,
@@ -396,7 +397,8 @@ export default function ContentStudioPage() {
       URL.revokeObjectURL(mediaPreviewUrl);
       setMediaPreviewUrl(null);
     }
-    if (file && file.size > MAX_UPLOAD_BYTES) {
+    // Fotos são convertidas/reduzidas antes do envio; só vídeo esbarra no limite.
+    if (file && !file.type.startsWith('image/') && file.size > MAX_UPLOAD_BYTES) {
       toast.error(
         'Arquivo maior que ~4.4MB — comprima o vídeo ou publique esse post direto no painel do Postiz.'
       );
@@ -457,8 +459,9 @@ export default function ContentStudioPage() {
       let media: DraftMedia[];
       if (mediaFile) {
         setIsUploadingMedia(true);
+        const toSend = mediaFile.type.startsWith('image/') ? (await prepareMedia(mediaFile)).file : mediaFile;
         const form = new FormData();
-        form.append('file', mediaFile, mediaFile.name);
+        form.append('file', toSend, toSend.name);
         const uploadRes = await authFetch('/api/content-studio/upload-media', {
           method: 'POST',
           body: form,
@@ -644,6 +647,12 @@ export default function ContentStudioPage() {
             <span className="text-sm text-white">Content Studio</span>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/instagram?tab=publish"
+              className="rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-1.5 text-sm font-semibold text-signal-300 transition-colors hover:bg-signal-500/20"
+            >
+              Post rápido no Instagram
+            </Link>
             <Link
               href="/dashboard"
               className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-ink-300 transition-colors hover:bg-white/[0.05] hover:text-white"
