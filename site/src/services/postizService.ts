@@ -67,6 +67,12 @@ export interface CreatePostPayload {
   /** 'post' = feed/Reel (Reel quando ha um unico video), 'story' = Story de 24h — só Instagram */
   postType?: 'post' | 'story';
   scheduledFor?: string; // ISO date; se omitido, publica agora
+  /** Salva como rascunho no Postiz (não agenda nem publica). */
+  draft?: boolean;
+  /** Publicado como 1º comentário logo após o post (Instagram) — bom para hashtags. */
+  firstComment?: string;
+  /** @usernames convidados como colaboradores (Instagram feed/Reel). */
+  collaborators?: string[];
   /** Overrides do schema TikTok (docs.postiz.com/public-api/providers/tiktok) */
   tiktok?: Partial<TikTokPostSettings>;
 }
@@ -144,10 +150,15 @@ function buildPostSettings(payload: CreatePostPayload): Record<string, unknown> 
   }
 
   if (INSTAGRAM_TYPES.has(type) || isInstagramIntegration(type)) {
+    const postType = payload.postType || 'post';
     return {
       __type: INSTAGRAM_TYPES.has(type) ? type : 'instagram',
-      post_type: payload.postType || 'post',
+      post_type: postType,
       is_trial_reel: false,
+      collaborators:
+        postType === 'post'
+          ? (payload.collaborators || []).map((label) => ({ label: label.replace(/^@/, '') }))
+          : [],
     };
   }
 
@@ -237,20 +248,63 @@ export const postizService = {
     return withDiagnostics('createPost', async () => {
       const settings = buildPostSettings(payload);
 
+      // No Postiz, itens extras em `value` viram comentários do post publicado.
+      const value: { content: string; image: PostizMedia[] }[] = [
+        { content: payload.content, image: payload.media || [] },
+      ];
+      const comment = payload.firstComment?.trim();
+      if (comment && payload.postType !== 'story') value.push({ content: comment, image: [] });
+
       const { data } = await client.post('/posts', {
-        type: payload.scheduledFor ? 'schedule' : 'now',
+        type: payload.draft ? 'draft' : payload.scheduledFor ? 'schedule' : 'now',
         date: payload.scheduledFor || new Date().toISOString(),
         shortLink: false,
         tags: [],
         posts: [
           {
             integration: { id: payload.integrationId },
-            value: [{ content: payload.content, image: payload.media || [] }],
+            value,
             settings,
           },
         ],
       });
       return data;
+    });
+  },
+
+  /**
+   * Importa mídia a partir de um link público (o Postiz baixa direto). Contorna o
+   * limite de ~4.5MB da Vercel para vídeos grandes de Reels.
+   */
+  async uploadFromUrl(url: string): Promise<PostizMedia> {
+    assertConfigured();
+    return withDiagnostics('uploadFromUrl', async () => {
+      const { data } = await client.post('/upload-from-url', { url }, { timeout: 120000 });
+      return data;
+    });
+  },
+
+  /** Próximo horário livre na fila do canal (respeita os horários configurados no Postiz). */
+  async findSlot(integrationId: string): Promise<string | null> {
+    assertConfigured();
+    return withDiagnostics('findSlot', async () => {
+      const { data } = await client.get(`/find-slot/${encodeURIComponent(integrationId)}`);
+      return typeof data?.date === 'string' ? data.date : null;
+    });
+  },
+
+  /** Remove o post (e todo o grupo dele, ex.: mesma publicação em IG + TikTok). */
+  async deletePost(postId: string) {
+    assertConfigured();
+    return withDiagnostics('deletePost', async () => {
+      try {
+        const { data } = await client.delete(`/posts/${encodeURIComponent(postId)}`);
+        return data;
+      } catch (err) {
+        // 404 = já removido (docs Postiz); tratar como sucesso.
+        if ((err as AxiosError).response?.status === 404) return { id: postId };
+        throw err;
+      }
     });
   },
 
