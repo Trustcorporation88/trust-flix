@@ -23,9 +23,10 @@ interface Track {
   previewUrl?: string;
 }
 
-function formatDuration(ms?: number): string {
-  if (!ms) return '';
-  const total = Math.round(ms / 1000);
+function formatDuration(raw?: number): string {
+  if (!raw) return '';
+  // Postiz documenta milissegundos, mas algumas versões devolvem segundos.
+  const total = Math.round(raw >= 1000 ? raw / 1000 : raw);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 

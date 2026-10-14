@@ -30,6 +30,9 @@ export const metadata: Metadata = {
     title: 'SocialFlow',
     statusBarStyle: 'default',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport: Viewport = {
