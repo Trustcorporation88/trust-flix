@@ -68,10 +68,15 @@ export async function POST(request: NextRequest) {
     const result = await postizService.createPost({
       integrationId: body.integrationId,
       integrationType: body.integrationType,
-      content: body.content,
+      content: typeof body.content === 'string' ? body.content : '',
       media: body.media,
       postType: body.postType,
       scheduledFor: body.scheduledFor,
+      draft: body.draft === true,
+      firstComment: typeof body.firstComment === 'string' ? body.firstComment : undefined,
+      collaborators: Array.isArray(body.collaborators)
+        ? body.collaborators.filter((c: unknown): c is string => typeof c === 'string').slice(0, 3)
+        : undefined,
       tiktok: body.tiktok,
     });
     return NextResponse.json({ success: true, data: result });

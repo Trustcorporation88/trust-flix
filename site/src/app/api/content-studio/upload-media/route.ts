@@ -4,17 +4,16 @@ import { postizService } from '@/services/postizService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /**
- * Recebe um arquivo (imagem ou vídeo) do navegador e repassa para o Postiz
- * (POST /upload), devolvendo a referência {id, path} usada depois para
- * publicar/agendar o post.
+ * Envia mídia para o Postiz e devolve a referência {id, path} usada depois para
+ * publicar/agendar o post. Dois modos:
  *
- * ATENÇÃO -- limite de tamanho: rotas de API do Next.js na Vercel têm um limite
- * de corpo de requisição de ~4.5MB (limite da própria plataforma, não do nosso
- * código). Vídeos de Reels maiores que isso vão falhar aqui -- nesse caso,
- * comprima o vídeo antes de enviar ou publique esse post específico direto
- * pelo painel do Postiz (que não tem esse limite).
+ * - multipart (campo "file"): arquivo vindo do navegador. Limitado a ~4.5MB pelo
+ *   corpo de requisição das funções da Vercel (limite da plataforma).
+ * - JSON { url }: o Postiz baixa o arquivo direto do link público — sem limite da
+ *   Vercel, é o caminho para vídeos grandes de Reels.
  */
 export async function POST(request: NextRequest) {
   const auth = requireAuth(request);
@@ -26,6 +25,19 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Postiz ainda não configurado. Veja postiz-deploy/README.md.' },
         { status: 400 }
       );
+    }
+
+    if ((request.headers.get('content-type') || '').includes('application/json')) {
+      const body = await request.json().catch(() => ({}));
+      const url = normalizeMediaUrl(String(body?.url || ''));
+      if (!url) {
+        return NextResponse.json(
+          { success: false, error: 'Link inválido. Use um link https público e direto para o arquivo.' },
+          { status: 400 }
+        );
+      }
+      const media = await postizService.uploadFromUrl(url);
+      return NextResponse.json({ success: true, data: media });
     }
 
     const form = await request.formData();
@@ -45,10 +57,36 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: tooLarge
-          ? 'Arquivo muito grande para este envio (limite ~4.5MB da Vercel). Comprima o vídeo ou publique esse post direto no painel do Postiz.'
+          ? 'Arquivo muito grande para envio direto (limite ~4.5MB da Vercel). Use "Enviar por link" com um link público do vídeo.'
           : message,
       },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Aceita só https público e converte links de compartilhamento comuns em
+ * download direto (o Postiz precisa do arquivo, não da página de visualização).
+ */
+function normalizeMediaUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+
+  const host = url.hostname.toLowerCase();
+  if (host === 'drive.google.com') {
+    const id = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get('id');
+    if (id) return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`;
+  }
+  if (host.endsWith('dropbox.com')) {
+    url.searchParams.delete('dl');
+    url.searchParams.set('raw', '1');
+    return url.toString();
+  }
+  return url.toString();
 }
