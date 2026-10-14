@@ -77,6 +77,10 @@ export async function POST(request: NextRequest) {
       collaborators: Array.isArray(body.collaborators)
         ? body.collaborators.filter((c: unknown): c is string => typeof c === 'string').slice(0, 3)
         : undefined,
+      audio:
+        body.audio && typeof body.audio === 'object' && typeof body.audio.id === 'string'
+          ? body.audio
+          : undefined,
       tiktok: body.tiktok,
     });
     return NextResponse.json({ success: true, data: result });
