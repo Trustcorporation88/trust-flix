@@ -157,6 +157,8 @@ export function InstagramComposer({
           firstComment?: string;
           collaboratorsRaw?: string;
           format?: IgFormat;
+          when?: When;
+          scheduledLocal?: string;
           media?: { kind: 'image' | 'video'; width: number; height: number; uploaded: UploadedRef }[];
         };
         if (saved.caption) setCaption(saved.caption);
@@ -168,6 +170,10 @@ export function InstagramComposer({
         if (saved.format) {
           setFormat(saved.format);
           setFormatTouched(true);
+        }
+        if (saved.when) setWhen(saved.when);
+        if (saved.scheduledLocal && new Date(saved.scheduledLocal).getTime() > Date.now() + 60_000) {
+          setScheduledLocal(saved.scheduledLocal);
         }
         if (saved.media?.length) {
           setItems(
@@ -183,7 +189,7 @@ export function InstagramComposer({
             }))
           );
         }
-        if (saved.caption || saved.media?.length) toast('Rascunho anterior restaurado', { icon: '📝' });
+        if (saved.caption || saved.media?.length) toast('Rascunho anterior restaurado', { icon: '📝', id: 'ig-draft-restored' });
       }
     } catch {
       // rascunho corrompido — começa limpo
@@ -202,12 +208,20 @@ export function InstagramComposer({
       else
         localStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ caption, firstComment, collaboratorsRaw, format: formatTouched ? format : undefined, media })
+          JSON.stringify({
+            caption,
+            firstComment,
+            collaboratorsRaw,
+            format: formatTouched ? format : undefined,
+            when,
+            scheduledLocal,
+            media,
+          })
         );
     } catch {
       // cota do localStorage — ignora
     }
-  }, [hydrated, caption, firstComment, collaboratorsRaw, format, formatTouched, items]);
+  }, [hydrated, caption, firstComment, collaboratorsRaw, format, formatTouched, when, scheduledLocal, items]);
 
   useEffect(() => {
     if (formatTouched || items.length === 0) return;
