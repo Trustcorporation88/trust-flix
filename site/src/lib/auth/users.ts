@@ -61,6 +61,35 @@ function getAdminFromEnv(): { email: string; password: string; name: string } | 
   };
 }
 
+/**
+ * Logins extras sem banco (a Vercel não persiste data/users.json).
+ * SITE_USERS="email|Nome|hashBcrypt" — vários separados por ";" ou quebra de linha.
+ * Gere o hash com: node scripts/hash-password.mjs "senha"
+ */
+function getEnvUsers(): StoredUser[] {
+  const raw = String(process.env.SITE_USERS || '');
+  return raw
+    .split(/[;\n]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [email, name, passwordHash] = entry.split('|').map((part) => part.trim());
+      const normalized = normalizeEmail(email);
+      if (!normalized || !passwordHash?.startsWith('$2')) return null;
+      return {
+        id: `env:${normalized}`,
+        email: normalized,
+        name: name || normalized,
+        phone: '',
+        role: 'customer' as AuthRole,
+        passwordHash,
+        createdAt: '',
+        updatedAt: '',
+      };
+    })
+    .filter(Boolean) as StoredUser[];
+}
+
 export function isRegisterAllowed(): boolean {
   const flag = String(process.env.ALLOW_REGISTER || '').toLowerCase();
   if (flag === 'true' || flag === '1') return true;
@@ -83,8 +112,7 @@ export async function authenticateUser(email: string, password: string): Promise
     };
   }
 
-  const users = readUsers();
-  const found = users.find((u) => u.email === normalized);
+  const found = [...getEnvUsers(), ...readUsers()].find((u) => u.email === normalized);
   if (!found) return null;
 
   const ok = await bcrypt.compare(password, found.passwordHash);
@@ -116,7 +144,7 @@ export async function registerUser(input: {
   }
 
   const users = readUsers();
-  if (users.some((u) => u.email === email)) {
+  if (users.some((u) => u.email === email) || getEnvUsers().some((u) => u.email === email)) {
     return { error: 'Este e-mail já está cadastrado.', status: 409 };
   }
 
@@ -151,6 +179,6 @@ export function findUserById(id: string): AuthUser | null {
     if (!admin) return null;
     return { id: 'admin-env', email: admin.email, name: admin.name, phone: '', role: 'admin' };
   }
-  const found = readUsers().find((u) => u.id === id);
+  const found = [...getEnvUsers(), ...readUsers()].find((u) => u.id === id);
   return found ? toAuthUser(found) : null;
 }
