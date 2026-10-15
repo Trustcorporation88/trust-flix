@@ -73,8 +73,32 @@ export interface CreatePostPayload {
   firstComment?: string;
   /** @usernames convidados como colaboradores (Instagram feed/Reel). */
   collaborators?: string[];
+  /** Música da biblioteca do Instagram (só Reel de 1 vídeo em conta ligada ao Facebook). */
+  audio?: ReelAudio;
   /** Overrides do schema TikTok (docs.postiz.com/public-api/providers/tiktok) */
   tiktok?: Partial<TikTokPostSettings>;
+}
+
+/** Docs: docs.postiz.com/public-api/providers/instagram#audio */
+export interface ReelAudio {
+  id: string;
+  title?: string;
+  artist?: string;
+  image?: string;
+  /** 0–100 */
+  audio_volume?: number;
+  /** 0–100 — som original do vídeo */
+  video_volume?: number;
+}
+
+export interface AudioTrack {
+  id: string;
+  title: string;
+  artist: string;
+  image?: string;
+  /** ms */
+  duration?: number;
+  previewUrl?: string;
 }
 
 /** Settings oficiais Postiz para TikTok */
@@ -151,8 +175,9 @@ function buildPostSettings(payload: CreatePostPayload): Record<string, unknown> 
 
   if (INSTAGRAM_TYPES.has(type) || isInstagramIntegration(type)) {
     const postType = payload.postType || 'post';
-    return {
-      __type: INSTAGRAM_TYPES.has(type) ? type : 'instagram',
+    const __type = INSTAGRAM_TYPES.has(type) ? type : 'instagram';
+    const settings: Record<string, unknown> = {
+      __type,
       post_type: postType,
       is_trial_reel: false,
       collaborators:
@@ -160,9 +185,47 @@ function buildPostSettings(payload: CreatePostPayload): Record<string, unknown> 
           ? (payload.collaborators || []).map((label) => ({ label: label.replace(/^@/, '') }))
           : [],
     };
+    // A Audio API do Instagram exige Facebook Login: não existe em instagram-standalone,
+    // e só vale para Reel (post com exatamente 1 vídeo).
+    if (payload.audio?.id && __type === 'instagram' && postType === 'post' && payload.media?.length === 1) {
+      settings.audio = {
+        id: payload.audio.id,
+        title: payload.audio.title,
+        artist: payload.audio.artist,
+        image: payload.audio.image,
+        audio_volume: clampVolume(payload.audio.audio_volume),
+        video_volume: clampVolume(payload.audio.video_volume),
+      };
+    }
+    return settings;
   }
 
   return { __type: payload.integrationType };
+}
+
+function clampVolume(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 100;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function normalizeAudioTracks(output: unknown): AudioTrack[] {
+  const list = Array.isArray(output) ? output : [];
+  return list
+    .map((raw) => {
+      const row = (raw || {}) as Record<string, unknown>;
+      const id = String(row.id || '').trim();
+      if (!id) return null;
+      return {
+        id,
+        title: String(row.title || 'Sem título'),
+        artist: String(row.artist || ''),
+        image: typeof row.image === 'string' ? row.image : undefined,
+        duration: typeof row.duration === 'number' ? row.duration : undefined,
+        previewUrl: typeof row.previewUrl === 'string' ? row.previewUrl : undefined,
+      } as AudioTrack;
+    })
+    .filter(Boolean) as AudioTrack[];
 }
 
 function normalizeIntegrations(data: unknown): PostizIntegration[] {
@@ -290,6 +353,26 @@ export const postizService = {
     return withDiagnostics('findSlot', async () => {
       const { data } = await client.get(`/find-slot/${encodeURIComponent(integrationId)}`);
       return typeof data?.date === 'string' ? data.date : null;
+    });
+  },
+
+  /**
+   * Busca músicas/sons da biblioteca do Instagram liberados para uso por terceiros.
+   * Query vazia devolve o que está em alta.
+   */
+  async searchReelAudio(
+    integrationId: string,
+    q: string,
+    type: 'music' | 'original_sound' = 'music'
+  ): Promise<AudioTrack[]> {
+    assertConfigured();
+    return withDiagnostics('audioSearch', async () => {
+      const { data } = await client.post(
+        `/integration-trigger/${encodeURIComponent(integrationId)}`,
+        { methodName: 'audioSearch', data: { q, type } },
+        { timeout: 30000 }
+      );
+      return normalizeAudioTracks(data?.output);
     });
   },
 

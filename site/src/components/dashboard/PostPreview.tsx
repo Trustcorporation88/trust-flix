@@ -13,6 +13,7 @@ export function PostPreview({
   kinds,
   caption,
   firstComment,
+  audioLabel,
   handle = 'cyntiarinaldidoces',
   className,
   showBadge = true,
@@ -23,6 +24,8 @@ export function PostPreview({
   kinds?: ('image' | 'video')[];
   caption: string;
   firstComment?: string;
+  /** "Música · Artista" mostrado sob o @, como no app. */
+  audioLabel?: string;
   handle?: string;
   className?: string;
   /** Selo TESTE no topo — desligar quando o card já está dentro de outro TESTE */
@@ -89,7 +92,9 @@ export function PostPreview({
         <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-amber-300 via-pink-400 to-violet-500" />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink-950">@{handle}</p>
-          {n > 1 ? (
+          {audioLabel ? (
+            <p className="truncate text-[11px] text-ink-950/60">♪ {audioLabel}</p>
+          ) : n > 1 ? (
             <p className="text-[11px] text-ink-950/45">carrossel · {n} fotos</p>
           ) : null}
         </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Figtree, Syne } from 'next/font/google';
 import { Providers } from './providers';
 import { Layout } from '@/components/common/Layout';
@@ -23,7 +23,23 @@ export const metadata: Metadata = {
     'SocialFlow une Content Studio, agentes de IA, Instagram e WhatsApp para criar, publicar e vender sem trocar de ferramenta.',
   icons: {
     icon: '/logo.png',
+    apple: '/apple-touch-icon.png',
   },
+  appleWebApp: {
+    capable: true,
+    title: 'SocialFlow',
+    statusBarStyle: 'default',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#101114',
 };
 
 export default function RootLayout({

@@ -12,9 +12,11 @@ import {
   FiLogOut,
   FiExternalLink,
   FiMessageSquare,
+  FiMenu,
+  FiX,
 } from 'react-icons/fi';
 import { SiTiktok } from 'react-icons/si';
-import { ComponentType, ReactNode } from 'react';
+import { ComponentType, ReactNode, useEffect, useState } from 'react';
 
 /** Só o que está conectado de verdade — vendas/WhatsApp/etc. ficam fora até existirem. */
 const menuGroups: {
@@ -55,12 +57,36 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-stone-100">
-      {/* Sidebar */}
-      <aside className="fixed flex h-screen w-64 flex-col overflow-y-auto bg-ink-950 text-white">
-        <div className="border-b border-white/10 p-6">
+      {menuOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col overflow-y-auto bg-ink-950 text-white transition-transform lg:translate-x-0 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="relative border-b border-white/10 p-6">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            className="absolute right-3 top-3 rounded-md p-2 text-white/60 hover:bg-white/10 lg:hidden"
+            aria-label="Fechar menu"
+          >
+            <FiX size={18} />
+          </button>
           <Link href="/" className="flex items-center gap-2">
             <img src="/logo.png" alt="SocialFlow" className="h-10 w-10 object-contain" />
             <span className="font-display text-xl font-bold">
@@ -119,15 +145,23 @@ export function DashboardShell({
       </aside>
 
       {/* Main */}
-      <div className="ml-64 flex-1">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-950/10 bg-white px-8 py-5">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-ink-950">{title}</h1>
-            {subtitle && <p className="mt-1 text-sm text-ink-950/55">{subtitle}</p>}
+      <div className="min-w-0 flex-1 lg:ml-64">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-ink-950/10 bg-white px-4 py-3 sm:px-8 sm:py-5">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="-ml-1 rounded-md p-2 text-ink-950/70 hover:bg-stone-100 lg:hidden"
+            aria-label="Abrir menu"
+          >
+            <FiMenu size={20} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-bold text-ink-950 sm:text-2xl">{title}</h1>
+            {subtitle && <p className="mt-1 hidden text-sm text-ink-950/55 sm:block">{subtitle}</p>}
           </div>
-          {actions && <div className="flex items-center gap-3">{actions}</div>}
+          {actions && <div className="hidden items-center gap-3 sm:flex">{actions}</div>}
         </header>
-        <main className="p-8">{children}</main>
+        <main className="p-4 sm:p-8">{children}</main>
       </div>
     </div>
   );
