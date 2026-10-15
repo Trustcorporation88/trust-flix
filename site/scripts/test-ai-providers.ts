@@ -57,10 +57,11 @@ checkTrue(
       m === 'claude-3-5-sonnet-20241022'
   )
 );
-check('modelo padrão do Anthropic é claude-sonnet-5', DEFAULT_MODEL.anthropic, 'claude-sonnet-5');
+check('modelo padrão do Anthropic é claude-haiku-5-5', DEFAULT_MODEL.anthropic, 'claude-haiku-5-5');
 checkTrue(
   'lista Anthropic só tem ids vigentes',
-  PROVIDER_MODELS.anthropic.includes('claude-sonnet-5') &&
+  PROVIDER_MODELS.anthropic.includes('claude-haiku-5-5') &&
+    PROVIDER_MODELS.anthropic.includes('claude-sonnet-5') &&
     !PROVIDER_MODELS.anthropic.includes('claude-3-5-sonnet-20241022')
 );
 checkTrue(
@@ -186,6 +187,7 @@ checkTrue('OpenAI gpt-5.6-luna le imagem', supportsVision('openai', 'gpt-5.6-lun
 checkTrue('OpenAI gpt-4o-mini le imagem', supportsVision('openai', 'gpt-4o-mini'));
 checkTrue('OpenAI gpt-4o le imagem', supportsVision('openai', 'gpt-4o'));
 checkTrue('Anthropic claude-sonnet-5 le imagem', supportsVision('anthropic', 'claude-sonnet-5'));
+checkTrue('Anthropic claude-haiku-5-5 le imagem', supportsVision('anthropic', 'claude-haiku-5-5'));
 checkTrue('Anthropic claude-3-5-sonnet legado ainda casa visao', supportsVision('anthropic', 'claude-3-5-sonnet-20241022'));
 checkTrue('Google gemini-1.5-flash le imagem', supportsVision('google', 'gemini-1.5-flash'));
 checkTrue('Mistral large NAO le imagem', !supportsVision('mistral', 'mistral-large-latest'));
@@ -402,6 +404,7 @@ checkTrue(
   !anthropicOmitsTemperature('claude-3-5-sonnet-20241022')
 );
 checkTrue('haiku 4.5 aceita temperature', !anthropicOmitsTemperature('claude-haiku-4-5-20251001'));
+checkTrue('haiku 5.5 omite temperature', anthropicOmitsTemperature('claude-haiku-5-5'));
 check(
   'sonnet-5: omite temperature e eleva piso de tokens (thinking adaptativo)',
   anthropicMessageParams('claude-sonnet-5', { maxTokens: 150, temperature: 0.6 }),
@@ -413,9 +416,14 @@ check(
   { max_tokens: 1800 }
 );
 check(
-  'haiku: max_tokens + temperature',
+  'haiku 4.5: max_tokens + temperature',
   anthropicMessageParams('claude-haiku-4-5-20251001', { maxTokens: 500, temperature: 0.7 }),
   { max_tokens: 500, temperature: 0.7 }
+);
+check(
+  'haiku 5.5: omite temperature e eleva piso de tokens',
+  anthropicMessageParams('claude-haiku-5-5', { maxTokens: 150, temperature: 0.6 }),
+  { max_tokens: 1200 }
 );
 check(
   'pula bloco thinking e junta textos',
@@ -443,7 +451,7 @@ console.log('\n─── Copilot: Claude principal, DeepSeek fallback ───'
   const fallback = resolveCopilotFallbackFromEnv(env, primary);
   check('principal é Claude', primary?.provider, 'anthropic');
   check('principal usa a chave Anthropic', primary?.apiKey, 'sk-ant-x');
-  check('modelo padrao e sonnet-5', primary?.model, 'claude-sonnet-5');
+  check('modelo padrao e haiku-5-5', primary?.model, 'claude-haiku-5-5');
   check('fallback é DeepSeek', fallback?.provider, 'deepseek');
   check('fallback usa a chave do Content Studio', fallback?.apiKey, 'sk-ds-x');
 }

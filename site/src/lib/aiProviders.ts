@@ -39,7 +39,7 @@ export const DEFAULT_MODEL: Record<string, string> = {
   // gpt-3.5-turbo serao desligados em 2026-10-23.
   openai: 'gpt-5.6-terra',
   deepseek: 'deepseek-v4-flash',
-  anthropic: 'claude-sonnet-5',
+  anthropic: 'claude-haiku-5-5',
   google: 'gemini-1.5-flash',
   groq: 'llama-3.1-70b-versatile',
   mistral: 'mistral-large-latest',
@@ -52,7 +52,7 @@ export const PROVIDER_MODELS: Record<string, string[]> = {
   // luna = otimizado para volume ($0.20/$1.20). Todos leem imagem.
   openai: ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-4o', 'gpt-4o-mini'],
   deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  anthropic: ['claude-sonnet-5', 'claude-haiku-4-5-20251001'],
+  anthropic: ['claude-haiku-5-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'],
   google: ['gemini-1.5-flash', 'gemini-1.5-pro'],
   groq: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant'],
   mistral: ['mistral-large-latest', 'mistral-small-latest'],
@@ -242,18 +242,18 @@ export function requestShape(provider: string, model: string): RequestShape {
 }
 
 /**
- * Claude Sonnet 5 / Opus 5 / Fable 5 rejeitam temperature/top_p/top_k ≠ default (HTTP 400).
- * O snapshot antigo `claude-3-5-sonnet-20241022` já não existe (404).
+ * Claude 5 (Sonnet, Opus, Fable, Haiku 5.5) rejeita temperature/top_p/top_k fora do padrão (HTTP 400).
+ * Haiku 4.5 ainda aceita temperature. O snapshot `claude-3-5-sonnet-20241022` já não existe (404).
  */
 export function anthropicOmitsTemperature(model: string): boolean {
   const m = (model || '').trim().toLowerCase();
-  return /^(claude-sonnet-5|claude-opus-5|claude-fable-5|claude-mythos-5|claude-sonnet-4-6|claude-opus-4-[6-8])/.test(
+  return /^(claude-sonnet-5|claude-opus-5|claude-fable-5|claude-mythos-5|claude-haiku-5|claude-sonnet-4-6|claude-opus-4-[6-8])/.test(
     m
   );
 }
 
 /**
- * Adaptive thinking no Sonnet 5 / Opus 5 consome `max_tokens` antes do texto.
+ * Adaptive thinking no Claude 5 (inclusive Haiku 5.5) consome `max_tokens` antes do texto.
  * Com orçamento baixo (roteador usa 150) a resposta volta vazia — mesmo 404
  * já curado. O campo é teto: cobra-se o que foi usado.
  */
