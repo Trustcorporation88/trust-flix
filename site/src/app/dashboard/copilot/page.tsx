@@ -1237,7 +1237,7 @@ export default function CopilotPage() {
                   • <span className="font-semibold">openai</span> · gpt-4o-mini
                 </li>
                 <li>
-                  • <span className="font-semibold">anthropic</span> · claude-sonnet-5
+                  • <span className="font-semibold">anthropic</span> · claude-haiku-5-5
                 </li>
               </ul>
               <p className="mt-2 text-[11px] leading-snug text-amber-800">
